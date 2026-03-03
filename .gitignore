@@ -1,0 +1,24 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Database
+*.db
+
+# Virtual environments
+.venv
+
+# Config file
+.env
+
+# IDEs
+.idea/
+.vscode/
+.cursor/
+
+# MacOS
+.DS_Store

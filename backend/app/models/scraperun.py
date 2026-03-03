@@ -1,0 +1,29 @@
+from datetime import datetime
+
+from sqlmodel import Field, Relationship, SQLModel
+
+from app.models.adsearch import AdSearch
+
+
+class ScrapeRun(SQLModel, table=True):
+    __tablename__ = "scrape_runs"
+
+    id: int | None = Field(default=None, primary_key=True)
+    adsearch_id: int = Field(foreign_key="ad_searches.id")
+    started_at: datetime = Field(default_factory=datetime.utcnow)
+    finished_at: datetime | None = None
+    ads_found: int = 0
+    ads_new: int = 0
+    status: str = "running"
+
+    adsearch: AdSearch = Relationship(back_populates="scrape_runs")
+
+
+class ScrapeRunRead(SQLModel):
+    id: int
+    adsearch_id: int
+    started_at: datetime
+    finished_at: datetime | None
+    ads_found: int
+    ads_new: int
+    status: str
