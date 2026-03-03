@@ -42,3 +42,15 @@ class AdSearchRead(AdSearchBase):
     id: int
     created_at: datetime
     last_scraped_at: datetime | None
+
+
+class AdSearchUpdate(SQLModel):
+    name: str | None = None
+    url: str | None = None
+    prompt_addition: str | None = None
+    min_price: float | None = None
+    max_price: float | None = None
+    blacklist_keywords: str | None = None
+    is_exclude_images: bool | None = None
+    is_active: bool | None = None
+    scrape_interval_minutes: int | None = None

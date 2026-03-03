@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
 from app.core.db import DbSession
-from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead
+from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearchUpdate
 
 router = APIRouter(prefix="/adsearches", tags=["AdSearches"])
 
@@ -24,6 +24,21 @@ def get_adsearch(adsearch_id: int, session: DbSession):
 def create_adsearch(data: AdSearchCreate, session: DbSession):
     adsearch = AdSearch.model_validate(data)
     session.add(adsearch)
+    session.commit()
+    session.refresh(adsearch)
+    return adsearch
+
+
+@router.patch("/{adsearch_id}", response_model=AdSearchRead)
+def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
+    adsearch = session.get(AdSearch, adsearch_id)
+    if not adsearch:
+        raise HTTPException(status_code=404, detail="AdSearch not found")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(adsearch, key, value)
+
     session.commit()
     session.refresh(adsearch)
     return adsearch

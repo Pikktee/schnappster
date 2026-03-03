@@ -4,6 +4,8 @@ from fastapi import FastAPI
 
 from app.api.routes.ads import router as ads_router
 from app.api.routes.adsearch import router as adsearch_router
+from app.api.routes.errorlogs import router as errorlogs_router
+from app.api.routes.scraperuns import router as scraperuns_router
 from app.api.routes.settings import router as settings_router
 from app.core.db import init_db
 from app.scheduler import start_scheduler, stop_scheduler
@@ -17,10 +19,17 @@ async def lifespan(app: FastAPI):
     stop_scheduler()
 
 
-app = FastAPI(title="Schnappster", lifespan=lifespan)
+app = FastAPI(
+    title="Schnappster",
+    version="0.1.0",
+    description="Kleinanzeigen.de Schnäppchen-Finder",
+    lifespan=lifespan,
+)
 
 app.include_router(adsearch_router, prefix="/api")
 app.include_router(ads_router, prefix="/api")
+app.include_router(scraperuns_router, prefix="/api")
+app.include_router(errorlogs_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
 
 
