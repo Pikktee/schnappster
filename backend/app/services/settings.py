@@ -4,10 +4,7 @@ from app.models.settings import AppSettings
 
 REQUIRED_KEYS = ["openrouter_api_key"]
 
-DEFAULTS = {
-    "ai_model": "anthropic/claude-sonnet-4-20250514",
-    "scrape_interval_minutes": "30",
-}
+DEFAULTS = {"ai_model": "anthropic/claude-sonnet-4-20250514"}
 
 
 def get_setting(key: str, session: Session) -> str | None:

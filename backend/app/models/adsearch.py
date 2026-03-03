@@ -19,6 +19,7 @@ class AdSearchBase(SQLModel):
     blacklist_keywords: str | None = None
     is_exclude_images: bool = False
     is_active: bool = True
+    scrape_interval_minutes: int = 30
 
 
 class AdSearch(AdSearchBase, table=True):
