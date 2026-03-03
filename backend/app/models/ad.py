@@ -10,9 +10,19 @@ class AdBase(SQLModel):
     title: str
     description: str | None = None
     price: float | None = None
-    location: str | None = None
+    postal_code: str | None = None
+    city: str | None = None
     url: str
     image_urls: str | None = None
+    condition: str | None = None
+    shipping_cost: str | None = None
+    seller_name: str | None = None
+    seller_url: str | None = None
+    seller_rating: str | None = None
+    seller_is_friendly: bool = False
+    seller_is_reliable: bool = False
+    seller_type: str | None = None
+    seller_active_since: str | None = None
 
 
 class Ad(AdBase, table=True):
