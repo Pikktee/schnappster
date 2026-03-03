@@ -45,7 +45,7 @@ class ScrapedAdDetail:
 
 def parse_search_results(html: str) -> list[ScrapedAdPreview]:
     """Parse ad previews from a search results page."""
-    soup = BeautifulSoup(html, "html.parser")
+    soup = BeautifulSoup(html, "lxml")
     ads: list[ScrapedAdPreview] = []
 
     for item in soup.select("li.ad-listitem"):
@@ -65,8 +65,6 @@ def _parse_search_item(item: Tag) -> ScrapedAdPreview | None:
     href = link.get("href", "")
     url = f"{BASE_URL}{href}" if href.startswith("/") else href
 
-    # External ID: last URL segment, first part before hyphen
-    # /s-anzeige/rode-podmic-usb/3340355474-172-4559
     parts = href.rstrip("/").split("/")
     if not parts:
         return None
@@ -102,22 +100,18 @@ def _parse_search_item(item: Tag) -> ScrapedAdPreview | None:
     )
 
 
-def parse_max_pages(html: str) -> int:
-    """Extract total number of pages from pagination."""
-    soup = BeautifulSoup(html, "html.parser")
-    max_page = 1
+def parse_next_page_urls(html: str) -> list[str]:
+    """Extract all pagination URLs from search results."""
+    soup = BeautifulSoup(html, "lxml")
+    urls: list[str] = []
 
     for link in soup.select("a[href*='seite:']"):
         href = link.get("href", "")
-        for part in href.split("/"):
-            if part.startswith("seite:"):
-                try:
-                    page = int(part.replace("seite:", ""))
-                    max_page = max(max_page, page)
-                except ValueError:
-                    pass
+        full_url = f"{BASE_URL}{href}" if href.startswith("/") else href
+        if full_url not in urls:
+            urls.append(full_url)
 
-    return max_page
+    return urls
 
 
 # --- Detail page parsing ---
@@ -125,7 +119,7 @@ def parse_max_pages(html: str) -> int:
 
 def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | None:
     """Parse full ad details from a detail page."""
-    soup = BeautifulSoup(html, "html.parser")
+    soup = BeautifulSoup(html, "lxml")
 
     # Title
     title_tag = soup.select_one("#viewad-title")
@@ -155,7 +149,6 @@ def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | 
     description = None
     desc_tag = soup.select_one("#viewad-description-text")
     if desc_tag:
-        # Replace <br/> with newlines before extracting text
         for br in desc_tag.find_all("br"):
             br.replace_with("\n")
         description = desc_tag.get_text(strip=True)
@@ -174,7 +167,6 @@ def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | 
     shipping_tag = soup.select_one(".boxedarticle--details--shipping")
     if shipping_tag:
         shipping_text = shipping_tag.get_text(strip=True)
-        # "+ Versand ab 4,89 €" -> "4,89 €"
         shipping_cost = shipping_text.replace("+ Versand ab", "").strip()
 
     # Images
@@ -195,33 +187,26 @@ def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | 
 
     profile_box = soup.select_one("#viewad-profile-box")
     if profile_box:
-        # Name and URL
         name_link = profile_box.select_one(".userprofile-vip a")
         if name_link:
             seller_name = name_link.get_text(strip=True)
             href = name_link.get("href", "")
             seller_url = f"{BASE_URL}{href}" if href.startswith("/") else href
 
-        # Rating badge
         rating_tag = profile_box.select_one(".userbadges-profile-rating")
         if rating_tag:
             rating_text = rating_tag.get_text(strip=True)
-            # "TOP Zufriedenheit" -> "Top", "OK Zufriedenheit" -> "Ok"
             seller_rating = rating_text.replace("Zufriedenheit", "").replace("\xa0", "").strip()
 
-        # Friendly badge
         friendly_tag = profile_box.select_one(".userbadges-profile-friendliness")
         seller_is_friendly = friendly_tag is not None
 
-        # Reliable badge
         reliable_tag = profile_box.select_one(".userbadges-profile-reliability")
         seller_is_reliable = reliable_tag is not None
 
-        # Seller type and active since
         for detail in profile_box.select(".userprofile-vip-details-text"):
             text = detail.get_text(strip=True)
             if "Nutzer" in text:
-                # "Privater Nutzer" -> "Privat", "Gewerblicher Nutzer" -> "Gewerblich"
                 seller_type = text.replace("Nutzer", "").replace("er", "").strip()
             elif "Aktiv seit" in text:
                 seller_active_since = text.replace("Aktiv seit", "").strip()
@@ -256,8 +241,6 @@ def _parse_price(text: str) -> float | None:
     if not cleaned:
         return None
 
-    # Meta tag format: "110.00" (no comma, dot is decimal)
-    # Display format: "1.234,56" or "110" (dot is thousands, comma is decimal)
     if "," in cleaned:
         cleaned = cleaned.replace(".", "").replace(",", ".")
 
@@ -277,5 +260,4 @@ def _split_locality(text: str) -> tuple[str | None, str | None]:
     if len(parts) == 2 and parts[0].isdigit():
         return parts[0], parts[1]
 
-    # No postal code found
     return None, text

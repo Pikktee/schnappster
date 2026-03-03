@@ -1,19 +1,32 @@
 import asyncio
+import random
 
 from curl_cffi.requests import AsyncSession
 
+MAX_CONCURRENT = 3
+DELAY_MIN = 0.5
+DELAY_MAX = 2.0
+
 
 async def _fetch_pages(urls: list[str]) -> list[str]:
-    """Fetch multiple pages concurrently using browser-like TLS fingerprint."""
-    results: list[str] = []
+    """Fetch multiple pages with limited concurrency and random delays."""
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT)
+    results: list[str] = [""] * len(urls)
+
     async with AsyncSession(impersonate="chrome") as session:
-        tasks = [session.get(url) for url in urls]
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
-        for response in responses:
-            if isinstance(response, Exception):
-                results.append("")
-            else:
-                results.append(response.text)
+
+        async def fetch_one(index: int, url: str) -> None:
+            async with semaphore:
+                try:
+                    response = await session.get(url)
+                    results[index] = response.text
+                except Exception:
+                    results[index] = ""
+                await asyncio.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
+
+        tasks = [fetch_one(i, url) for i, url in enumerate(urls)]
+        await asyncio.gather(*tasks)
+
     return results
 
 
