@@ -1,10 +1,22 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
 
 
-class Settings(BaseSettings):
-    database_url: str = "sqlite:///schnappster.db"
+def get_app_root() -> Path:
+    """Return the backend/ root directory."""
+    return Path(__file__).resolve().parent.parent.parent
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+class Settings(BaseSettings):
+    database_url: str = f"sqlite:///{get_app_root() / 'data' / 'schnappster.db'}"
+    openrouter_api_key: str = ""
+    openrouter_ai_model: str = "google/gemini-2.0-flash-001"
+
+    model_config = {
+        "env_file": get_app_root() / ".env",
+        "env_file_encoding": "utf-8",
+    }
 
 
 settings = Settings()

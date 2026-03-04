@@ -33,7 +33,7 @@ class ScrapedAdDetail:
     image_urls: list[str] = field(default_factory=list)
     seller_name: str | None = None
     seller_url: str | None = None
-    seller_rating: str | None = None
+    seller_rating: int | None = None
     seller_is_friendly: bool = False
     seller_is_reliable: bool = False
     seller_type: str | None = None
@@ -195,8 +195,15 @@ def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | 
 
         rating_tag = profile_box.select_one(".userbadges-profile-rating")
         if rating_tag:
-            rating_text = rating_tag.get_text(strip=True)
-            seller_rating = rating_text.replace("Zufriedenheit", "").replace("\xa0", "").strip()
+            icon = rating_tag.select_one("i")
+            if icon:
+                classes = icon.get("class", [])
+                if "icon-rating-tag-2" in classes:
+                    seller_rating = 2
+                elif "icon-rating-tag-1" in classes:
+                    seller_rating = 1
+                elif "icon-rating-tag-0" in classes:
+                    seller_rating = 0
 
         friendly_tag = profile_box.select_one(".userbadges-profile-friendliness")
         seller_is_friendly = friendly_tag is not None

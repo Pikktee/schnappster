@@ -1,13 +1,14 @@
-# pyright: reportMissingImports=false
 import logging
 from datetime import datetime, timedelta
 
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.background import (  # pyright: ignore[reportMissingImports]
+    BackgroundScheduler,
+)
 from sqlmodel import Session, select
 
 from app.core.db import engine
 from app.models.adsearch import AdSearch
-from app.scraper.service import ScraperService
+from app.services.scraper import ScraperService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,6 +43,22 @@ def check_and_scrape() -> None:
                     logger.error(f"Failed '{adsearch.name}': {e}")
 
 
+def analyze_ads() -> None:
+    """Analyze unprocessed ads with AI."""
+    with Session(engine) as session:
+        try:
+            from app.services.ai import AIService
+
+            ai_service = AIService(session)
+            analyzed = ai_service.analyze_unprocessed(limit=10)
+            if analyzed > 0:
+                logger.info(f"AI analyzed {analyzed} ads")
+        except ValueError:
+            pass  # API key not configured yet
+        except Exception as e:
+            logger.error(f"AI analysis failed: {e}")
+
+
 def _is_due(adsearch: AdSearch, now: datetime) -> bool:
     """Check if an AdSearch is due for scraping."""
     if adsearch.last_scraped_at is None:
@@ -52,7 +69,7 @@ def _is_due(adsearch: AdSearch, now: datetime) -> bool:
 
 
 def start_scheduler() -> None:
-    """Start the background scheduler, checking every minute."""
+    """Start the background scheduler."""
     scheduler.add_job(
         check_and_scrape,
         "interval",
@@ -60,14 +77,20 @@ def start_scheduler() -> None:
         id="check_and_scrape",
         replace_existing=True,
     )
-    # Initial scrape nach 5 Sekunden, damit der Server erst hochfährt
+    scheduler.add_job(
+        analyze_ads,
+        "interval",
+        minutes=2,
+        id="analyze_ads",
+        replace_existing=True,
+    )
     scheduler.add_job(
         check_and_scrape,
         "date",
         id="initial_scrape",
     )
     scheduler.start()
-    logger.info("Scheduler started: checking every minute for due scrapes")
+    logger.info("Scheduler started: scraping every minute, AI analysis every 2 minutes")
 
 
 def stop_scheduler() -> None:

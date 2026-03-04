@@ -1,11 +1,15 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.adsearch import AdSearch
+if TYPE_CHECKING:
+    from app.models.adsearch import AdSearch
 
 
 class ScrapeRun(SQLModel, table=True):
+    """Database table."""
+
     __tablename__ = "scrape_runs"
 
     id: int | None = Field(default=None, primary_key=True)
@@ -16,10 +20,12 @@ class ScrapeRun(SQLModel, table=True):
     ads_new: int = 0
     status: str = "running"
 
-    adsearch: AdSearch = Relationship(back_populates="scrape_runs")
+    adsearch: "AdSearch" = Relationship(back_populates="scrape_runs")
 
 
 class ScrapeRunRead(SQLModel):
+    """API output schema."""
+
     id: int
     adsearch_id: int
     started_at: datetime
