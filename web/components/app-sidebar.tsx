@@ -17,18 +17,20 @@ import {
 
 const navItems = [
   { label: "Start", href: "/", icon: Home },
-  { label: "Suchauftraege", href: "/searches", icon: Search },
-  { label: "Anzeigen", href: "/ads", icon: Tag },
-  { label: "Logs", href: "/logs", icon: List },
-  { label: "Einstellungen", href: "/settings", icon: Settings },
+  { label: "Suchauftraege", href: "/searches/", icon: Search },
+  { label: "Anzeigen", href: "/ads/", icon: Tag },
+  { label: "Logs", href: "/logs/", icon: List },
+  { label: "Einstellungen", href: "/settings/", icon: Settings },
 ]
 
 export function AppSidebar() {
   const pathname = usePathname()
 
   function isActive(href: string) {
-    if (href === "/") return pathname === "/"
-    return pathname.startsWith(href)
+    const path = pathname.replace(/\/$/, "") || "/"
+    const base = href.replace(/\/$/, "") || "/"
+    if (base === "/") return path === "/"
+    return path === base || path.startsWith(base + "/")
   }
 
   return (

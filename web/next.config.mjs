@@ -6,7 +6,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Static export so FastAPI can serve the prebuilt app from frontend/out
+  // Static export so FastAPI can serve the prebuilt app from web/out
   output: "export",
   trailingSlash: true,
 }

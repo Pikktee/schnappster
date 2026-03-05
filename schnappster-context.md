@@ -4,15 +4,14 @@
 Eine persönliche Web-App die Kleinanzeigen.de-Suchergebnisse periodisch scrapt, mit KI auf Schnäppchen analysiert und die Ergebnisse in einem Dashboard anzeigt.
 
 ## Tech Stack
-- **Backend:*
-* Python 3.13, FastAPI, SQLModel, SQLite, curl-cffi (Scraping), OpenRouter API (KI-Analyse)
+- **Backend:** Python 3.13, FastAPI, SQLModel, SQLite, curl-cffi (Scraping), OpenRouter API (KI-Analyse)
 - **Frontend:** Vue 3 + shadcn-vue (noch nicht gebaut)
 - **Tools:** uv (Package Manager), Ruff (Linting), Pyright (Type Checking), Rich (Logging), Cursor IDE
 
 ## Projektstruktur
 
 ```
-backend/
+schnappster/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py                  # FastAPI App mit Lifespan (init_db, scheduler)
@@ -53,14 +52,17 @@ backend/
 │   └── start.py                 # uv run start [--skip-tests]
 ├── tests/
 │   ├── fixtures/ad.html
-│   └── test_scraper_parser.py
+│   └── test_*.py
 ├── data/
 │   ├── .gitkeep
 │   └── schnappster.db
-├── prompts/                     # (reserviert für ausgelagerte Prompts)
+├── web/                         # Next.js Frontend (Static Export → web/out)
+│   ├── app/, components/, lib/, ...
+│   └── out/                     # von FastAPI ausgeliefert
 ├── .env                         # OPENROUTER_API_KEY, OPENROUTER_AI_MODEL
 ├── .gitignore
-└── pyproject.toml               # Entry Points: dbreset, scrape, analyze, start
+├── pyproject.toml               # Entry Points: dbreset, scrape, analyze, start
+└── schnappster-context.md
 ```
 
 ## Datenmodelle

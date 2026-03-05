@@ -1,8 +1,8 @@
 """Start the Schnappster application.
 
 Usage:
-    uv run start                 # run tests, build frontend, start backend with static frontend
-    uv run start --skip-tests    # skip tests, build frontend, start backend with static frontend
+    uv run start                 # run tests, build web, start app with static frontend
+    uv run start --skip-tests    # skip tests, build web, start app with static frontend
     uv run start --dev           # dev mode: tests, then start Next dev server + backend
     uv run start --dev --skip-tests
 """
@@ -30,16 +30,16 @@ def run_tests() -> bool:
 
 
 def get_project_root() -> Path:
-    """Project root is the parent of the backend/app root (where frontend/ lives)."""
-    return get_app_root().parent
+    """Project root (same as app root)."""
+    return get_app_root()
 
 
 def get_frontend_dir() -> Path:
-    return get_project_root() / "frontend"
+    return get_app_root() / "web"
 
 
 def build_frontend() -> None:
-    """Build the Next.js frontend as static export into frontend/out."""
+    """Build the Next.js frontend as static export into web/out."""
     frontend_dir = get_frontend_dir()
     if not frontend_dir.exists():
         logger.warning(

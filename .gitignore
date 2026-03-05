@@ -34,7 +34,7 @@ data/*
 # MacOS
 .DS_Store
 
-# Frontend
+# Web
 logs
 *.log
 npm-debug.log*

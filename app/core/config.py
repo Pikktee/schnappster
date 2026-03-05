@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 
 
 def get_app_root() -> Path:
-    """Return the backend/ root directory."""
+    """Return the project root directory."""
     return Path(__file__).resolve().parent.parent.parent
 
 
