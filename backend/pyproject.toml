@@ -42,6 +42,7 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM", "ASYNC"]
+ignore = ["UP017"]  # datetime.UTC nicht in allen Laufzeiten; timezone.utc nutzen
 
 [dependency-groups]
 dev = [

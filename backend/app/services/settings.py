@@ -15,6 +15,18 @@ SETTINGS_SCHEMA: dict[str, dict] = {
         "allowed": ["0", "1", "2"],
         "description": "Mindest-Verkäuferbewertung (0=Na ja, 1=OK, 2=TOP)",
     },
+    "openrouter_api_key": {
+        "type": "str",
+        "default": "",
+        "allowed": None,
+        "description": "OpenRouter API Key für KI-Analyse",
+    },
+    "openrouter_ai_model": {
+        "type": "str",
+        "default": "google/gemini-2.0-flash-001",
+        "allowed": None,
+        "description": "OpenRouter Modell für KI-Analyse",
+    },
 }
 
 
@@ -42,9 +54,10 @@ def set_setting(key: str, value: str, session: Session) -> None:
         raise ValueError(f"Unknown setting: {key}")
 
     schema = SETTINGS_SCHEMA[key]
-    if value not in schema["allowed"]:
+    allowed = schema.get("allowed")
+    if allowed is not None and value not in allowed:
         raise ValueError(
-            f"Invalid value '{value}' for '{key}'. Allowed: {', '.join(schema['allowed'])}"
+            f"Invalid value '{value}' for '{key}'. Allowed: {', '.join(allowed)}"
         )
 
     config = session.get(AppSettings, key)
