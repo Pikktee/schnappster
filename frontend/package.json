@@ -63,6 +63,8 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.0",
     "@types/node": "^22",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.3.5",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "postcss": "^8.5",

@@ -42,7 +42,9 @@ def build_frontend() -> None:
     """Build the Next.js frontend as static export into frontend/out."""
     frontend_dir = get_frontend_dir()
     if not frontend_dir.exists():
-        logger.warning("Frontend directory %s does not exist. Skipping frontend build.", frontend_dir)
+        logger.warning(
+            "Frontend directory %s does not exist. Skipping frontend build.", frontend_dir
+        )
         return
 
     logger.info("Installing frontend dependencies (npm install)...")
