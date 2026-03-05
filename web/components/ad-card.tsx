@@ -6,7 +6,7 @@ import { Package } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScoreBadge } from "@/components/score-badge"
 import { SellerRatingTag } from "@/components/seller-rating-tag"
-import { formatPrice, timeAgo, parseImageUrls } from "@/lib/format"
+import { formatPrice, timeAgo, getAdImageUrls } from "@/lib/format"
 import type { Ad } from "@/lib/types"
 
 interface AdCardProps {
@@ -14,7 +14,7 @@ interface AdCardProps {
 }
 
 export function AdCard({ ad }: AdCardProps) {
-  const images = parseImageUrls(ad.image_urls)
+  const images = getAdImageUrls(ad)
 
   return (
     <Card className="group relative transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer overflow-hidden p-0">

@@ -70,6 +70,12 @@ export function parseImageUrls(imageUrls: string | null): string[] {
   return imageUrls.split(",").map((url) => url.trim()).filter(Boolean)
 }
 
+/** Liefert alle Bild-URLs einer Anzeige (API sendet image_url, ggf. zukünftig image_urls). */
+export function getAdImageUrls(ad: { image_url?: string | null; image_urls?: string | null }): string[] {
+  if (ad.image_url) return [ad.image_url]
+  return parseImageUrls(ad.image_urls ?? null)
+}
+
 export function truncateUrl(url: string, maxLength = 50): string {
   try {
     const parsed = new URL(url)

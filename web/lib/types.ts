@@ -22,6 +22,8 @@ export interface Ad {
   postal_code: string | null
   city: string | null
   url: string
+  /** Einzelbild-URL von der API (wird von Backend berechnet). */
+  image_url: string | null
   image_urls: string | null
   condition: string | null
   shipping_cost: string | null

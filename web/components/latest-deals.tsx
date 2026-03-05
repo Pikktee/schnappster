@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Package } from "lucide-react"
 import type { Ad } from "@/lib/types"
-import { formatPrice, timeAgo, parseImageUrls } from "@/lib/format"
+import { formatPrice, timeAgo, getAdImageUrls } from "@/lib/format"
 import { ScoreBadge } from "@/components/score-badge"
 
 interface LatestDealsProps {
@@ -24,7 +24,7 @@ export function LatestDeals({ ads }: LatestDealsProps) {
   return (
     <div className="flex flex-col divide-y divide-border">
       {ads.map((ad) => {
-        const images = parseImageUrls(ad.image_urls)
+        const images = getAdImageUrls(ad)
         return (
           <Link
             key={ad.id}

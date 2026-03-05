@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Search, Tag, List, Settings, Flame } from "lucide-react"
+import { Home, Search, Tag, List, Settings } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -36,11 +36,14 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="px-4 py-4">
-        <Link href="/" className="flex items-center gap-2 cursor-pointer">
-          <div className="flex items-center justify-center size-8 rounded-lg bg-amber-500">
-            <Flame className="size-4 text-white" />
-          </div>
-          <span className="text-lg font-bold text-foreground">Schnappster</span>
+        <Link href="/" className="flex items-center cursor-pointer">
+          <img
+            src="/logo.svg"
+            alt="Schnappster"
+            className="h-12 w-auto max-w-full object-contain"
+            width={200}
+            height={60}
+          />
         </Link>
       </SidebarHeader>
       <SidebarContent>

@@ -24,7 +24,7 @@ import type { AdSearch } from "@/lib/types"
 import {
   formatPrice,
   timeAgo,
-  parseImageUrls,
+  getAdImageUrls,
 } from "@/lib/format"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -73,7 +73,7 @@ export function AdDetailPage() {
     load()
   }, [id])
 
-  const images = useMemo(() => parseImageUrls(ad?.image_urls ?? null), [ad])
+  const images = useMemo(() => (ad ? getAdImageUrls(ad) : []), [ad])
 
   if (loading) {
     return (
