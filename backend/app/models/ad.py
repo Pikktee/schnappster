@@ -1,12 +1,16 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from pydantic import computed_field
 from sqlmodel import Field, Relationship, SQLModel
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # Avoid linter error
     from app.models.adsearch import AdSearch
 
 
+# ----------------------
+# --- Database Table ---
+# ----------------------
 class Ad(SQLModel, table=True):
     """Database table."""
 
@@ -40,6 +44,9 @@ class Ad(SQLModel, table=True):
     adsearch: "AdSearch" = Relationship(back_populates="ads")
 
 
+# -------------------
+# --- API Schemas ---
+# -------------------
 class AdRead(SQLModel):
     """API output schema."""
 
@@ -52,7 +59,7 @@ class AdRead(SQLModel):
     postal_code: str | None
     city: str | None
     url: str
-    image_urls: str | None
+    image_urls: str | None = Field(default=None, exclude=True)
     condition: str | None
     shipping_cost: str | None
     seller_name: str | None
@@ -67,3 +74,10 @@ class AdRead(SQLModel):
     ai_reasoning: str | None
     is_analyzed: bool
     first_seen_at: datetime
+
+    model_config = {"from_attributes": True}
+
+    @computed_field
+    @property
+    def image_url(self) -> str | None:
+        return self.image_urls.split(",")[0] if self.image_urls else None

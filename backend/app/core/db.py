@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine
 
-from app.core.settings import get_app_root, settings
+from app.core.config import get_app_root, settings
 
 (get_app_root() / "data").mkdir(exist_ok=True)
 engine = create_engine(settings.database_url, echo=False)

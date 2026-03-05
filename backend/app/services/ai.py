@@ -35,9 +35,9 @@ Ein Score von 7+ sollte selten vergeben werden. Ein Score von 9-10 ist ein Ausna
 Berücksichtige:
 - Preis im Vergleich zu den Vergleichsangeboten (falls vorhanden)
 - Zustand des Artikels
-- Verkäufer-Bewertung (Kleinanzeigen-Skala: TOP = beste Stufe, OK = mittlere Stufe, Na ja = schlechteste Stufe)
+- Verkäufer-Bewertung
+    (Kleinanzeigen-Skala: TOP = beste Stufe, OK = mittlere Stufe, Na ja = schlechteste Stufe)
 - Versandkosten
-- Red Flags: Zu gut um wahr zu sein, fehlende Details, verdächtige Beschreibung, "Na ja"-Verkäufer mit Traumpreis
 
 Antworte AUSSCHLIESSLICH im folgenden JSON-Format, ohne zusätzlichen Text:
 {

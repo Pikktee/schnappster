@@ -3,10 +3,13 @@ from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # Avoid linter error
     from app.models.adsearch import AdSearch
 
 
+# ----------------------
+# --- Database Table ---
+# ----------------------
 class ErrorLog(SQLModel, table=True):
     """Database table."""
 
@@ -22,6 +25,9 @@ class ErrorLog(SQLModel, table=True):
     adsearch: Optional["AdSearch"] = Relationship(back_populates="error_logs")
 
 
+# -------------------
+# --- API Schemas ---
+# -------------------
 class ErrorLogRead(SQLModel):
     """API output schema."""
 

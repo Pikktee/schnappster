@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from sqlmodel import Session, select
 
@@ -12,6 +13,7 @@ from app.scraper.parser import (
     parse_next_page_urls,
     parse_search_results,
 )
+from app.services.settings import get_setting_bool, get_setting_int
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +37,8 @@ class ScraperService:
             )
 
             details = self._fetch_details(new_previews)
-            ads = self._save_ads(details, adsearch.id)
+            filtered = self._filter_ads(details, adsearch)
+            ads = self._save_ads(filtered, adsearch.id)
 
             scrape_run.ads_found = len(previews)
             scrape_run.ads_new = len(ads)
@@ -47,13 +50,69 @@ class ScraperService:
             raise
 
         finally:
-            from datetime import datetime
-
             scrape_run.finished_at = datetime.utcnow()
             adsearch.last_scraped_at = datetime.utcnow()
             self.session.commit()
 
         return scrape_run
+
+    def _filter_ads(
+        self, details: list[ScrapedAdDetail], adsearch: AdSearch
+    ) -> list[ScrapedAdDetail]:
+        """Filter ads based on AdSearch and global settings."""
+        exclude_commercial = get_setting_bool("exclude_commercial_sellers", self.session)
+        min_rating = get_setting_int("min_seller_rating", self.session)
+
+        filtered = []
+        for detail in details:
+            reason = self._get_filter_reason(detail, adsearch, exclude_commercial, min_rating)
+            if reason:
+                logger.info(f"Filtered out '{detail.title}': {reason}")
+            else:
+                filtered.append(detail)
+
+        if len(details) != len(filtered):
+            logger.info(f"Filtered {len(details) - len(filtered)} of {len(details)} ads")
+
+        return filtered
+
+    @staticmethod
+    def _get_filter_reason(
+        detail: ScrapedAdDetail,
+        adsearch: AdSearch,
+        exclude_commercial: bool,
+        min_rating: int,
+    ) -> str | None:
+        """Return filter reason or None if ad passes all filters."""
+        # Preisfilter (pro Suche)
+        if detail.price is not None:
+            if adsearch.min_price is not None and detail.price < adsearch.min_price:
+                return f"Preis {detail.price}€ unter Minimum {adsearch.min_price}€"
+            if adsearch.max_price is not None and detail.price > adsearch.max_price:
+                return f"Preis {detail.price}€ über Maximum {adsearch.max_price}€"
+
+        # Blacklist (pro Suche)
+        if adsearch.blacklist_keywords:
+            keywords = [k.strip().lower() for k in adsearch.blacklist_keywords.split(",")]
+            title_lower = detail.title.lower()
+            desc_lower = (detail.description or "").lower()
+            for keyword in keywords:
+                if keyword and (keyword in title_lower or keyword in desc_lower):
+                    return f"Blacklist-Keyword '{keyword}'"
+
+        # Gewerbliche Verkäufer (global)
+        if exclude_commercial and detail.seller_type and detail.seller_type.lower() == "gewerblich":
+            return "Gewerblicher Verkäufer"
+
+        # Mindest-Rating (global)
+        if detail.seller_rating is not None and detail.seller_rating < min_rating:
+            rating_labels = {2: "TOP", 1: "OK", 0: "Na ja"}
+            return (
+                f"Verkäufer-Rating '{rating_labels.get(detail.seller_rating, '?')}' "
+                f"unter Minimum '{rating_labels.get(min_rating, '?')}'"
+            )
+
+        return None
 
     def _collect_previews(self, search_url: str) -> list:
         """Fetch all pages of search results and collect ad previews."""

@@ -1,7 +1,8 @@
+from app.core.config import get_app_root, settings
 from app.core.db import DbSession, engine, init_db
 from app.core.logging import setup_logging
 from app.core.scheduler import start_scheduler, stop_scheduler
-from app.core.settings import get_app_root, settings
+from app.core.utils import utcnow
 
 __all__ = [
     "DbSession",
@@ -12,4 +13,5 @@ __all__ = [
     "setup_logging",
     "start_scheduler",
     "stop_scheduler",
+    "utcnow",
 ]
