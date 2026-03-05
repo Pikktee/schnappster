@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   ArrowLeft,
   Pencil,
@@ -36,9 +36,14 @@ import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function SearchDetailPage() {
-  const params = useParams()
   const router = useRouter()
-  const id = Number(params.id)
+  const pathname = usePathname()
+  const [id, setId] = useState<number>(NaN)
+
+  useEffect(() => {
+    const match = window.location.pathname.match(/\/(\d+)\/?$/)
+    if (match) setId(Number(match[1]))
+  }, [pathname])
 
   const [search, setSearch] = useState<AdSearch | null>(null)
   const [ads, setAds] = useState<Ad[]>([])

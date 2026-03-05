@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   ArrowLeft,
@@ -30,9 +30,14 @@ import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function AdDetailPage() {
-  const params = useParams()
   const router = useRouter()
-  const id = Number(params.id)
+  const pathname = usePathname()
+  const [id, setId] = useState<number>(NaN)
+
+  useEffect(() => {
+    const match = window.location.pathname.match(/\/(\d+)\/?$/)
+    if (match) setId(Number(match[1]))
+  }, [pathname])
 
   const [ad, setAd] = useState<Awaited<ReturnType<typeof fetchAd>> | null>(null)
   const [search, setSearch] = useState<AdSearch | null>(null)
