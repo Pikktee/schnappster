@@ -12,9 +12,11 @@ if TYPE_CHECKING:  # Avoid linter error
 # --- Database Table ---
 # ----------------------
 class Ad(SQLModel, table=True):
-    """Database table."""
+    """
+    Ad (Kleinanzeige) database table.
+    """
 
-    __tablename__ = "ads"
+    __tablename__ = "ads"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
     adsearch_id: int = Field(foreign_key="ad_searches.id")

@@ -9,6 +9,7 @@ from app.core import settings
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch
 from app.scraper.httpclient import fetch_binary
+from app.services.settings import get_setting_bool
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,11 @@ class AIService:
         self.session.commit()
 
         logger.info(f"Analyzed ad {ad.id} '{ad.title}': score={result['score']}")
+
+        if result["score"] >= 7 and get_setting_bool("telegram_notifications_enabled", self.session):
+            from app.services.telegram import send_bargain_notification
+
+            send_bargain_notification(ad)
 
     def _build_ad_text(self, ad: Ad, adsearch: AdSearch | None) -> str:
         """Build a text representation of the ad for the AI."""

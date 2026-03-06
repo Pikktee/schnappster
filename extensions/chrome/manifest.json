@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Schnappster – Suchauftrag hinzufügen",
+  "version": "1.0.0",
+  "description": "Kleinanzeigen-Suchauftrag per Klick zu Schnappster hinzufügen",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["storage", "notifications", "tabs", "scripting"],
+  "host_permissions": [
+    "https://www.kleinanzeigen.de/*",
+    "http://localhost:*/*",
+    "http://127.0.0.1:*/*"
+  ],
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Suchauftrag zu Schnappster hinzufügen"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  }
+}

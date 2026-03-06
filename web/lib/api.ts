@@ -59,6 +59,8 @@ export const fetchErrorLogs = (params?: { adsearch_id?: number; limit?: number }
 // Settings
 export const fetchSettings = () => apiFetch<AppSetting[]>("/api/settings/")
 export const fetchSetting = (key: string) => apiFetch<AppSetting>(`/api/settings/${key}`)
+export const fetchTelegramConfigured = () =>
+  apiFetch<{ configured: boolean }>("/api/settings/telegram-configured")
 export const updateSetting = (key: string, value: string) =>
   apiFetch<AppSetting>(`/api/settings/${key}`, {
     method: "PUT",

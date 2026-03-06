@@ -13,7 +13,7 @@ if TYPE_CHECKING:  # Avoid linter error
 class ScrapeRun(SQLModel, table=True):
     """Database table."""
 
-    __tablename__ = "scrape_runs"
+    __tablename__ = "scrape_runs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
     adsearch_id: int = Field(foreign_key="ad_searches.id")

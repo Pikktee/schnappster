@@ -13,7 +13,7 @@ if TYPE_CHECKING:  # Avoid linter error
 class ErrorLog(SQLModel, table=True):
     """Database table."""
 
-    __tablename__ = "error_logs"
+    __tablename__ = "error_logs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
     adsearch_id: int | None = Field(default=None, foreign_key="ad_searches.id")

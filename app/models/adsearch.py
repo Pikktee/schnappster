@@ -15,7 +15,7 @@ if TYPE_CHECKING:  # Avoid linter error
 class AdSearch(SQLModel, table=True):
     """Database table."""
 
-    __tablename__ = "ad_searches"
+    __tablename__ = "ad_searches"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
     name: str

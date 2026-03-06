@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
+from app.core import settings as app_settings
 from app.core.db import DbSession
 from app.models.settings import AppSettingsRead
 from app.services.settings import (
@@ -15,6 +16,16 @@ router = APIRouter(prefix="/settings", tags=["Settings"])
 @router.get("/", response_model=list[dict])
 def list_settings(session: DbSession):
     return get_all_settings(session)
+
+
+@router.get("/telegram-configured")
+def get_telegram_configured():
+    """Return whether Telegram is configured (bot token and chat ID set in .env)."""
+    configured = bool(
+        app_settings.telegram_bot_token.strip()
+        and app_settings.telegram_chat_id.strip()
+    )
+    return {"configured": configured}
 
 
 @router.get("/{key}", response_model=AppSettingsRead)

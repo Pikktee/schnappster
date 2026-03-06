@@ -15,6 +15,12 @@ SETTINGS_SCHEMA: dict[str, dict] = {
         "allowed": ["0", "1", "2"],
         "description": "Mindest-Verkäuferbewertung (0=Na ja, 1=OK, 2=TOP)",
     },
+    "telegram_notifications_enabled": {
+        "type": "bool",
+        "default": "false",
+        "allowed": ["true", "false"],
+        "description": "Telegram-Benachrichtigungen bei Schnäppchen",
+    },
 }
 
 

@@ -121,6 +121,15 @@ def test_list_settings(client):
     keys = [s["key"] for s in settings]
     assert "exclude_commercial_sellers" in keys
     assert "min_seller_rating" in keys
+    assert "telegram_notifications_enabled" in keys
+
+
+def test_get_telegram_configured(client):
+    response = client.get("/api/settings/telegram-configured")
+    assert response.status_code == 200
+    data = response.json()
+    assert "configured" in data
+    assert isinstance(data["configured"], bool)
 
 
 def test_get_setting(client):

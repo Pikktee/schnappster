@@ -15,17 +15,21 @@ def list_adsearches(session: DbSession):
 @router.get("/{adsearch_id}", response_model=AdSearchRead)
 def get_adsearch(adsearch_id: int, session: DbSession):
     adsearch = session.get(AdSearch, adsearch_id)
+
     if not adsearch:
         raise HTTPException(status_code=404, detail="AdSearch not found")
+
     return adsearch
 
 
 @router.post("/", response_model=AdSearchRead, status_code=201)
 def create_adsearch(data: AdSearchCreate, session: DbSession):
     adsearch = AdSearch.model_validate(data)
+
     session.add(adsearch)
     session.commit()
     session.refresh(adsearch)
+
     return adsearch
 
 

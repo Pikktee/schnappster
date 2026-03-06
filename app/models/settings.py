@@ -5,7 +5,7 @@ from sqlmodel import Field, SQLModel
 # --- Database Table ---
 # ----------------------
 class AppSettings(SQLModel, table=True):
-    __tablename__ = "app_settings"
+    __tablename__ = "app_settings"  # type: ignore
 
     key: str = Field(primary_key=True)
     value: str
