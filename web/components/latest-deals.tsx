@@ -16,7 +16,7 @@ export function LatestDeals({ ads }: LatestDealsProps) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <Package className="size-10 text-muted-foreground/40" />
-        <p className="text-sm text-muted-foreground mt-3">Noch keine Schnaeppchen gefunden.</p>
+        <p className="text-sm text-muted-foreground mt-3">Noch keine Schnäppchen gefunden.</p>
       </div>
     )
   }
@@ -47,14 +47,14 @@ export function LatestDeals({ ads }: LatestDealsProps) {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+              <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors" title={ad.title}>
                 {ad.title}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {ad.postal_code} {ad.city} &middot; {timeAgo(ad.first_seen_at)}
               </p>
               {ad.ai_summary && (
-                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{ad.ai_summary}</p>
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-1" title={ad.ai_summary}>{ad.ai_summary}</p>
               )}
             </div>
             <div className="flex items-center gap-3 shrink-0">

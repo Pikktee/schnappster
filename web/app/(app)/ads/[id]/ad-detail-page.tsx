@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Image from "next/image"
 import {
@@ -9,6 +9,8 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   ThumbsUp,
   ShieldCheck,
   User,
@@ -16,11 +18,19 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { ScoreBadge } from "@/components/score-badge"
 import { SellerRatingTag } from "@/components/seller-rating-tag"
 import { ExternalLink } from "@/components/external-link"
 import { fetchAd, fetchSearch } from "@/lib/api"
-import type { AdSearch } from "@/lib/types"
+import type { Ad, AdSearch } from "@/lib/types"
 import {
   formatPrice,
   timeAgo,
@@ -39,12 +49,13 @@ export function AdDetailPage() {
     if (match) setId(Number(match[1]))
   }, [pathname])
 
-  const [ad, setAd] = useState<Awaited<ReturnType<typeof fetchAd>> | null>(null)
+  const [ad, setAd] = useState<Ad | null>(null)
   const [search, setSearch] = useState<AdSearch | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentImage, setCurrentImage] = useState(0)
-  const [showReasoning, setShowReasoning] = useState(false)
+  const [showReasoning, setShowReasoning] = useState(true)
+  const [imgErrors, setImgErrors] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     if (Number.isNaN(id)) return
@@ -75,6 +86,43 @@ export function AdDetailPage() {
 
   const images = useMemo(() => (ad ? getAdImageUrls(ad) : []), [ad])
 
+  const goToPrevImage = useCallback(() => {
+    setCurrentImage((prev) => (prev > 0 ? prev - 1 : images.length - 1))
+  }, [images.length])
+
+  const goToNextImage = useCallback(() => {
+    setCurrentImage((prev) => (prev < images.length - 1 ? prev + 1 : 0))
+  }, [images.length])
+
+  useEffect(() => {
+    if (images.length <= 1) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "ArrowLeft") goToPrevImage()
+      if (e.key === "ArrowRight") goToNextImage()
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [images.length, goToPrevImage, goToNextImage])
+
+  const touchStartX = useRef<number | null>(null)
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null) return
+    const diff = e.changedTouches[0].clientX - touchStartX.current
+    touchStartX.current = null
+    if (Math.abs(diff) < 50) return
+    if (diff < 0) goToNextImage()
+    else goToPrevImage()
+  }
+
+  function handleImageError(index: number) {
+    setImgErrors((prev) => new Set(prev).add(index))
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
@@ -93,7 +141,7 @@ export function AdDetailPage() {
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-muted-foreground">{error || "Anzeige nicht gefunden."}</p>
         <Button variant="outline" onClick={() => router.push("/ads")} className="cursor-pointer">
-          Zurueck zur Uebersicht
+          Zurück zur Übersicht
         </Button>
       </div>
     )
@@ -101,20 +149,35 @@ export function AdDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Start</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/ads">Anzeigen</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{ad.title.length > 40 ? ad.title.slice(0, 40) + "..." : ad.title}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" onClick={() => router.push("/ads")} className="cursor-pointer">
+        <Button variant="ghost" size="icon-sm" onClick={() => router.push("/ads")} className="cursor-pointer" aria-label="Zurück">
           <ArrowLeft className="size-4" />
         </Button>
         <div className="flex-1 flex items-center justify-between gap-4 flex-wrap">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">{ad.title}</h1>
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm" className="cursor-pointer">
-              <a href={ad.url} target="_blank" rel="noopener noreferrer">
+              <a href={ad.url} target="_blank" rel="noopener noreferrer" aria-label="Auf Kleinanzeigen ansehen (neues Fenster)">
                 <ExternalLinkIcon className="size-3.5" />
                 Auf Kleinanzeigen ansehen
               </a>
             </Button>
-            {/* Backend hat kein DELETE fuer Ads – Button weggelassen */}
           </div>
         </div>
       </div>
@@ -124,20 +187,52 @@ export function AdDetailPage() {
         <div className="lg:col-span-2 flex flex-col gap-6">
           {/* Image Gallery */}
           <Card className="overflow-hidden p-0">
-            <div className="aspect-[16/10] relative bg-muted">
-              {images.length > 0 ? (
+            <div
+              className="aspect-[16/10] relative bg-muted"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
+              {images.length > 0 && !imgErrors.has(currentImage) ? (
                 <Image
                   src={images[currentImage]}
                   alt={ad.title}
                   fill
                   className="object-contain"
                   unoptimized
+                  onError={() => handleImageError(currentImage)}
                 />
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
                   <Package className="size-16 text-muted-foreground/30" />
-                  <span className="text-muted-foreground text-sm absolute mt-24">Kein Bild verfuegbar</span>
+                  <span className="text-muted-foreground text-sm">
+                    {imgErrors.has(currentImage) ? "Bild nicht verfügbar" : "Kein Bild verfügbar"}
+                  </span>
                 </div>
+              )}
+              {images.length > 1 && (
+                <>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 z-10 cursor-pointer opacity-80 hover:opacity-100"
+                    onClick={goToPrevImage}
+                    aria-label="Vorheriges Bild"
+                  >
+                    <ChevronLeft className="size-5" />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 cursor-pointer opacity-80 hover:opacity-100"
+                    onClick={goToNextImage}
+                    aria-label="Nächstes Bild"
+                  >
+                    <ChevronRight className="size-5" />
+                  </Button>
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
+                    {currentImage + 1} / {images.length}
+                  </div>
+                </>
               )}
             </div>
             {images.length > 1 && (
@@ -149,15 +244,23 @@ export function AdDetailPage() {
                     className={`size-16 rounded-md overflow-hidden shrink-0 border-2 transition-colors cursor-pointer ${
                       i === currentImage ? "border-primary" : "border-transparent hover:border-muted-foreground/30"
                     }`}
+                    aria-label={`Bild ${i + 1} von ${images.length}`}
                   >
-                    <Image
-                      src={img}
-                      alt={`Bild ${i + 1}`}
-                      width={64}
-                      height={64}
-                      className="size-full object-cover"
-                      unoptimized
-                    />
+                    {imgErrors.has(i) ? (
+                      <div className="size-full bg-muted flex items-center justify-center">
+                        <Package className="size-4 text-muted-foreground/30" />
+                      </div>
+                    ) : (
+                      <Image
+                        src={img}
+                        alt={`Bild ${i + 1}`}
+                        width={64}
+                        height={64}
+                        className="size-full object-cover"
+                        unoptimized
+                        onError={() => handleImageError(i)}
+                      />
+                    )}
                   </button>
                 ))}
               </div>
@@ -222,7 +325,7 @@ export function AdDetailPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="size-4" />
-                Verkaeufer
+                Verkäufer
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
@@ -246,7 +349,7 @@ export function AdDetailPage() {
                 {ad.seller_is_reliable && (
                   <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
                     <ShieldCheck className="size-3" />
-                    Zuverlaessig
+                    Zuverlässig
                   </Badge>
                 )}
               </div>
@@ -282,7 +385,7 @@ export function AdDetailPage() {
                         className="flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 cursor-pointer font-medium transition-colors"
                       >
                         {showReasoning ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-                        Begruendung {showReasoning ? "ausblenden" : "anzeigen"}
+                        Begründung {showReasoning ? "ausblenden" : "anzeigen"}
                       </button>
                       {showReasoning && (
                         <p className="text-sm text-amber-900 mt-2 leading-relaxed">

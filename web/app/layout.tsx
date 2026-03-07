@@ -7,7 +7,7 @@ const _inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: 'Schnappster',
-  description: 'Dein persoenlicher Schnaeppchen-Finder fuer Kleinanzeigen.de',
+  description: 'Dein persönlicher Schnäppchen-Finder für Kleinanzeigen.de',
   icons: {
     icon: [
       { url: '/icon1.png', sizes: '16x16', type: 'image/png' },
@@ -33,8 +33,14 @@ export default function RootLayout({
   return (
     <html lang="de">
       <body className="font-sans antialiased">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-4 focus:left-4 focus:bg-background focus:text-foreground focus:px-4 focus:py-2 focus:rounded-md focus:border focus:shadow-lg"
+        >
+          Zum Hauptinhalt springen
+        </a>
         {children}
-        <Toaster position="top-right" richColors />
+        <Toaster position="top-right" richColors toastOptions={{ role: "status", "aria-live": "polite" } as React.HTMLAttributes<HTMLLIElement>} />
       </body>
     </html>
   )

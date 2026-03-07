@@ -2,7 +2,14 @@
 
 import { useEffect, useState, useMemo } from "react"
 import { Search, Star, Clock } from "lucide-react"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
@@ -76,7 +83,7 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Dashboard"
-          subtitle="Uebersicht ueber deine Schnaeppchen-Suchergebnisse"
+          subtitle="Übersicht über deine Schnäppchen-Suchergebnisse"
         />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Skeleton className="h-24" />
@@ -85,7 +92,7 @@ export default function DashboardPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Letzte Schnaeppchen</CardTitle>
+            <CardTitle>Letzte Schnäppchen</CardTitle>
           </CardHeader>
           <CardContent>
             <Skeleton className="h-48" />
@@ -100,23 +107,35 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Dashboard"
-          subtitle="Uebersicht ueber deine Schnaeppchen-Suchergebnisse"
+          subtitle="Übersicht über deine Schnäppchen-Suchergebnisse"
         />
-        <p className="text-destructive">{error}</p>
+        <div className="flex flex-col items-center gap-4 py-12">
+          <p className="text-destructive">{error}</p>
+          <Button variant="outline" onClick={() => window.location.reload()} className="cursor-pointer">
+            Erneut laden
+          </Button>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbPage>Start</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       <PageHeader
         title="Dashboard"
-        subtitle="Uebersicht ueber deine Schnaeppchen-Suchergebnisse"
+        subtitle="Übersicht über deine Schnäppchen-Suchergebnisse"
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
-          label="Aktive Suchauftraege"
+          label="Aktive Suchaufträge"
           value={activeSearches}
           icon={Search}
           iconBgColor="bg-emerald-50"
@@ -140,7 +159,7 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Letzte Schnaeppchen</CardTitle>
+          <CardTitle>Letzte Schnäppchen</CardTitle>
         </CardHeader>
         <CardContent>
           <LatestDeals ads={latestDeals} />

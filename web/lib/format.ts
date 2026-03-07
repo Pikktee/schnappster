@@ -4,7 +4,9 @@ import { de } from "date-fns/locale"
 export function timeAgo(dateStr: string | null): string {
   if (!dateStr) return "Noch nie"
   try {
-    return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: de })
+    // Naive timestamps (no timezone) from the DB are UTC — append "Z" so JS parses them correctly
+    const normalized = dateStr.includes("+") || dateStr.endsWith("Z") ? dateStr : dateStr + "Z"
+    return formatDistanceToNow(new Date(normalized), { addSuffix: true, includeSeconds: true, locale: de })
   } catch {
     return "Unbekannt"
   }
@@ -22,7 +24,7 @@ export function formatPrice(price: number | null): string {
 
 export function formatScore(score: number | null): string {
   if (score === null || score === undefined) return "-"
-  return score.toFixed(1).replace(".", ",")
+  return String(Math.round(score))
 }
 
 export function getScoreColor(score: number | null): string {
@@ -57,7 +59,7 @@ export function getStatusInfo(status: string): { label: string; color: string } 
     case "completed":
       return { label: "Abgeschlossen", color: "bg-emerald-100 text-emerald-700 border-emerald-200" }
     case "running":
-      return { label: "Laeuft", color: "bg-blue-100 text-blue-700 border-blue-200" }
+      return { label: "Läuft", color: "bg-blue-100 text-blue-700 border-blue-200" }
     case "failed":
       return { label: "Fehlgeschlagen", color: "bg-red-100 text-red-700 border-red-200" }
     default:

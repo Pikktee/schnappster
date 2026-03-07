@@ -17,7 +17,7 @@ import {
 
 const navItems = [
   { label: "Start", href: "/", icon: Home },
-  { label: "Suchauftraege", href: "/searches/", icon: Search },
+  { label: "Suchaufträge", href: "/searches/", icon: Search },
   { label: "Anzeigen", href: "/ads/", icon: Tag },
   { label: "Logs", href: "/logs/", icon: List },
   { label: "Einstellungen", href: "/settings/", icon: Settings },

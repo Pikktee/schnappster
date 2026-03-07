@@ -1,4 +1,5 @@
 import { ExternalLink as ExternalLinkIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface ExternalLinkProps {
   href: string
@@ -12,10 +13,11 @@ export function ExternalLink({ href, children, className }: ExternalLinkProps) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex items-center gap-1 text-primary hover:underline cursor-pointer ${className || ""}`}
+      className={cn("inline-flex items-center gap-1 text-primary hover:underline cursor-pointer", className)}
+      aria-label={`${typeof children === "string" ? children : ""} (öffnet neues Fenster)`}
     >
       {children}
-      <ExternalLinkIcon className="size-3 shrink-0" />
+      <ExternalLinkIcon className="size-3 shrink-0" aria-hidden="true" />
     </a>
   )
 }

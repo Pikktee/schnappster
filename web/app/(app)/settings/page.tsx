@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react"
 import { Save } from "lucide-react"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -94,6 +102,17 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Start</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Einstellungen</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       <PageHeader title="Einstellungen" subtitle="Globale App-Einstellungen" />
 
       <Card className="max-w-2xl">
@@ -142,10 +161,22 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           {!telegramConfigured && (
-            <p className="text-sm text-muted-foreground">
-              Telegram ist nicht konfiguriert. Bitte TELEGRAM_BOT_TOKEN und
-              TELEGRAM_CHAT_ID in der .env-Datei setzen.
-            </p>
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p>
+                Telegram ist nicht konfiguriert. Setze <code className="text-xs bg-muted px-1 py-0.5 rounded">TELEGRAM_BOT_TOKEN</code> und{" "}
+                <code className="text-xs bg-muted px-1 py-0.5 rounded">TELEGRAM_CHAT_ID</code> in der .env-Datei.
+              </p>
+              <p>
+                <a
+                  href="https://core.telegram.org/bots#how-do-i-create-a-bot"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Anleitung: Telegram Bot erstellen &rarr;
+                </a>
+              </p>
+            </div>
           )}
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-0.5">

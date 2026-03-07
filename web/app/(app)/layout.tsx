@@ -8,8 +8,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="flex h-12 items-center gap-2 border-b px-4 md:hidden">
           <SidebarTrigger />
+          <span className="text-sm font-semibold text-foreground">Schnappster</span>
         </header>
-        <main className="flex-1 overflow-auto p-6 lg:p-8">
+        <main id="main-content" className="flex-1 overflow-auto p-6 lg:p-8">
           {children}
         </main>
       </SidebarInset>
