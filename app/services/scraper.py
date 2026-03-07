@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch
@@ -13,7 +13,7 @@ from app.scraper.parser import (
     parse_next_page_urls,
     parse_search_results,
 )
-from app.services.settings import get_setting_bool, get_setting_int
+from app.services.settings import SettingsService
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,10 @@ class ScraperService:
         self.session = session
 
     def scrape_adsearch(self, adsearch: AdSearch) -> ScrapeRun:
-        """Scrape all new ads for a given AdSearch."""
+        """
+        Scrape all new ads for a given AdSearch.
+        """
+        assert adsearch.id is not None, "AdSearch muss eine ID haben, um gescrapt zu werden"
         scrape_run = ScrapeRun(adsearch_id=adsearch.id, status="running")
         self.session.add(scrape_run)
         self.session.commit()
@@ -59,9 +62,12 @@ class ScraperService:
     def _filter_ads(
         self, details: list[ScrapedAdDetail], adsearch: AdSearch
     ) -> list[ScrapedAdDetail]:
-        """Filter ads based on AdSearch and global settings."""
-        exclude_commercial = get_setting_bool("exclude_commercial_sellers", self.session)
-        min_rating = get_setting_int("min_seller_rating", self.session)
+        """
+        Filter ads based on AdSearch and global settings.
+        """
+        settings = SettingsService(self.session)
+        exclude_commercial = settings.get_bool("exclude_commercial_sellers")
+        min_rating = settings.get_int("min_seller_rating")
 
         filtered = []
         for detail in details:
@@ -83,7 +89,9 @@ class ScraperService:
         exclude_commercial: bool,
         min_rating: int,
     ) -> str | None:
-        """Return filter reason or None if ad passes all filters."""
+        """
+        Return filter reason or None if ad passes all filters.
+        """
         # Preisfilter (pro Suche)
         if detail.price is not None:
             if adsearch.min_price is not None and detail.price < adsearch.min_price:
@@ -115,7 +123,9 @@ class ScraperService:
         return None
 
     def _collect_previews(self, search_url: str) -> list:
-        """Fetch all pages of search results and collect ad previews."""
+        """
+        Fetch all pages of search results and collect ad previews.
+        """
         first_page_html = fetch_page(search_url)
         all_previews = parse_search_results(first_page_html)
         next_page_urls = parse_next_page_urls(first_page_html)
@@ -129,14 +139,16 @@ class ScraperService:
         return all_previews
 
     def _filter_known(self, previews: list, adsearch_id: int) -> list:
-        """Filter out ads that already exist in the database."""
+        """
+        Filter out ads that already exist in the database.
+        """
         if not previews:
             return []
 
         external_ids = [p.external_id for p in previews]
         existing = self.session.exec(
             select(Ad.external_id).where(
-                Ad.external_id.in_(external_ids),
+                col(Ad.external_id).in_(external_ids),
                 Ad.adsearch_id == adsearch_id,
             )
         ).all()
@@ -145,7 +157,9 @@ class ScraperService:
         return [p for p in previews if p.external_id not in existing_ids]
 
     def _fetch_details(self, previews: list) -> list[ScrapedAdDetail]:
-        """Fetch detail pages for all new ads."""
+        """
+        Fetch detail pages for all new ads.
+        """
         if not previews:
             return []
 
@@ -166,7 +180,9 @@ class ScraperService:
         return details
 
     def _save_ads(self, details: list[ScrapedAdDetail], adsearch_id: int) -> list[Ad]:
-        """Save scraped ad details to database."""
+        """
+        Save scraped ad details to database.
+        """
         ads: list[Ad] = []
 
         for detail in details:

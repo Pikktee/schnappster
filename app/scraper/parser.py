@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import cast
 
 from bs4 import BeautifulSoup, Tag
 
@@ -62,7 +63,7 @@ def _parse_search_item(item: Tag) -> ScrapedAdPreview | None:
     if not link:
         return None
 
-    href = link.get("href", "")
+    href = cast(str, link.get("href", ""))
     url = f"{BASE_URL}{href}" if href.startswith("/") else href
 
     parts = href.rstrip("/").split("/")
@@ -88,7 +89,8 @@ def _parse_search_item(item: Tag) -> ScrapedAdPreview | None:
     image_url = None
     img = item.select_one("img[src*='img.kleinanzeigen.de']")
     if img:
-        image_url = img.get("src", "")
+        raw = img.get("src")
+        image_url = raw if isinstance(raw, str) else None
 
     return ScrapedAdPreview(
         external_id=external_id,
@@ -106,7 +108,7 @@ def parse_next_page_urls(html: str) -> list[str]:
     urls: list[str] = []
 
     for link in soup.select("a[href*='seite:']"):
-        href = link.get("href", "")
+        href = cast(str, link.get("href", ""))
         full_url = f"{BASE_URL}{href}" if href.startswith("/") else href
         if full_url not in urls:
             urls.append(full_url)
@@ -130,11 +132,17 @@ def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | 
     # Price from meta tag (more reliable) or visible price
     price = None
     price_meta = soup.select_one("meta[itemprop='price']")
-    if price_meta:
-        price = _parse_price(price_meta.get("content", ""))
+    if price_meta and isinstance(price_meta, Tag):
+        content = price_meta.get("content", "")
+
+        if isinstance(content, list):
+            content = " ".join(content)
+        if isinstance(content, str):
+            price = _parse_price(content)
     else:
         price_tag = soup.select_one("#viewad-price")
-        if price_tag:
+
+        if price_tag and isinstance(price_tag, Tag):
             price = _parse_price(price_tag.get_text(strip=True))
 
     # Location: split "51105 Innenstadt - Poll" into postal_code and city
@@ -172,7 +180,8 @@ def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | 
     # Images
     image_urls: list[str] = []
     for img in soup.select(".galleryimage-element img[data-imgsrc]"):
-        src = img.get("data-imgsrc", "")
+        raw = img.get("data-imgsrc", "")
+        src = raw if isinstance(raw, str) else None
         if src and src not in image_urls:
             image_urls.append(src)
 
@@ -190,14 +199,15 @@ def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | 
         name_link = profile_box.select_one(".userprofile-vip a")
         if name_link:
             seller_name = name_link.get_text(strip=True)
-            href = name_link.get("href", "")
+            raw_href = name_link.get("href", "")
+            href = raw_href if isinstance(raw_href, str) else ""
             seller_url = f"{BASE_URL}{href}" if href.startswith("/") else href
 
         rating_tag = profile_box.select_one(".userbadges-profile-rating")
         if rating_tag:
             icon = rating_tag.select_one("i")
             if icon:
-                classes = icon.get("class", [])
+                classes = icon.get("class") or []
                 if "icon-rating-tag-2" in classes:
                     seller_rating = 2
                 elif "icon-rating-tag-1" in classes:

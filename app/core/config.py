@@ -8,7 +8,7 @@ def get_app_root() -> Path:
     return Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(BaseSettings):
+class Config(BaseSettings):
     database_url: str = f"sqlite:///{get_app_root() / 'data' / 'schnappster.db'}"
     openrouter_api_key: str = ""
     openrouter_ai_model: str = "google/gemini-2.0-flash-001"
@@ -21,4 +21,4 @@ class Settings(BaseSettings):
     }
 
 
-settings = Settings()
+config = Config()

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import (  # pyright: ignore[reportMissingImports]
     BackgroundScheduler,
 )
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.core.db import engine
 from app.models.adsearch import AdSearch
@@ -19,7 +19,7 @@ scheduler = BackgroundScheduler()
 def check_and_scrape() -> None:
     """Check all active AdSearches and scrape those that are due."""
     with Session(engine) as session:
-        searches = session.exec(select(AdSearch).where(AdSearch.is_active.is_(True))).all()
+        searches = session.exec(select(AdSearch).where(col(AdSearch.is_active).is_(True))).all()
 
         logger.info(f"Found {len(searches)} active AdSearches")
 

@@ -9,6 +9,9 @@ router = APIRouter(prefix="/ads", tags=["Ads"])
 
 @router.get("/", response_model=list[AdRead])
 def list_ads(session: DbSession, adsearch_id: int | None = None, is_analyzed: bool | None = None):
+    """
+    Returns all ads (Kleinanzeigen).
+    """
     query = select(Ad)
 
     if adsearch_id is not None:
@@ -21,6 +24,11 @@ def list_ads(session: DbSession, adsearch_id: int | None = None, is_analyzed: bo
 
 @router.get("/{ad_id}", response_model=AdRead)
 def get_ad(ad_id: int, session: DbSession):
+    """
+    Returns a specific ad (Kleinanzeige).
+
+    If the given ID does not exist, an error 404 is thrown.
+    """
     ad = session.get(Ad, ad_id)
 
     if not ad:

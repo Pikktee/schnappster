@@ -8,7 +8,7 @@ Usage:
 import logging
 import sys
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.core import engine, setup_logging
 from app.models import AdSearch
@@ -31,7 +31,7 @@ def main() -> None:
             searches = [adsearch]
         else:
             searches = list(
-                session.exec(select(AdSearch).where(AdSearch.is_active.is_(True))).all()
+                session.exec(select(AdSearch).where(col(AdSearch.is_active).is_(True))).all()
             )
 
         if not searches:

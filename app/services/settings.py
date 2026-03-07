@@ -2,77 +2,83 @@ from sqlmodel import Session
 
 from app.models.settings import AppSettings
 
-SETTINGS_SCHEMA: dict[str, dict] = {
-    "exclude_commercial_sellers": {
-        "type": "bool",
-        "default": "false",
-        "allowed": ["true", "false"],
-        "description": "Gewerbliche Verkäufer ausschließen",
-    },
-    "min_seller_rating": {
-        "type": "int",
-        "default": "0",
-        "allowed": ["0", "1", "2"],
-        "description": "Mindest-Verkäuferbewertung (0=Na ja, 1=OK, 2=TOP)",
-    },
-    "telegram_notifications_enabled": {
-        "type": "bool",
-        "default": "false",
-        "allowed": ["true", "false"],
-        "description": "Telegram-Benachrichtigungen bei Schnäppchen",
-    },
-}
 
+class SettingsService:
+    _SUPPORTED_SETTINGS: dict[str, dict] = {
+        "exclude_commercial_sellers": {
+            "type": "bool",
+            "default": "false",
+            "allowed": ["true", "false"],
+            "description": "Gewerbliche Verkäufer ausschließen",
+        },
+        "min_seller_rating": {
+            "type": "int",
+            "default": "0",
+            "allowed": ["0", "1", "2"],
+            "description": "Mindest-Verkäuferbewertung (0=Na ja, 1=OK, 2=TOP)",
+        },
+        "telegram_notifications_enabled": {
+            "type": "bool",
+            "default": "false",
+            "allowed": ["true", "false"],
+            "description": "Telegram-Benachrichtigungen bei Schnäppchen",
+        },
+    }
 
-def get_setting(key: str, session: Session) -> str:
-    """Get a setting value, falling back to default."""
-    if key not in SETTINGS_SCHEMA:
-        raise ValueError(f"Unknown setting: {key}")
-    config = session.get(AppSettings, key)
-    return config.value if config else SETTINGS_SCHEMA[key]["default"]
+    def __init__(self, session: Session):
+        self.session = session
 
+    @property
+    def supported(self) -> dict:
+        """
+        Returns schema dict with supported settings.
+        """
+        return self._SUPPORTED_SETTINGS.copy()
 
-def get_setting_bool(key: str, session: Session) -> bool:
-    """Get a boolean setting."""
-    return get_setting(key, session).lower() == "true"
+    def get(self, key: str) -> str:
+        if key not in self._SUPPORTED_SETTINGS:
+            raise ValueError(f"This setting '{key}' is not supported.")
 
+        config = self.session.get(AppSettings, key)
 
-def get_setting_int(key: str, session: Session) -> int:
-    """Get an integer setting."""
-    return int(get_setting(key, session))
+        return config.value if config else self._SUPPORTED_SETTINGS[key]["default"]
 
+    def get_bool(self, key: str) -> bool:
+        return self.get(key).lower() == "true"
 
-def set_setting(key: str, value: str, session: Session) -> None:
-    """Set a setting value with validation."""
-    if key not in SETTINGS_SCHEMA:
-        raise ValueError(f"Unknown setting: {key}")
+    def get_int(self, key: str) -> int:
+        return int(self.get(key))
 
-    schema = SETTINGS_SCHEMA[key]
-    allowed = schema.get("allowed")
-    if allowed is not None and value not in allowed:
-        raise ValueError(f"Invalid value '{value}' for '{key}'. Allowed: {', '.join(allowed)}")
+    def set(self, key: str, value: str):
+        if key not in self._SUPPORTED_SETTINGS:
+            raise ValueError(f"This setting '{key}' is not supported.")
 
-    config = session.get(AppSettings, key)
-    if config:
-        config.value = value
-    else:
-        session.add(AppSettings(key=key, value=value))
-    session.commit()
+        # Validate with rules
+        rules = self._SUPPORTED_SETTINGS[key]
+        allowed = rules.get("allowed")
+        if allowed and value not in allowed:
+            raise ValueError(f"Value '{value}' is invalid. Allowed: {', '.join(allowed)}")
 
+        config = self.session.get(AppSettings, key)
 
-def get_all_settings(session: Session) -> list[dict]:
-    """Get all settings with their current values and metadata."""
-    result = []
-    for key, schema in SETTINGS_SCHEMA.items():
-        config = session.get(AppSettings, key)
-        result.append(
-            {
+        if config:
+            config.value = value
+        else:
+            config = AppSettings(key=key, value=value)
+            self.session.add(config)
+
+        self.session.commit()
+
+    def get_all(self) -> list[dict]:
+        """
+        Returns a list with a settings
+        """
+        all_settings = []
+        for key, details in self._SUPPORTED_SETTINGS.items():
+            entry = {
                 "key": key,
-                "value": config.value if config else schema["default"],
-                "default": schema["default"],
-                "type": schema["type"],
-                "allowed": schema["allowed"],
-                "description": schema["description"],
+                "value": self.get(key),
+                **details,  # type, default, allowed, description
             }
-        )
-    return result
+            all_settings.append(entry)
+        return all_settings

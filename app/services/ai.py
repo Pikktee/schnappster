@@ -3,13 +3,15 @@ import json
 import logging
 
 from openai import BadRequestError, OpenAI  # pyright: ignore[reportMissingImports]
+from sqlalchemy import desc
 from sqlmodel import Session, select
 
-from app.core import settings
+from app.core import config as app_config
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch
 from app.scraper.httpclient import fetch_binary
-from app.services.settings import get_setting_bool
+from app.services.settings import SettingsService
+from app.services.telegram import TelegramService
 
 logger = logging.getLogger(__name__)
 
@@ -52,21 +54,23 @@ Antworte AUSSCHLIESSLICH im folgenden JSON-Format, ohne zusätzlichen Text:
 class AIService:
     def __init__(self, session: Session):
         self.session = session
-        if not settings.openrouter_api_key:
+        if not app_config.openrouter_api_key:
             raise ValueError("OpenRouter API key not configured - set OPENROUTER_API_KEY in .env")
 
-        self.model = settings.openrouter_ai_model
+        self.model = app_config.openrouter_ai_model
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
-            api_key=settings.openrouter_api_key,
+            api_key=app_config.openrouter_api_key,
         )
 
     def analyze_unprocessed(self, limit: int = 10) -> int:
-        """Analyze unprocessed ads. Returns number of ads analyzed."""
+        """
+        Analyze unprocessed ads. Returns number of ads analyzed.
+        """
         ads = self.session.exec(
             select(Ad)
-            .where(Ad.is_analyzed.is_(False))
-            .order_by(Ad.first_seen_at.desc())
+            .where(Ad.is_analyzed.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
+            .order_by(desc(Ad.first_seen_at))  # pyright: ignore[reportArgumentType]
             .limit(limit)
         ).all()
 
@@ -95,7 +99,9 @@ class AIService:
         return analyzed
 
     def _analyze_ad(self, ad: Ad) -> None:
-        """Analyze a single ad with the AI model."""
+        """
+        Analyze a single ad with the AI model.
+        """
         adsearch = self.session.get(AdSearch, ad.adsearch_id)
         ad_text = self._build_ad_text(ad, adsearch)
         images = self._download_images(ad)
@@ -103,7 +109,7 @@ class AIService:
         messages = self._build_messages(ad_text, images, adsearch)
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=messages,
+            messages=messages,  # pyright: ignore[reportArgumentType]
             max_tokens=1000,
             temperature=0.3,
         )
@@ -119,10 +125,13 @@ class AIService:
 
         logger.info(f"Analyzed ad {ad.id} '{ad.title}': score={result['score']}")
 
-        if result["score"] >= 7 and get_setting_bool("telegram_notifications_enabled", self.session):
-            from app.services.telegram import send_bargain_notification
+        settings = SettingsService(self.session)
+        if result["score"] >= 8 and settings.get_bool("telegram_notifications_enabled"):
+            tg = TelegramService(
+                bot_token=app_config.telegram_bot_token, chat_id=app_config.telegram_chat_id
+            )
 
-            send_bargain_notification(ad)
+            tg.send_bargain_notification(ad)
 
     def _build_ad_text(self, ad: Ad, adsearch: AdSearch | None) -> str:
         """Build a text representation of the ad for the AI."""
@@ -249,13 +258,13 @@ class AIService:
             select(Ad)
             .where(Ad.adsearch_id == ad.adsearch_id)
             .where(Ad.id != ad.id)
-            .where(Ad.price.is_not(None))
+            .where(Ad.price.is_not(None))  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
         ).all()
 
         if not other_ads:
             return ""
 
-        prices = sorted([a.price for a in other_ads])
+        prices = sorted([a.price for a in other_ads])  # pyright: ignore[reportArgumentType]
         avg_price = sum(prices) / len(prices)
         median_price = prices[len(prices) // 2]
 

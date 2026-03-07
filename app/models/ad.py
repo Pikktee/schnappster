@@ -50,7 +50,9 @@ class Ad(SQLModel, table=True):
 # --- API Schemas ---
 # -------------------
 class AdRead(SQLModel):
-    """API output schema."""
+    """
+    Ad (Kleinanzeige) read api schema
+    """
 
     id: int
     adsearch_id: int

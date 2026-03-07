@@ -1,61 +1,61 @@
 import logging
 
-from app.core import settings
+import httpx
+
 from app.models.ad import Ad
 
 logger = logging.getLogger(__name__)
 
 
-def is_telegram_configured() -> bool:
-    """
-    Return True if Telegram bot token and chat ID are set in .env.
-    """
-    return bool(settings.telegram_bot_token.strip() and settings.telegram_chat_id.strip())
+class TelegramService:
+    def __init__(self, bot_token: str, chat_id: str):
+        self.bot_token = bot_token.strip() if bot_token else ""
+        self.chat_id = chat_id.strip() if chat_id else ""
+        self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
 
+    @property
+    def is_configured(self) -> bool:
+        """Prüft, ob der Service einsatzbereit ist."""
+        return bool(self.bot_token and self.chat_id)
 
-def send_bargain_notification(ad: Ad) -> None:
-    """
-    Send a Telegram message for an identified bargain.
-    Logs errors and does not raise, so the analysis flow continues.
-    """
-    if not is_telegram_configured():
-        logger.debug("Telegram not configured, skipping notification")
-        return
+    def _format_message(self, ad: Ad) -> str:
+        """Interne Methode, um den Text für Telegram aufzubereiten."""
+        price_str = f"{ad.price:.0f} €" if ad.price is not None else "VB"
+        score_str = f"{ad.bargain_score:.1f}" if ad.bargain_score is not None else "–"
 
-    price_str = f"{ad.price:.0f} €" if ad.price is not None else "VB"
-    score_str = f"{ad.bargain_score:.1f}" if ad.bargain_score is not None else "–"
-    summary = ad.ai_summary or ""
-    reasoning = ad.ai_reasoning or ""
-    ki_text = f"{summary}\n\n{reasoning}".strip() if reasoning else summary
+        summary = ad.ai_summary or ""
+        reasoning = ad.ai_reasoning or ""
+        ki_text = f"{summary}\n\n{reasoning}".strip() if reasoning else summary
 
-    text = (
-        f"**{ad.title}**\n\n"
-        f"🔗 {ad.url}\n\n"
-        f"Preis: {price_str}\n"
-        f"Bargain-Score: {score_str}/10\n\n"
-        f"{ki_text}"
-    )
+        return (
+            f"**{ad.title}**\n\n"
+            f"🔗 {ad.url}\n\n"
+            f"Preis: {price_str}\n"
+            f"Bargain-Score: {score_str}/10\n\n"
+            f"{ki_text}"
+        )
 
-    url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage"
-    payload = {
-        "chat_id": settings.telegram_chat_id,
-        "text": text,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": True,
-    }
+    def send_bargain_notification(self, ad: Ad) -> None:
+        """Versendet die Nachricht an Telegram."""
+        if not self.is_configured:
+            logger.debug("Telegram is not configured, skipping notification")
+            return
 
-    try:
-        import httpx
+        text = self._format_message(ad)
+        payload = {
+            "chat_id": self.chat_id,
+            "text": text,
+            "parse_mode": "Markdown",
+            "disable_web_page_preview": True,
+        }
 
-        with httpx.Client(timeout=10.0) as client:
-            resp = client.post(url, json=payload)
-            if not resp.is_success:
-                logger.warning(
-                    "Telegram API error: %s %s",
-                    resp.status_code,
-                    resp.text,
-                )
-            else:
-                logger.info("Telegram notification sent for ad %s", ad.id)
-    except Exception as e:
-        logger.warning("Failed to send Telegram notification: %s", e)
+        try:
+            # Wir nutzen einen Context-Manager für den Client
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.post(self.api_url, json=payload)
+                if not resp.is_success:
+                    logger.warning("Telegram API error: %s %s", resp.status_code, resp.text)
+                else:
+                    logger.info("Telegram notification sent for ad %s", ad.id)
+        except Exception as e:
+            logger.warning("Failed to send Telegram notification: %s", e)

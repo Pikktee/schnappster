@@ -30,6 +30,7 @@ export function LatestDeals({ ads }: LatestDealsProps) {
             key={ad.id}
             href={`/ads/${ad.id}`}
             className="flex items-center gap-4 py-4 px-2 -mx-2 rounded-lg transition-all hover:bg-accent/50 hover:shadow-sm cursor-pointer group"
+            prefetch={false}
           >
             <div className="size-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden shrink-0">
               {images.length > 0 ? (

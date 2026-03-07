@@ -18,7 +18,7 @@ export function AdCard({ ad }: AdCardProps) {
 
   return (
     <Card className="group relative transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer overflow-hidden p-0">
-      <Link href={`/ads/${ad.id}`} className="absolute inset-0 z-0" aria-label={`Details fuer ${ad.title}`} />
+      <Link href={`/ads/${ad.id}`} className="absolute inset-0 z-0" aria-label={`Details fuer ${ad.title}`} prefetch={false} />
 
       <div className="aspect-[4/3] relative bg-muted overflow-hidden">
         {images.length > 0 ? (
