@@ -1,17 +1,25 @@
-import type { Ad, AdSearch, AppSetting, ErrorLog, ScrapeRun } from "./types"
+import type { Ad, AdSearch, AppSetting, ErrorLog, PaginatedAds, ScrapeRun } from "./types"
 
 // Use relative URL by default so the static export can be served
 // from the same origin as the FastAPI backend.
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  })
+  let res: Response
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    })
+  } catch {
+    throw new Error("Keine Verbindung zum Server — bitte Internetverbindung prüfen.")
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(body.detail || `API error: ${res.status}`)
+    if (res.status >= 500) {
+      throw new Error(body.detail || "Serverfehler — bitte später erneut versuchen.")
+    }
+    throw new Error(body.detail || `Anfrage fehlgeschlagen (${res.status})`)
   }
   return res.json()
 }
@@ -25,14 +33,34 @@ export const updateSearch = (id: number, data: Partial<AdSearch>) =>
   apiFetch<AdSearch>(`/api/adsearches/${id}`, { method: "PATCH", body: JSON.stringify(data) })
 export const deleteSearch = (id: number) =>
   apiFetch<void>(`/api/adsearches/${id}`, { method: "DELETE" })
+export const triggerScrape = (id: number) =>
+  apiFetch<{ status: string }>(`/api/adsearches/${id}/scrape`, { method: "POST" })
 
 // Ads
-export const fetchAds = (params?: { adsearch_id?: number; is_analyzed?: boolean }) => {
+export const fetchAds = async (params?: { adsearch_id?: number; is_analyzed?: boolean }): Promise<Ad[]> => {
   const searchParams = new URLSearchParams()
   if (params?.adsearch_id) searchParams.set("adsearch_id", String(params.adsearch_id))
   if (params?.is_analyzed !== undefined) searchParams.set("is_analyzed", String(params.is_analyzed))
+  searchParams.set("limit", "100")
   const qs = searchParams.toString()
-  return apiFetch<Ad[]>(`/api/ads/${qs ? `?${qs}` : ""}`)
+  const res = await apiFetch<PaginatedAds>(`/api/ads/?${qs}`)
+  return res.items
+}
+
+export const fetchAdsPaginated = (params: {
+  adsearch_id?: number
+  min_score?: number
+  sort?: string
+  limit?: number
+  offset?: number
+}) => {
+  const sp = new URLSearchParams()
+  if (params.adsearch_id) sp.set("adsearch_id", String(params.adsearch_id))
+  if (params.min_score && params.min_score > 0) sp.set("min_score", String(params.min_score))
+  if (params.sort) sp.set("sort", params.sort)
+  if (params.limit) sp.set("limit", String(params.limit))
+  if (params.offset) sp.set("offset", String(params.offset))
+  return apiFetch<PaginatedAds>(`/api/ads/?${sp.toString()}`)
 }
 export const fetchAd = (id: number) => apiFetch<Ad>(`/api/ads/${id}`)
 export const deleteAd = (id: number) =>

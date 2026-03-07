@@ -1,8 +1,14 @@
-from fastapi import APIRouter, HTTPException
-from sqlmodel import select
+import logging
+import threading
 
-from app.core.db import DbSession
+from fastapi import APIRouter, HTTPException
+from sqlmodel import Session, select
+
+from app.core.db import DbSession, engine
 from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearchUpdate
+from app.services.scraper import ScraperService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/adsearches", tags=["AdSearches"])
 
@@ -81,3 +87,26 @@ def delete_adsearch(adsearch_id: int, session: DbSession):
 
     session.delete(adsearch)
     session.commit()
+
+
+@router.post("/{adsearch_id}/scrape", status_code=202)
+def trigger_scrape(adsearch_id: int, session: DbSession):
+    """Trigger an immediate scrape for a specific AdSearch."""
+    adsearch = session.get(AdSearch, adsearch_id)
+
+    if not adsearch:
+        raise HTTPException(status_code=404, detail="AdSearch not found")
+
+    def _run_scrape() -> None:
+        with Session(engine) as bg_session:
+            try:
+                scraper = ScraperService(bg_session)
+                fresh = bg_session.get(AdSearch, adsearch_id)
+                if fresh:
+                    scraper.scrape_adsearch(fresh)
+            except Exception as e:
+                logger.error(f"Triggered scrape failed for AdSearch {adsearch_id}: {e}")
+
+    threading.Thread(target=_run_scrape, daemon=True).start()
+
+    return {"status": "scrape_triggered"}

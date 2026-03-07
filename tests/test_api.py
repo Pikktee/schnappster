@@ -57,26 +57,27 @@ def test_delete_adsearch(client, sample_adsearch):
 def test_list_ads_empty(client):
     response = client.get("/api/ads/")
     assert response.status_code == 200
-    assert response.json() == []
+    assert response.json() == {"items": [], "total": 0}
 
 
 def test_list_ads(client, sample_ads):
     response = client.get("/api/ads/")
     assert response.status_code == 200
-    assert len(response.json()) == 3
+    assert response.json()["total"] == 3
+    assert len(response.json()["items"]) == 3
 
 
 def test_list_ads_filter_by_adsearch(client, sample_ads, sample_adsearch):
     response = client.get(f"/api/ads/?adsearch_id={sample_adsearch.id}")
     assert response.status_code == 200
-    assert len(response.json()) == 3
+    assert len(response.json()["items"]) == 3
 
 
 def test_list_ads_filter_by_analyzed(client, sample_ads):
     response = client.get("/api/ads/?is_analyzed=true")
     assert response.status_code == 200
-    assert len(response.json()) == 1
-    assert response.json()[0]["external_id"] == "1001"
+    assert response.json()["total"] == 1
+    assert response.json()["items"][0]["external_id"] == "1001"
 
 
 def test_get_ad(client, sample_ads):

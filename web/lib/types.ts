@@ -61,6 +61,11 @@ export interface ErrorLog {
   created_at: string
 }
 
+export interface PaginatedAds {
+  items: Ad[]
+  total: number
+}
+
 export interface AppSetting {
   key: string
   value: string

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from sqlmodel import select
+from sqlmodel import select, func, col
 
 from app.core.db import DbSession
 from app.models.ad import Ad, AdRead
@@ -7,19 +7,38 @@ from app.models.ad import Ad, AdRead
 router = APIRouter(prefix="/ads", tags=["Ads"])
 
 
-@router.get("/", response_model=list[AdRead])
-def list_ads(session: DbSession, adsearch_id: int | None = None, is_analyzed: bool | None = None):
-    """
-    Returns all ads (Kleinanzeigen).
-    """
+@router.get("/")
+def list_ads(
+    session: DbSession,
+    adsearch_id: int | None = None,
+    is_analyzed: bool | None = None,
+    min_score: int | None = None,
+    sort: str = "date",
+    limit: int = 24,
+    offset: int = 0,
+):
     query = select(Ad)
 
     if adsearch_id is not None:
         query = query.where(Ad.adsearch_id == adsearch_id)
     if is_analyzed is not None:
         query = query.where(Ad.is_analyzed == is_analyzed)
+    if min_score is not None and min_score > 0:
+        query = query.where(col(Ad.bargain_score) >= min_score)
 
-    return session.exec(query).all()
+    total = session.exec(select(func.count()).select_from(query.subquery())).one()
+
+    order = {
+        "date": col(Ad.first_seen_at).desc(),
+        "price-asc": col(Ad.price).asc(),
+        "price-desc": col(Ad.price).desc(),
+        "score-desc": col(Ad.bargain_score).desc(),
+    }
+    query = query.order_by(order.get(sort, col(Ad.first_seen_at).desc()))
+    query = query.offset(offset).limit(min(limit, 100))
+
+    items = session.exec(query).all()
+    return {"items": [AdRead.model_validate(ad) for ad in items], "total": total}
 
 
 @router.get("/{ad_id}", response_model=AdRead)
