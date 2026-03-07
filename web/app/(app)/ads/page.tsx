@@ -99,7 +99,7 @@ export default function AdsPage() {
       <div className="flex flex-col gap-6">
         <PageHeader title="Anzeigen" subtitle="Alle gefundenen Kleinanzeigen-Angebote" />
         <Skeleton className="h-10 w-48" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1920px]:grid-cols-6 gap-4">
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
@@ -192,7 +192,7 @@ export default function AdsPage() {
       {filteredAds.length === 0 ? (
         <EmptyState message="Keine Angebote gefunden. Passe die Filter an oder erstelle neue Suchauftraege." />
       ) : viewMode === "cards" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1920px]:grid-cols-6 gap-4">
           {filteredAds.map((ad) => (
             <AdCard key={ad.id} ad={ad} />
           ))}
