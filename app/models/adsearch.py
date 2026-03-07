@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
@@ -27,7 +27,7 @@ class AdSearch(SQLModel, table=True):
     is_exclude_images: bool = False
     is_active: bool = True
     scrape_interval_minutes: int = 30
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     last_scraped_at: datetime | None = None
 
     ads: list["Ad"] = Relationship(back_populates="adsearch")

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from apscheduler.schedulers.background import (  # pyright: ignore[reportMissingImports]
     BackgroundScheduler,
@@ -24,7 +24,7 @@ def check_and_scrape() -> None:
         logger.info(f"Found {len(searches)} active AdSearches")
 
         scraper = ScraperService(session)
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         for adsearch in searches:
             logger.info(

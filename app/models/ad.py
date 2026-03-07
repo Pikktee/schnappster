@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from pydantic import computed_field
@@ -41,7 +41,7 @@ class Ad(SQLModel, table=True):
     ai_summary: str | None = None
     ai_reasoning: str | None = None
     is_analyzed: bool = False
-    first_seen_at: datetime = Field(default_factory=datetime.utcnow)
+    first_seen_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     adsearch: "AdSearch" = Relationship(back_populates="ads")
 

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
@@ -17,7 +17,7 @@ class ScrapeRun(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     adsearch_id: int = Field(foreign_key="ad_searches.id")
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     finished_at: datetime | None = None
     ads_found: int = 0
     ads_new: int = 0

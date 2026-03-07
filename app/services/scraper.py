@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlmodel import Session, col, select
 
@@ -53,8 +53,8 @@ class ScraperService:
             raise
 
         finally:
-            scrape_run.finished_at = datetime.utcnow()
-            adsearch.last_scraped_at = datetime.utcnow()
+            scrape_run.finished_at = datetime.now(UTC)
+            adsearch.last_scraped_at = datetime.now(UTC)
             self.session.commit()
 
         return scrape_run
