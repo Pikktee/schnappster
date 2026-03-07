@@ -6,10 +6,19 @@ import {
   ArrowLeft,
   Pencil,
   Trash2,
+  Loader2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import {
@@ -18,6 +27,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import {
   Table,
   TableBody,
@@ -29,6 +49,7 @@ import {
 import { SearchForm } from "@/components/search-form"
 import { ScoreBadge } from "@/components/score-badge"
 import { ExternalLink } from "@/components/external-link"
+import { EmptyState } from "@/components/empty-state"
 import { fetchSearch, fetchAds, updateSearch, deleteSearch } from "@/lib/api"
 import type { Ad, AdSearch } from "@/lib/types"
 import { formatPrice, timeAgo, truncateUrl } from "@/lib/format"
@@ -50,6 +71,10 @@ export function SearchDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isToggling, setIsToggling] = useState(false)
+  const [formDirty, setFormDirty] = useState(false)
+  const [confirmClose, setConfirmClose] = useState(false)
 
   useEffect(() => {
     if (Number.isNaN(id)) return
@@ -90,19 +115,21 @@ export function SearchDetailPage() {
   }
 
   async function handleDelete() {
-    if (!window.confirm("Suchauftrag wirklich loeschen?")) return
+    setIsDeleting(true)
     try {
       await deleteSearch(id)
-      toast.success("Suchauftrag geloescht")
+      toast.success("Suchauftrag gelöscht")
       router.push("/searches")
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Loeschen fehlgeschlagen."
+      const msg = e instanceof Error ? e.message : "Löschen fehlgeschlagen."
       toast.error(msg)
+      setIsDeleting(false)
     }
   }
 
   async function handleToggleActive() {
     if (!search) return
+    setIsToggling(true)
     try {
       const updated = await updateSearch(id, { is_active: !search.is_active })
       setSearch(updated)
@@ -110,6 +137,8 @@ export function SearchDetailPage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Aktualisierung fehlgeschlagen."
       toast.error(msg)
+    } finally {
+      setIsToggling(false)
     }
   }
 
@@ -128,7 +157,7 @@ export function SearchDetailPage() {
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-muted-foreground">{error || "Suchauftrag nicht gefunden."}</p>
         <Button variant="outline" onClick={() => router.push("/searches")} className="cursor-pointer">
-          Zurueck zur Uebersicht
+          Zurück zur Übersicht
         </Button>
       </div>
     )
@@ -136,8 +165,24 @@ export function SearchDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Start</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/searches">Suchaufträge</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{search.name}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" onClick={() => router.push("/searches")} className="cursor-pointer">
+        <Button variant="ghost" size="icon-sm" onClick={() => router.push("/searches")} className="cursor-pointer" aria-label="Zurück">
           <ArrowLeft className="size-4" />
         </Button>
         <div className="flex-1 flex items-center justify-between gap-4 flex-wrap">
@@ -160,6 +205,7 @@ export function SearchDetailPage() {
                 id="active-toggle"
                 checked={search.is_active}
                 onCheckedChange={handleToggleActive}
+                disabled={isToggling}
               />
               <Label htmlFor="active-toggle" className="text-sm cursor-pointer">
                 {search.is_active ? "Aktiv" : "Inaktiv"}
@@ -169,10 +215,32 @@ export function SearchDetailPage() {
               <Pencil className="size-3.5" />
               Bearbeiten
             </Button>
-            <Button variant="destructive" size="sm" onClick={handleDelete} className="cursor-pointer">
-              <Trash2 className="size-3.5" />
-              Loeschen
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={isDeleting} className="cursor-pointer">
+                  {isDeleting ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                  Löschen
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Suchauftrag löschen?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Der Suchauftrag &ldquo;{search.name}&rdquo; wird unwiderruflich gelöscht.
+                    Bereits gefundene Angebote bleiben erhalten.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="cursor-pointer">Abbrechen</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    className="bg-destructive text-white hover:bg-destructive/90 cursor-pointer"
+                  >
+                    Löschen
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </div>
@@ -207,12 +275,12 @@ export function SearchDetailPage() {
             </div>
             {search.prompt_addition && (
               <div className="md:col-span-2">
-                <span className="text-muted-foreground">Prompt-Ergaenzung</span>
+                <span className="text-muted-foreground">Prompt-Ergänzung</span>
                 <p className="mt-0.5 text-foreground">{search.prompt_addition}</p>
               </div>
             )}
             <div>
-              <span className="text-muted-foreground">Bilder ausschliessen</span>
+              <span className="text-muted-foreground">Bilder ausschließen</span>
               <p className="mt-0.5 text-foreground">{search.is_exclude_images ? "Ja" : "Nein"}</p>
             </div>
             <div>
@@ -229,45 +297,58 @@ export function SearchDetailPage() {
         </CardHeader>
         <CardContent>
           {ads.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              Noch keine Angebote fuer diese Suche.
-            </p>
+            <EmptyState
+              message={
+                search.last_scraped_at
+                  ? "Noch keine Angebote für diese Suche."
+                  : "Deine Suche laeuft — erste Ergebnisse erscheinen in wenigen Minuten."
+              }
+            />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Titel</TableHead>
-                  <TableHead>Preis</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Standort</TableHead>
-                  <TableHead>Gefunden</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ads.map((ad) => (
-                  <TableRow key={ad.id} className="cursor-pointer" onClick={() => router.push(`/ads/${ad.id}`)}>
-                    <TableCell className="font-medium max-w-[300px] truncate">
-                      {ad.title}
-                    </TableCell>
-                    <TableCell>{formatPrice(ad.price)}</TableCell>
-                    <TableCell>
-                      <ScoreBadge score={ad.bargain_score} size="sm" />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {ad.postal_code} {ad.city}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {timeAgo(ad.first_seen_at)}
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Titel</TableHead>
+                    <TableHead>Preis</TableHead>
+                    <TableHead>Score</TableHead>
+                    <TableHead className="hidden md:table-cell">Standort</TableHead>
+                    <TableHead>Gefunden</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {ads.map((ad) => (
+                    <TableRow key={ad.id} className="cursor-pointer" onClick={() => router.push(`/ads/${ad.id}`)}>
+                      <TableCell className="font-medium max-w-[300px] truncate" title={ad.title}>
+                        {ad.title}
+                      </TableCell>
+                      <TableCell>{formatPrice(ad.price)}</TableCell>
+                      <TableCell>
+                        <ScoreBadge score={ad.bargain_score} size="sm" />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground hidden md:table-cell">
+                        {ad.postal_code} {ad.city}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {timeAgo(ad.first_seen_at)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+      <Dialog open={isEditOpen} onOpenChange={(open) => {
+        if (!open && formDirty) {
+          setConfirmClose(true)
+          return
+        }
+        setIsEditOpen(open)
+        if (!open) setFormDirty(false)
+      }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Suche bearbeiten</DialogTitle>
@@ -275,10 +356,41 @@ export function SearchDetailPage() {
           <SearchForm
             initial={search}
             onSubmit={handleUpdate}
-            onCancel={() => setIsEditOpen(false)}
+            onCancel={() => {
+              if (formDirty) {
+                setConfirmClose(true)
+                return
+              }
+              setIsEditOpen(false)
+              setFormDirty(false)
+            }}
+            onDirtyChange={setFormDirty}
           />
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ungespeicherte Änderungen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Du hast ungespeicherte Änderungen. Wirklich schließen?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="cursor-pointer">Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              className="cursor-pointer"
+              onClick={() => {
+                setIsEditOpen(false)
+                setFormDirty(false)
+              }}
+            >
+              Schließen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
