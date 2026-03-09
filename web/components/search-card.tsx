@@ -55,8 +55,8 @@ export function SearchCard({ search, onDelete, onToggleActive, isDeleting }: Sea
   }
 
   return (
-    <Card className="group relative transition-all hover:shadow-md hover:-translate-y-1 card-lift cursor-pointer overflow-hidden">
-      <Link href={`/searches/${search.id}`} className="absolute inset-0 z-0" aria-label={`Details für ${search.name}`} />
+    <Link href={`/searches/${search.id}`} className="block" aria-label={`Details für ${search.name}`}>
+      <Card className="group relative transition-all hover:shadow-md hover:-translate-y-1 card-lift cursor-pointer overflow-hidden">
 
       {/* Status indicator bar */}
       <div className={`absolute top-0 left-0 w-1 h-full ${search.is_active ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
@@ -65,19 +65,10 @@ export function SearchCard({ search, onDelete, onToggleActive, isDeleting }: Sea
         <div className="flex items-start justify-between gap-2 relative z-10">
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-foreground truncate" title={search.name}>{search.name}</h3>
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5 flex items-center gap-1 cursor-help">
-                    <ExternalLink className="size-3 opacity-50" />
-                    {truncateUrl(search.url)}
-                  </p>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-md text-xs break-all">
-                  {search.url}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <p className="text-xs text-muted-foreground truncate mt-0.5 flex items-center gap-1">
+              <ExternalLink className="size-3 opacity-50" />
+              {truncateUrl(search.url)}
+            </p>
           </div>
           <div className="flex items-center gap-2 shrink-0 relative z-20">
             <TooltipProvider delayDuration={200}>
@@ -87,7 +78,10 @@ export function SearchCard({ search, onDelete, onToggleActive, isDeleting }: Sea
                     checked={search.is_active}
                     onCheckedChange={handleToggleActive}
                     disabled={toggling}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                    }}
                     className="data-[state=checked]:bg-emerald-500"
                     aria-label={search.is_active ? "Deaktivieren" : "Aktivieren"}
                   />
@@ -150,5 +144,6 @@ export function SearchCard({ search, onDelete, onToggleActive, isDeleting }: Sea
         </div>
       </CardContent>
     </Card>
+    </Link>
   )
 }
