@@ -24,6 +24,9 @@ data/*
 .vscode/*
 !.vscode/extensions.json
 .idea
+.claude/
+.kilocode/
+.kilocodemodes
 .DS_Store
 *.suo
 *.ntvs*
@@ -46,5 +49,4 @@ node_modules
 dist
 dist-ssr
 *.local
-
 
