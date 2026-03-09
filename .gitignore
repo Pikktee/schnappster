@@ -20,12 +20,11 @@ data/*
 .env
 
 # IDEs
-.cursor/
-.vscode/*
-!.vscode/extensions.json
+.cursor
+.vscode
 .idea
-.claude/
-.kilocode/
+.claude
+.kilocode
 .kilocodemodes
 .DS_Store
 *.suo
