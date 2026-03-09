@@ -1,10 +1,12 @@
 import logging
+import traceback
 from datetime import UTC, datetime, timedelta
 
 from sqlmodel import Session, col, select
 
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch
+from app.models.errorlog import ErrorLog
 from app.models.scraperun import ScrapeRun
 from app.scraper.httpclient import fetch_page, fetch_pages
 from app.scraper.parser import (
@@ -41,6 +43,12 @@ class ScraperService:
                 total_new += scrape_run.ads_new or 0
             except Exception as e:
                 logger.error(f"Failed '{adsearch.name}': {e}")
+                self._log_error(
+                    adsearch.id,
+                    "ScrapeError",
+                    str(e),
+                    traceback.format_exc(),
+                )
         return total_new
 
     @staticmethod
@@ -50,9 +58,7 @@ class ScraperService:
         """
         if adsearch.last_scraped_at is None:
             return True
-        next_scrape = adsearch.last_scraped_at + timedelta(
-            minutes=adsearch.scrape_interval_minutes
-        )
+        next_scrape = adsearch.last_scraped_at + timedelta(minutes=adsearch.scrape_interval_minutes)
         # DB may return naive datetimes; treat as UTC for comparison
         if next_scrape.tzinfo is None:
             next_scrape = next_scrape.replace(tzinfo=UTC)
@@ -86,6 +92,12 @@ class ScraperService:
         except Exception as e:
             logger.error(f"Scrape failed for '{adsearch.name}': {e}")
             scrape_run.status = "failed"
+            self._log_error(
+                adsearch.id,
+                "ScrapeError",
+                str(e),
+                traceback.format_exc(),
+            )
             raise
 
         finally:
@@ -94,6 +106,24 @@ class ScraperService:
             self.session.commit()
 
         return scrape_run
+
+    def _log_error(
+        self,
+        adsearch_id: int | None,
+        error_type: str,
+        message: str,
+        details: str | None = None,
+    ) -> None:
+        """Persist an error to the error_logs table."""
+        self.session.add(
+            ErrorLog(
+                adsearch_id=adsearch_id,
+                error_type=error_type,
+                message=message,
+                details=details or None,
+            )
+        )
+        self.session.commit()
 
     def _filter_ads(
         self, details: list[ScrapedAdDetail], adsearch: AdSearch

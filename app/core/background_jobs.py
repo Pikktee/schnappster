@@ -1,4 +1,5 @@
 import logging
+import traceback
 from datetime import datetime
 
 from apscheduler.schedulers.background import (  # pyright: ignore[reportMissingImports]
@@ -7,6 +8,7 @@ from apscheduler.schedulers.background import (  # pyright: ignore[reportMissing
 from sqlmodel import Session
 
 from app.core.db import db_engine
+from app.models.errorlog import ErrorLog
 from app.services.scraper import ScraperService
 
 logger = logging.getLogger(__name__)
@@ -98,3 +100,12 @@ class BackgroundJobs:
                 pass  # API key not configured yet
             except Exception as e:
                 logger.error(f"AI analysis failed: {e}")
+                session.add(
+                    ErrorLog(
+                        adsearch_id=None,
+                        error_type="AIAnalysisError",
+                        message=str(e),
+                        details=traceback.format_exc(),
+                    )
+                )
+                session.commit()

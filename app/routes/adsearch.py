@@ -1,5 +1,6 @@
 import logging
 import threading
+import traceback
 
 from fastapi import APIRouter, HTTPException
 from sqlmodel import Session, select
@@ -161,6 +162,15 @@ def trigger_scrape(adsearch_id: int, session: DbSession):
                     scraper.scrape_adsearch(fresh)
             except Exception as e:
                 logger.error(f"Triggered scrape failed for AdSearch {adsearch_id}: {e}")
+                bg_session.add(
+                    ErrorLog(
+                        adsearch_id=adsearch_id,
+                        error_type="ScrapeError",
+                        message=str(e),
+                        details=traceback.format_exc(),
+                    )
+                )
+                bg_session.commit()
 
     threading.Thread(target=_run_scrape, daemon=True).start()
 
