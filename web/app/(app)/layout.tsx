@@ -11,7 +11,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <span className="text-sm font-semibold text-foreground">Schnappster</span>
         </header>
         <main id="main-content" className="flex-1 overflow-auto p-6 lg:p-8">
-          {children}
+          <div className="w-full max-w-7xl">
+            {children}
+          </div>
         </main>
       </SidebarInset>
     </SidebarProvider>

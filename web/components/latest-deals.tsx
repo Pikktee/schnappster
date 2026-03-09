@@ -54,7 +54,7 @@ export function LatestDeals({ ads }: LatestDealsProps) {
               )}
             </div>
             <div className="flex-1 min-w-0 flex flex-col gap-1">
-              <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors" title={ad.title}>
+              <p className="font-semibold text-foreground truncate" title={ad.title}>
                 {ad.title}
               </p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -74,7 +74,7 @@ export function LatestDeals({ ads }: LatestDealsProps) {
         )
       })}
       <div className="flex justify-end pt-4 mt-2">
-        <Link href="/ads/?minScore=7" className="group">
+        <Link href="/ads/?minScore=8" className="group">
           <Button variant="ghost" size="sm" className="cursor-pointer group-hover:bg-primary/10">
             Alle Schnäppchen anzeigen
             <ArrowRight className="size-4 ml-1 group-hover:translate-x-0.5 transition-transform" />

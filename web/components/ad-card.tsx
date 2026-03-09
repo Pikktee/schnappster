@@ -62,7 +62,7 @@ export function AdCard({ ad }: AdCardProps) {
       <CardContent className="p-4 flex flex-col gap-2.5 flex-1">
         <div className="flex flex-col gap-1.5">
           <h3
-            className="font-semibold text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors"
+            className="font-semibold text-foreground line-clamp-2 leading-snug min-h-[2.5em] group-hover:text-primary transition-colors"
             title={ad.title}
           >
             {ad.title}
@@ -88,14 +88,6 @@ export function AdCard({ ad }: AdCardProps) {
           <span className="text-muted-foreground/40 shrink-0">•</span>
           <span className="shrink-0">{timeAgo(ad.first_seen_at)}</span>
         </div>
-
-        {ad.seller_name && (
-          <div className="flex items-center gap-2 pt-1 border-t">
-            <span className="text-xs text-muted-foreground truncate flex-1" title={ad.seller_name}>
-              {ad.seller_name}
-            </span>
-          </div>
-        )}
       </CardContent>
     </Card>
   )

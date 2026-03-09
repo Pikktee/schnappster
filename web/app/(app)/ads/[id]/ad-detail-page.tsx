@@ -372,12 +372,14 @@ export function AdDetailPage() {
               </CardContent>
             </Card>
 
-            {/* AI Analysis - Enhanced sticky card */}
-            <Card className="border-amber-200 bg-gradient-to-b from-amber-50/80 to-amber-50/50 shadow-md">
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-amber-900 text-base flex items-center gap-2">
-                    <Sparkles className="size-4 text-amber-600" />
+            {/* AI Analysis - Single cohesive block, no nested boxes */}
+            <Card className="overflow-hidden border-primary/20 bg-gradient-to-b from-primary/5 to-transparent">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                    <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Sparkles className="size-4" />
+                    </span>
                     KI-Analyse
                   </CardTitle>
                   {ad.bargain_score !== null && ad.bargain_score !== undefined && (
@@ -385,39 +387,41 @@ export function AdDetailPage() {
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="flex flex-col gap-4">
+              <CardContent className="flex flex-col gap-4 pt-0">
                 {ad.is_analyzed ? (
                   <>
                     {ad.ai_summary && (
-                      <div className="p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-amber-100">
-                        <span className="text-xs text-amber-800 font-semibold uppercase tracking-wide">Zusammenfassung</span>
-                        <p className="text-sm text-amber-900 mt-2 leading-relaxed">{ad.ai_summary}</p>
+                      <div className="space-y-1.5">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          Zusammenfassung
+                        </span>
+                        <p className="text-sm text-foreground leading-relaxed">{ad.ai_summary}</p>
                       </div>
                     )}
                     {ad.ai_reasoning && (
-                      <div>
+                      <div className="space-y-1.5">
                         <button
                           onClick={() => setShowReasoning(!showReasoning)}
-                          className="flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 cursor-pointer font-medium transition-colors py-2"
+                          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
                         >
                           {showReasoning ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
                           Begründung {showReasoning ? "ausblenden" : "anzeigen"}
                         </button>
                         {showReasoning && (
-                          <div className="p-3 rounded-lg bg-white/40 border border-amber-100">
-                            <p className="text-sm text-amber-900 leading-relaxed">
-                              {ad.ai_reasoning}
-                            </p>
-                          </div>
+                          <p className="text-sm text-foreground leading-relaxed pt-0.5">
+                            {ad.ai_reasoning}
+                          </p>
                         )}
                       </div>
                     )}
                   </>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-6 text-center">
-                    <Package className="size-8 text-amber-400" />
-                    <p className="text-sm text-amber-700 mt-2">Noch nicht analysiert</p>
-                    <p className="text-xs text-amber-600 mt-1">
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      <Package className="size-5" />
+                    </span>
+                    <p className="text-sm font-medium text-foreground mt-3">Noch nicht analysiert</p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">
                       Diese Anzeige wird beim nächsten Durchlauf analysiert.
                     </p>
                   </div>

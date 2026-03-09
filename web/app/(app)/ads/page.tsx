@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { LayoutGrid, TableIcon, SlidersHorizontal, ChevronLeft, ChevronRight, X } from "lucide-react"
+import { LayoutGrid, TableIcon, SlidersHorizontal, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -146,7 +146,7 @@ function AdsPageContent() {
       <div className="flex flex-col gap-6">
         <PageHeader title="Anzeigen" subtitle="Alle gefundenen Kleinanzeigen-Angebote" />
         <Skeleton className="h-10 w-48" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1920px]:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
@@ -175,36 +175,9 @@ function AdsPageContent() {
     sortBy !== "date",
   ].filter(Boolean).length
 
-  const activeFilters = [
-    minScore !== "8" && { label: `Score ≥ ${minScore}`, value: "minScore", currentValue: minScore },
-    searchId !== "all" && { label: searches.find((s) => s.id === Number(searchId))?.name || "Suchauftrag", value: "search", currentValue: searchId },
-    sortBy !== "date" && {
-      label: sortBy === "price-asc" ? "Preis ↑" : sortBy === "price-desc" ? "Preis ↓" : "Score ↓",
-      value: "sort",
-      currentValue: sortBy
-    },
-  ].filter(Boolean) as Array<{ label: string; value: string; currentValue: string }>
+  const hasActiveFilters = activeFilterCount > 0
 
-  function clearFilter(key: string) {
-    if (key === "minScore") {
-      setMinScore("8")
-      setPage(1)
-      updateUrl({ minScore: "8", page: "0" })
-      reload(1, "8")
-    } else if (key === "search") {
-      setSearchId("all")
-      setPage(1)
-      updateUrl({ search: "all", page: "0" })
-      reload(1, undefined, "all")
-    } else if (key === "sort") {
-      setSortBy("date")
-      setPage(1)
-      updateUrl({ sort: "date", page: "0" })
-      reload(1, undefined, undefined, "date")
-    }
-  }
-
-  function clearAllFilters() {
+  function resetFilters() {
     setMinScore("8")
     setSearchId("all")
     setSortBy("date")
@@ -305,38 +278,21 @@ function AdsPageContent() {
       </Breadcrumb>
       <PageHeader title="Anzeigen" subtitle="Alle gefundenen Kleinanzeigen-Angebote" />
 
-      {/* Active Filter Chips */}
-      {activeFilters.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          {activeFilters.map((filter) => (
-            <span
-              key={filter.value}
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 text-primary-foreground px-3 py-1 text-xs font-medium border border-primary/20 animate-in fade-in zoom-in duration-200"
-            >
-              {filter.label}
-              <button
-                onClick={() => clearFilter(filter.value)}
-                className="text-primary-foreground/70 hover:text-destructive cursor-pointer transition-colors"
-                aria-label={`${filter.label} entfernen`}
-              >
-                <X className="size-3" />
-              </button>
-            </span>
-          ))}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearAllFilters}
-            className="h-7 px-3 text-xs cursor-pointer hover:bg-muted"
-          >
-            Alle löschen
-          </Button>
-        </div>
-      )}
-
       {/* Desktop filters */}
       <div className="hidden md:flex flex-wrap items-end gap-4">
         {filterControls}
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={resetFilters}
+            className="cursor-pointer text-muted-foreground hover:text-foreground"
+            aria-label="Filter und Sortierung zurücksetzen"
+          >
+            <RotateCcw className="size-3.5 mr-1.5" />
+            Zurücksetzen
+          </Button>
+        )}
         <div className="flex items-center gap-2 ml-auto">
           {activeFilterCount > 0 && (
             <span className="text-xs text-muted-foreground">
@@ -392,6 +348,18 @@ function AdsPageContent() {
             </SheetHeader>
             <div className="flex flex-col gap-4 p-4 overflow-y-auto">
               {filterControls}
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetFilters}
+                  className="cursor-pointer w-full mt-2"
+                  aria-label="Filter und Sortierung zurücksetzen"
+                >
+                  <RotateCcw className="size-3.5 mr-1.5" />
+                  Zurücksetzen
+                </Button>
+              )}
             </div>
           </SheetContent>
         </Sheet>
@@ -429,7 +397,7 @@ function AdsPageContent() {
       {ads.length === 0 ? (
         <EmptyState message="Keine Angebote gefunden. Passe die Filter an oder erstelle neue Suchaufträge." />
       ) : viewMode === "cards" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1920px]:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {ads.map((ad) => (
             <AdCard key={ad.id} ad={ad} />
           ))}

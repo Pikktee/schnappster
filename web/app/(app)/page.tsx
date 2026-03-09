@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { Search, Star, Clock, Sparkles, TrendingUp, Zap } from "lucide-react"
+import { Search, Package, Clock, Sparkles, TrendingUp, Zap } from "lucide-react"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,15 +14,16 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { LatestDeals } from "@/components/latest-deals"
-import { fetchSearches, fetchAds, fetchScrapeRuns } from "@/lib/api"
+import { fetchSearches, fetchAdsPaginated, fetchScrapeRuns } from "@/lib/api"
 import type { Ad, AdSearch, ScrapeRun } from "@/lib/types"
-import { timeAgo, formatScore } from "@/lib/format"
+import { timeAgo } from "@/lib/format"
 import { toast } from "sonner"
 import Link from "next/link"
 
 export default function DashboardPage() {
   const [searches, setSearches] = useState<AdSearch[]>([])
-  const [ads, setAds] = useState<Ad[]>([])
+  const [totalAds, setTotalAds] = useState<number>(0)
+  const [latestDeals, setLatestDeals] = useState<Ad[]>([])
   const [scraperuns, setScraperuns] = useState<ScrapeRun[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -32,13 +33,15 @@ export default function DashboardPage() {
       setLoading(true)
       setError(null)
       try {
-        const [s, a, r] = await Promise.all([
+        const [s, countRes, dealsRes, r] = await Promise.all([
           fetchSearches(),
-          fetchAds(),
+          fetchAdsPaginated({ limit: 1 }),
+          fetchAdsPaginated({ min_score: 8, sort: "date", limit: 5 }),
           fetchScrapeRuns({ limit: 100 }),
         ])
         setSearches(s)
-        setAds(a)
+        setTotalAds(countRes.total)
+        setLatestDeals(dealsRes.items)
         setScraperuns(r)
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Daten konnten nicht geladen werden."
@@ -56,33 +59,12 @@ export default function DashboardPage() {
     [searches]
   )
 
-  const bestScore = useMemo(() => {
-    const scores = ads
-      .filter((a) => a.bargain_score !== null)
-      .map((a) => a.bargain_score as number)
-    return scores.length > 0 ? Math.max(...scores) : null
-  }, [ads])
-
   const lastUpdate = useMemo(() => {
     const finishedRuns = scraperuns
       .filter((r) => r.finished_at)
       .sort((a, b) => new Date(b.finished_at!).getTime() - new Date(a.finished_at!).getTime())
     return finishedRuns.length > 0 ? finishedRuns[0].finished_at : null
   }, [scraperuns])
-
-  const latestDeals = useMemo(
-    () =>
-      ads
-        .filter((a) => a.bargain_score !== null && a.bargain_score >= 7)
-        .sort((a, b) => new Date(b.first_seen_at).getTime() - new Date(a.first_seen_at).getTime())
-        .slice(0, 10),
-    [ads]
-  )
-
-  const totalDeals = useMemo(
-    () => ads.filter((a) => a.bargain_score !== null && a.bargain_score >= 7).length,
-    [ads]
-  )
 
   if (loading) {
     return (
@@ -125,7 +107,7 @@ export default function DashboardPage() {
     )
   }
 
-  const showWelcome = searches.length === 0 || ads.length === 0
+  const showWelcome = searches.length === 0 || totalAds === 0
 
   return (
     <div className="flex flex-col gap-6">
@@ -167,7 +149,7 @@ export default function DashboardPage() {
                       </Button>
                     </Link>
                   )}
-                  {ads.length === 0 && (
+                  {totalAds === 0 && (
                     <Link href="/ads/">
                       <Button variant="outline" className="cursor-pointer">
                         <TrendingUp className="size-4 mr-2" />
@@ -191,9 +173,9 @@ export default function DashboardPage() {
           iconTextColor="text-emerald-600"
         />
         <StatCard
-          label="Bester Score"
-          value={bestScore !== null ? formatScore(bestScore) : "-"}
-          icon={Star}
+          label="Angebote gesamt"
+          value={totalAds}
+          icon={Package}
           iconBgColor="bg-amber-50"
           iconTextColor="text-amber-600"
         />
@@ -206,23 +188,14 @@ export default function DashboardPage() {
         />
       </div>
 
-      <Card className="reveal-stagger">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="size-5 text-primary" />
-                Letzte Schnäppchen
-              </CardTitle>
-            </div>
-            <Link href="/ads/?minScore=7">
-              <Button variant="ghost" size="sm" className="cursor-pointer hover:bg-primary/10">
-                Alle ansehen
-              </Button>
-            </Link>
-          </div>
+      <Card className="reveal-stagger gap-0">
+        <CardHeader className="pb-0">
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="size-5 text-primary" />
+            Letzte Schnäppchen
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <LatestDeals ads={latestDeals} />
         </CardContent>
       </Card>
