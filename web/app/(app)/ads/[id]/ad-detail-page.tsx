@@ -14,6 +14,7 @@ import {
   ThumbsUp,
   ShieldCheck,
   User,
+  Sparkles,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -186,7 +187,7 @@ export function AdDetailPage() {
         {/* Left: Images + Description */}
         <div className="lg:col-span-2 flex flex-col gap-6">
           {/* Image Gallery */}
-          <Card className="overflow-hidden p-0">
+          <Card className="overflow-hidden p-0 card-lift">
             <div
               className="aspect-[16/10] relative bg-muted"
               onTouchStart={handleTouchStart}
@@ -214,7 +215,7 @@ export function AdDetailPage() {
                   <Button
                     variant="secondary"
                     size="icon"
-                    className="absolute left-2 top-1/2 -translate-y-1/2 z-10 cursor-pointer opacity-80 hover:opacity-100"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 z-10 cursor-pointer opacity-80 hover:opacity-100 transition-opacity"
                     onClick={goToPrevImage}
                     aria-label="Vorheriges Bild"
                   >
@@ -223,7 +224,7 @@ export function AdDetailPage() {
                   <Button
                     variant="secondary"
                     size="icon"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 cursor-pointer opacity-80 hover:opacity-100"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 cursor-pointer opacity-80 hover:opacity-100 transition-opacity"
                     onClick={goToNextImage}
                     aria-label="Nächstes Bild"
                   >
@@ -269,35 +270,35 @@ export function AdDetailPage() {
 
           {/* Price + Details */}
           <Card>
-            <CardContent className="flex flex-col gap-4 pt-6">
-              <div className="flex items-center justify-between">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-4">
                 <span className="text-3xl font-bold text-foreground">{formatPrice(ad.price)}</span>
                 {search && (
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="secondary" className="text-xs cursor-default">
                     {search.name}
                   </Badge>
                 )}
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                 {ad.condition && (
                   <div>
-                    <span className="text-muted-foreground">Zustand</span>
-                    <p className="mt-0.5 text-foreground">{ad.condition}</p>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Zustand</span>
+                    <p className="mt-1 text-foreground font-medium">{ad.condition}</p>
                   </div>
                 )}
                 {ad.shipping_cost && (
                   <div>
-                    <span className="text-muted-foreground">Versandkosten</span>
-                    <p className="mt-0.5 text-foreground">{ad.shipping_cost}</p>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Versandkosten</span>
+                    <p className="mt-1 text-foreground font-medium">{ad.shipping_cost}</p>
                   </div>
                 )}
                 <div>
-                  <span className="text-muted-foreground">Standort</span>
-                  <p className="mt-0.5 text-foreground">{ad.postal_code} {ad.city}</p>
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Standort</span>
+                  <p className="mt-1 text-foreground font-medium">{ad.postal_code} {ad.city}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Gefunden</span>
-                  <p className="mt-0.5 text-foreground">{timeAgo(ad.first_seen_at)}</p>
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Gefunden</span>
+                  <p className="mt-1 text-foreground font-medium">{timeAgo(ad.first_seen_at)}</p>
                 </div>
               </div>
             </CardContent>
@@ -318,94 +319,112 @@ export function AdDetailPage() {
           )}
         </div>
 
-        {/* Right: Seller + AI Analysis */}
+        {/* Right: Seller + AI Analysis - Sticky */}
         <div className="flex flex-col gap-6">
-          {/* Seller Box */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="size-4" />
-                Verkäufer
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              {ad.seller_name && (
-                <div>
-                  {ad.seller_url ? (
-                    <ExternalLink href={ad.seller_url}>{ad.seller_name}</ExternalLink>
-                  ) : (
-                    <span className="text-sm font-medium text-foreground">{ad.seller_name}</span>
-                  )}
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <SellerRatingTag rating={ad.seller_rating} />
-                {ad.seller_is_friendly && (
-                  <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                    <ThumbsUp className="size-3" />
-                    Freundlich
-                  </Badge>
-                )}
-                {ad.seller_is_reliable && (
-                  <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
-                    <ShieldCheck className="size-3" />
-                    Zuverlässig
-                  </Badge>
-                )}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {ad.seller_type && <p>Typ: {ad.seller_type}</p>}
-                {ad.seller_active_since && <p>Aktiv seit: {ad.seller_active_since}</p>}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* AI Analysis */}
-          <Card className="border-amber-200 bg-amber-50/50">
-            <CardHeader>
-              <CardTitle className="text-amber-900">KI-Analyse</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              {ad.is_analyzed ? (
-                <>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-amber-800">Bargain Score</span>
-                    <ScoreBadge score={ad.bargain_score} size="lg" />
+          <div className="sticky-panel space-y-6">
+            {/* Seller Box */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <User className="size-4" />
+                  Verkäufer
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                {ad.seller_name && (
+                  <div>
+                    {ad.seller_url ? (
+                      <ExternalLink href={ad.seller_url}>{ad.seller_name}</ExternalLink>
+                    ) : (
+                      <span className="text-sm font-medium text-foreground">{ad.seller_name}</span>
+                    )}
                   </div>
-                  {ad.ai_summary && (
-                    <div>
-                      <span className="text-xs text-amber-800 font-medium">Zusammenfassung</span>
-                      <p className="text-sm text-amber-900 mt-1 leading-relaxed">{ad.ai_summary}</p>
-                    </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <SellerRatingTag rating={ad.seller_rating} />
+                  {ad.seller_is_friendly && (
+                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                      <ThumbsUp className="size-3" />
+                      Freundlich
+                    </Badge>
                   )}
-                  {ad.ai_reasoning && (
-                    <div>
-                      <button
-                        onClick={() => setShowReasoning(!showReasoning)}
-                        className="flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 cursor-pointer font-medium transition-colors"
-                      >
-                        {showReasoning ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-                        Begründung {showReasoning ? "ausblenden" : "anzeigen"}
-                      </button>
-                      {showReasoning && (
-                        <p className="text-sm text-amber-900 mt-2 leading-relaxed">
-                          {ad.ai_reasoning}
-                        </p>
-                      )}
-                    </div>
+                  {ad.seller_is_reliable && (
+                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
+                      <ShieldCheck className="size-3" />
+                      Zuverlässig
+                    </Badge>
                   )}
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-6 text-center">
-                  <Package className="size-8 text-amber-400" />
-                  <p className="text-sm text-amber-700 mt-2">Noch nicht analysiert</p>
-                  <p className="text-xs text-amber-600 mt-1">
-                    Diese Anzeige wird beim naechsten Durchlauf analysiert.
-                  </p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+                  {ad.seller_type && (
+                    <div className="flex justify-between">
+                      <span>Typ:</span>
+                      <span className="text-foreground font-medium">{ad.seller_type}</span>
+                    </div>
+                  )}
+                  {ad.seller_active_since && (
+                    <div className="flex justify-between">
+                      <span>Aktiv seit:</span>
+                      <span className="text-foreground font-medium">{ad.seller_active_since}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* AI Analysis - Enhanced sticky card */}
+            <Card className="border-amber-200 bg-gradient-to-b from-amber-50/80 to-amber-50/50 shadow-md">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-amber-900 text-base flex items-center gap-2">
+                    <Sparkles className="size-4 text-amber-600" />
+                    KI-Analyse
+                  </CardTitle>
+                  {ad.bargain_score !== null && ad.bargain_score !== undefined && (
+                    <ScoreBadge score={ad.bargain_score} size="md" />
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                {ad.is_analyzed ? (
+                  <>
+                    {ad.ai_summary && (
+                      <div className="p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-amber-100">
+                        <span className="text-xs text-amber-800 font-semibold uppercase tracking-wide">Zusammenfassung</span>
+                        <p className="text-sm text-amber-900 mt-2 leading-relaxed">{ad.ai_summary}</p>
+                      </div>
+                    )}
+                    {ad.ai_reasoning && (
+                      <div>
+                        <button
+                          onClick={() => setShowReasoning(!showReasoning)}
+                          className="flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 cursor-pointer font-medium transition-colors py-2"
+                        >
+                          {showReasoning ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                          Begründung {showReasoning ? "ausblenden" : "anzeigen"}
+                        </button>
+                        {showReasoning && (
+                          <div className="p-3 rounded-lg bg-white/40 border border-amber-100">
+                            <p className="text-sm text-amber-900 leading-relaxed">
+                              {ad.ai_reasoning}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-6 text-center">
+                    <Package className="size-8 text-amber-400" />
+                    <p className="text-sm text-amber-700 mt-2">Noch nicht analysiert</p>
+                    <p className="text-xs text-amber-600 mt-1">
+                      Diese Anzeige wird beim nächsten Durchlauf analysiert.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

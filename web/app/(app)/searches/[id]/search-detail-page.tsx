@@ -7,6 +7,11 @@ import {
   Pencil,
   Trash2,
   Loader2,
+  MapPin,
+  Clock,
+  Tag,
+  Euro,
+  Star,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -103,15 +108,11 @@ export function SearchDetailPage() {
 
   async function handleUpdate(data: Partial<AdSearch>) {
     if (!search) return
-    try {
-      const updated = await updateSearch(id, data)
-      setSearch(updated)
-      setIsEditOpen(false)
-      toast.success("Suchauftrag aktualisiert")
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Aktualisierung fehlgeschlagen."
-      toast.error(msg)
-    }
+    const updated = await updateSearch(id, data)
+    setSearch(updated)
+    setIsEditOpen(false)
+    toast.success("Suchauftrag aktualisiert")
+    // Errors propagate to SearchForm which shows them inline
   }
 
   async function handleDelete() {
@@ -250,42 +251,84 @@ export function SearchDetailPage() {
           <CardTitle>Konfiguration</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">URL</span>
-              <div className="mt-0.5">
-                <ExternalLink href={search.url}>{truncateUrl(search.url, 60)}</ExternalLink>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* URL - Full width */}
+            <div className="md:col-span-2 lg:col-span-3">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">URL</span>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50 border">
+                <ExternalLink href={search.url} className="text-sm break-all">{truncateUrl(search.url, 80)}</ExternalLink>
               </div>
             </div>
+
+            {/* Interval */}
             <div>
-              <span className="text-muted-foreground">Intervall</span>
-              <p className="mt-0.5 text-foreground">Alle {search.scrape_interval_minutes} Minuten</p>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Clock className="size-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Intervall</span>
+              </div>
+              <p className="text-foreground font-medium">Alle {search.scrape_interval_minutes} Min.</p>
             </div>
+
+            {/* Price Range */}
             <div>
-              <span className="text-muted-foreground">Preisbereich</span>
-              <p className="mt-0.5 text-foreground">
+              <div className="flex items-center gap-2 mb-1.5">
+                <Euro className="size-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Preisbereich</span>
+              </div>
+              <p className="text-foreground font-medium">
                 {search.min_price !== null || search.max_price !== null
-                  ? `${search.min_price ?? 0} - ${search.max_price ?? "unbegrenzt"} EUR`
-                  : "Nicht eingeschraenkt"}
+                  ? `${search.min_price ?? 0} – ${search.max_price ?? "unbegrenzt"} €`
+                  : "Nicht eingeschränkt"}
               </p>
             </div>
+
+            {/* Blacklist */}
             <div>
-              <span className="text-muted-foreground">Blacklist</span>
-              <p className="mt-0.5 text-foreground">{search.blacklist_keywords || "Keine"}</p>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Tag className="size-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Blacklist</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {search.blacklist_keywords ? (
+                  search.blacklist_keywords.split(",").map((kw, i) => (
+                    <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-xs font-medium">
+                      {kw.trim()}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-muted-foreground">Keine</span>
+                )}
+              </div>
             </div>
+
+            {/* Prompt Addition - Full width */}
             {search.prompt_addition && (
-              <div className="md:col-span-2">
-                <span className="text-muted-foreground">Prompt-Ergänzung</span>
-                <p className="mt-0.5 text-foreground">{search.prompt_addition}</p>
+              <div className="md:col-span-2 lg:col-span-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Star className="size-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Prompt-Ergänzung</span>
+                </div>
+                <p className="p-3 rounded-lg bg-muted/50 border text-sm leading-relaxed">{search.prompt_addition}</p>
               </div>
             )}
+
+            {/* Exclude Images */}
             <div>
-              <span className="text-muted-foreground">Bilder ausschließen</span>
-              <p className="mt-0.5 text-foreground">{search.is_exclude_images ? "Ja" : "Nein"}</p>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Bilder</span>
+              </div>
+              <p className="text-foreground font-medium">{search.is_exclude_images ? "Ausgeschlossen" : "Eingeschlossen"}</p>
             </div>
+
+            {/* Last Scrape */}
             <div>
-              <span className="text-muted-foreground">Letzte Suche</span>
-              <p className="mt-0.5 text-foreground">{timeAgo(search.last_scraped_at)}</p>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Clock className="size-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Letzte Suche</span>
+              </div>
+              <p className="text-foreground font-medium">{timeAgo(search.last_scraped_at)}</p>
             </div>
           </div>
         </CardContent>
@@ -293,7 +336,12 @@ export function SearchDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Angebote ({ads.length})</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Tag className="size-5" />
+              Angebote ({ads.length})
+            </CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           {ads.length === 0 ? (
@@ -309,25 +357,57 @@ export function SearchDetailPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Titel</TableHead>
-                    <TableHead>Preis</TableHead>
-                    <TableHead>Score</TableHead>
-                    <TableHead className="hidden md:table-cell">Standort</TableHead>
-                    <TableHead>Gefunden</TableHead>
+                    <TableHead className="min-w-[250px]">Titel</TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-1.5">
+                        <Euro className="size-3.5" />
+                        Preis
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-1.5">
+                        <Star className="size-3.5" />
+                        Score
+                      </div>
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="size-3.5" />
+                        Standort
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="size-3.5" />
+                        Gefunden
+                      </div>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {ads.map((ad) => (
-                    <TableRow key={ad.id} className="cursor-pointer" onClick={() => router.push(`/ads/${ad.id}`)}>
-                      <TableCell className="font-medium max-w-[300px] truncate" title={ad.title}>
-                        {ad.title}
+                    <TableRow key={ad.id} className="cursor-pointer hover:bg-accent/50" onClick={() => router.push(`/ads/${ad.id}`)}>
+                      <TableCell className="font-medium max-w-[250px] truncate" title={ad.title}>
+                        <span className="line-clamp-2 leading-snug">{ad.title}</span>
                       </TableCell>
-                      <TableCell>{formatPrice(ad.price)}</TableCell>
+                      <TableCell className="font-semibold">
+                        {formatPrice(ad.price)}
+                      </TableCell>
                       <TableCell>
                         <ScoreBadge score={ad.bargain_score} size="sm" />
                       </TableCell>
-                      <TableCell className="text-muted-foreground hidden md:table-cell">
-                        {ad.postal_code} {ad.city}
+                      <TableCell className="hidden lg:table-cell">
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ad.postal_code + " " + ad.city)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                          title={`Auf Google Maps öffnen: ${ad.postal_code} ${ad.city}`}
+                        >
+                          <MapPin className="size-3.5" />
+                          <span className="truncate max-w-[150px]">{ad.postal_code} {ad.city}</span>
+                        </a>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {timeAgo(ad.first_seen_at)}

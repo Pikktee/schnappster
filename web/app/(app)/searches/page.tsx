@@ -83,12 +83,10 @@ export default function SearchesPage() {
       setIsCreateOpen(false)
       toast.success("Suchauftrag erstellt — erste Ergebnisse erscheinen in wenigen Minuten.")
       triggerScrape(newSearch.id).catch(() => {})
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Erstellen fehlgeschlagen."
-      toast.error(msg)
     } finally {
       setIsCreating(false)
     }
+    // Errors propagate to SearchForm which shows them inline
   }
 
   async function handleDelete(id: number) {
@@ -103,6 +101,10 @@ export default function SearchesPage() {
     } finally {
       setDeletingId(null)
     }
+  }
+
+  async function handleToggleActive(id: number, newActive: boolean) {
+    setSearches((prev) => prev.map((s) => s.id === id ? { ...s, is_active: newActive } : s))
   }
 
   if (loading) {
@@ -165,6 +167,7 @@ export default function SearchesPage() {
               key={search.id}
               search={search}
               onDelete={handleDelete}
+              onToggleActive={handleToggleActive}
               isDeleting={deletingId === search.id}
             />
           ))}

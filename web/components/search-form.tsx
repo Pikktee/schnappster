@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { X, HelpCircle } from "lucide-react"
+import { X, HelpCircle, ChevronDown, ChevronUp } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -13,11 +13,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import type { AdSearch } from "@/lib/types"
 
 interface SearchFormProps {
   initial?: Partial<AdSearch>
-  onSubmit: (data: Partial<AdSearch>) => void
+  onSubmit: (data: Partial<AdSearch>) => Promise<void> | void
   onCancel: () => void
   isLoading?: boolean
   onDirtyChange?: (dirty: boolean) => void
@@ -37,7 +38,7 @@ function HelpTip({ text }: { text: string }) {
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <HelpCircle className="size-3.5 text-muted-foreground/60 cursor-help shrink-0" />
+          <HelpCircle className="size-3.5 text-muted-foreground/60 cursor-help" />
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs text-xs">
           {text}
@@ -66,6 +67,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
   const [keywordInput, setKeywordInput] = useState("")
   const [promptAddition, setPromptAddition] = useState(initial?.prompt_addition || "")
   const [excludeImages, setExcludeImages] = useState(initial?.is_exclude_images || false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -104,22 +106,26 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
     }
   }
 
+  const SEARCH_PREFIX = "https://www.kleinanzeigen.de/s-"
+  const DETAIL_PREFIX = "https://www.kleinanzeigen.de/s-anzeige/"
+
+  function validateUrl(value: string): string | null {
+    if (!value.trim()) return "URL ist erforderlich."
+    if (!value.startsWith(SEARCH_PREFIX))
+      return "Nur Kleinanzeigen.de-Suchergebnislisten sind erlaubt (URL muss mit https://www.kleinanzeigen.de/s- beginnen)."
+    if (value.startsWith(DETAIL_PREFIX))
+      return "Bitte keine Anzeigen-Detailseite eingeben — nur Suchergebnislisten sind erlaubt."
+    const remainder = value.slice(SEARCH_PREFIX.length).replace(/^\/+|\/+$/g, "")
+    if (!remainder)
+      return "Bitte eine vollständige Suchergebnisliste-URL eingeben, nicht nur das Präfix."
+    return null
+  }
+
   function validate(): boolean {
     const newErrors: Record<string, string> = {}
 
-    if (!name.trim()) newErrors.name = "Name ist erforderlich."
-    if (!url.trim()) {
-      newErrors.url = "URL ist erforderlich."
-    } else {
-      try {
-        const parsed = new URL(url)
-        if (!parsed.hostname.endsWith("kleinanzeigen.de")) {
-          newErrors.url = "Nur kleinanzeigen.de URLs sind erlaubt."
-        }
-      } catch {
-        newErrors.url = "Bitte eine gültige URL eingeben."
-      }
-    }
+    const urlError = validateUrl(url)
+    if (urlError) newErrors.url = urlError
 
     if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) {
       newErrors.maxPrice = "Max-Preis muss größer als Min-Preis sein."
@@ -129,40 +135,33 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
     return Object.keys(newErrors).length === 0
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) return
-    onSubmit({
-      name,
-      url,
-      scrape_interval_minutes: interval,
-      min_price: minPrice ? Number(minPrice) : null,
-      max_price: maxPrice ? Number(maxPrice) : null,
-      blacklist_keywords: keywords.length > 0 ? keywords.join(", ") : null,
-      prompt_addition: promptAddition || null,
-      is_exclude_images: excludeImages,
-    })
+    try {
+      await onSubmit({
+        name: name.trim() || undefined,
+        url,
+        scrape_interval_minutes: interval,
+        min_price: minPrice ? Number(minPrice) : null,
+        max_price: maxPrice ? Number(maxPrice) : null,
+        blacklist_keywords: keywords.length > 0 ? keywords.join(", ") : null,
+        prompt_addition: promptAddition || null,
+        is_exclude_images: excludeImages,
+      })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Fehler beim Speichern."
+      setErrors((prev) => ({ ...prev, url: msg }))
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="search-name">Name *</Label>
-        <Input
-          id="search-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="z.B. iPhone Angebote Berlin"
-          aria-invalid={!!errors.name}
-        />
-        {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <Label htmlFor="search-url">Kleinanzeigen URL *</Label>
+        <Label htmlFor="search-url" className="flex items-center gap-1.5">
+          <span>Kleinanzeigen URL *</span>
           <HelpTip text="Führe eine Suche auf kleinanzeigen.de durch und kopiere die URL der Suchergebnisseite hierher." />
-        </div>
+        </Label>
         <Input
           id="search-url"
           value={url}
@@ -170,136 +169,177 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
           placeholder="https://www.kleinanzeigen.de/s-..."
           type="url"
           aria-invalid={!!errors.url}
+          autoFocus
         />
         {errors.url && <p className="text-xs text-destructive">{errors.url}</p>}
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <Label htmlFor="search-interval">Scrape-Intervall</Label>
-          <HelpTip text="Wie oft soll nach neuen Angeboten gesucht werden? Kürzere Intervalle finden Schnäppchen schneller, belasten aber den Server mehr." />
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {INTERVAL_PRESETS.map((preset) => (
-            <Button
-              key={preset.value}
-              type="button"
-              variant={interval === preset.value ? "default" : "outline"}
-              size="sm"
-              onClick={() => setInterval(preset.value)}
-              className="cursor-pointer"
-            >
-              {preset.label}
-            </Button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <Input
-            id="search-interval"
-            type="number"
-            value={interval}
-            onChange={(e) => setInterval(Number(e.target.value))}
-            min={5}
-            max={1440}
-            className="w-24"
-          />
-          <span className="text-sm text-muted-foreground">Minuten</span>
-        </div>
-      </div>
+      {/* Progressive disclosure: Advanced options */}
+      <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+        <CollapsibleTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full justify-between cursor-pointer text-muted-foreground hover:text-foreground -mx-2"
+          >
+            <span className="text-sm">Erweiterte Optionen</span>
+            {advancedOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="flex flex-col gap-4 pt-2">
+          {/* Name */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="search-name">Name (optional)</Label>
+            <Input
+              id="search-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Wird automatisch aus der URL generiert"
+            />
+          </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="search-min-price">Min-Preis</Label>
-          <Input
-            id="search-min-price"
-            type="number"
-            value={minPrice}
-            onChange={(e) => setMinPrice(e.target.value)}
-            placeholder="0"
-            min={0}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="search-max-price">Max-Preis</Label>
-          <Input
-            id="search-max-price"
-            type="number"
-            value={maxPrice}
-            onChange={(e) => setMaxPrice(e.target.value)}
-            placeholder="9999"
-            min={0}
-            aria-invalid={!!errors.maxPrice}
-          />
-          {errors.maxPrice && <p className="text-xs text-destructive">{errors.maxPrice}</p>}
-        </div>
-      </div>
+          {/* Interval Selector - Visual */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="search-interval">Scrape-Intervall</Label>
+              <HelpTip text="Wie oft soll nach neuen Angeboten gesucht werden? Kürzere Intervalle finden Schnäppchen schneller, belasten aber den Server mehr." />
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {INTERVAL_PRESETS.map((preset) => (
+                <Button
+                  key={preset.value}
+                  type="button"
+                  variant={interval === preset.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setInterval(preset.value)}
+                  className="cursor-pointer text-xs px-2 h-9"
+                >
+                  {preset.label}
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                id="search-interval"
+                type="number"
+                value={interval}
+                onChange={(e) => setInterval(Number(e.target.value))}
+                min={5}
+                max={1440}
+                className="w-24"
+              />
+              <span className="text-sm text-muted-foreground">Minuten (benutzerdefiniert)</span>
+            </div>
+          </div>
 
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <Label htmlFor="search-blacklist">Blacklist-Keywords</Label>
-          <HelpTip text="Angebote mit diesen Begriffen in Titel oder Beschreibung werden herausgefiltert." />
-        </div>
-        <div className="flex flex-wrap gap-1.5 min-h-[2rem]">
-          {keywords.map((kw) => (
-            <span
-              key={kw}
-              className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-foreground border"
-            >
-              {kw}
-              <button
-                type="button"
-                onClick={() => removeKeyword(kw)}
-                className="text-muted-foreground hover:text-destructive cursor-pointer"
-                aria-label={`${kw} entfernen`}
-              >
-                <X className="size-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-        <Input
-          id="search-blacklist"
-          value={keywordInput}
-          onChange={(e) => setKeywordInput(e.target.value)}
-          onKeyDown={handleKeywordKeyDown}
-          onBlur={addKeyword}
-          placeholder="Keyword eingeben und Enter drücken..."
-        />
-        {keywords.length > 0 && (
-          <p className="text-xs text-muted-foreground">{keywords.length} Keyword{keywords.length !== 1 ? "s" : ""} aktiv</p>
-        )}
-      </div>
+          {/* Price Range */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="search-min-price">Min-Preis</Label>
+              <Input
+                id="search-min-price"
+                type="number"
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+                placeholder="0"
+                min={0}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="search-max-price">Max-Preis</Label>
+              <Input
+                id="search-max-price"
+                type="number"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+                placeholder="9999"
+                min={0}
+                aria-invalid={!!errors.maxPrice}
+              />
+              {errors.maxPrice && <p className="text-xs text-destructive">{errors.maxPrice}</p>}
+            </div>
+          </div>
 
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <Label htmlFor="search-prompt">Prompt-Ergänzung</Label>
-          <HelpTip text="Zusätzliche Anweisungen für die KI-Bewertung, z.B. 'Bevorzuge unbenutzte Artikel' oder 'Achte besonders auf den Zustand'." />
-        </div>
-        <Textarea
-          id="search-prompt"
-          value={promptAddition}
-          onChange={(e) => setPromptAddition(e.target.value)}
-          placeholder="z.B. 'Bevorzuge unbenutzte Artikel' oder 'Achte auf Originalverpackung'"
-          rows={3}
-        />
-      </div>
+          {/* Blacklist Keywords with Chips */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="search-blacklist">Blacklist-Keywords</Label>
+              <HelpTip text="Angebote mit diesen Begriffen in Titel oder Beschreibung werden herausgefiltert." />
+            </div>
+            <div className="flex flex-wrap gap-1.5 min-h-[2rem] p-2 border rounded-lg bg-muted/30">
+              {keywords.map((kw) => (
+                <span
+                  key={kw}
+                  className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary-foreground px-2 py-0.5 text-xs font-medium border border-primary/20 transition-colors hover:bg-primary/20"
+                >
+                  {kw}
+                  <button
+                    type="button"
+                    onClick={() => removeKeyword(kw)}
+                    className="text-primary-foreground/70 hover:text-destructive cursor-pointer"
+                    aria-label={`${kw} entfernen`}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+              {keywords.length === 0 && (
+                <span className="text-xs text-muted-foreground">Keine Keywords hinzugefügt</span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                id="search-blacklist"
+                value={keywordInput}
+                onChange={(e) => setKeywordInput(e.target.value)}
+                onKeyDown={handleKeywordKeyDown}
+                placeholder="Keyword eingeben und Enter drücken..."
+                className="flex-1"
+              />
+              <Button type="button" variant="outline" onClick={addKeyword} className="cursor-pointer">
+                Hinzufügen
+              </Button>
+            </div>
+            {keywords.length > 0 && (
+              <p className="text-xs text-muted-foreground">{keywords.length} Keyword{keywords.length !== 1 ? "s" : ""} aktiv</p>
+            )}
+          </div>
 
-      <div className="flex items-center gap-3">
-        <Switch
-          id="search-exclude-images"
-          checked={excludeImages}
-          onCheckedChange={setExcludeImages}
-        />
-        <Label htmlFor="search-exclude-images" className="cursor-pointer">
-          Bilder ausschließen
-        </Label>
-      </div>
+          {/* Prompt Addition */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="search-prompt">Prompt-Ergänzung</Label>
+              <HelpTip text="Zusätzliche Anweisungen für die KI-Bewertung, z.B. 'Bevorzuge unbenutzte Artikel' oder 'Achte besonders auf den Zustand'." />
+            </div>
+            <Textarea
+              id="search-prompt"
+              value={promptAddition}
+              onChange={(e) => setPromptAddition(e.target.value)}
+              placeholder="z.B. 'Bevorzuge unbenutzte Artikel' oder 'Achte auf Originalverpackung'"
+              rows={3}
+            />
+          </div>
 
-      <div className="flex justify-end gap-2 pt-2">
+          {/* Exclude Images */}
+          <div className="flex items-center gap-3 pt-2">
+            <Switch
+              id="search-exclude-images"
+              checked={excludeImages}
+              onCheckedChange={setExcludeImages}
+            />
+            <Label htmlFor="search-exclude-images" className="cursor-pointer">
+              Bilder ausschließen
+            </Label>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      <div className="flex justify-end gap-2 pt-2 border-t">
         <Button type="button" variant="outline" onClick={onCancel} className="cursor-pointer">
           Abbrechen
         </Button>
-        <Button type="submit" disabled={isLoading || !name || !url} className="cursor-pointer">
+        <Button type="submit" disabled={isLoading || !url} className="cursor-pointer">
           {isLoading ? "Speichern..." : initial?.id ? "Aktualisieren" : "Erstellen"}
         </Button>
       </div>

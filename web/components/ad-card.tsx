@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Package } from "lucide-react"
+import { Package, MapPin } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScoreBadge } from "@/components/score-badge"
 import { SellerRatingTag } from "@/components/seller-rating-tag"
@@ -19,56 +19,81 @@ export function AdCard({ ad }: AdCardProps) {
   const [imgError, setImgError] = useState(false)
 
   return (
-    <Card className="group relative transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer overflow-hidden p-0">
+    <Card className="group relative transition-all hover:shadow-md hover:-translate-y-1 card-lift cursor-pointer overflow-hidden p-0 flex flex-col">
       <Link href={`/ads/${ad.id}`} className="absolute inset-0 z-10" aria-label={`Details für ${ad.title}`} prefetch={false} />
 
-      <div className="aspect-[4/3] relative bg-muted overflow-hidden">
+      {/* Standardized image container with fixed height */}
+      <div className="h-48 relative bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
         {images.length > 0 && !imgError ? (
           <Image
             src={images[0]}
             alt={ad.title}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
             unoptimized
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-            <Package className="size-10 text-muted-foreground/30" />
-            {imgError && <span className="text-xs text-muted-foreground/50">Bild nicht verfügbar</span>}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/5 to-primary/10">
+            <div className="size-12 rounded-full bg-white/80 flex items-center justify-center">
+              <Package className="size-6 text-primary/60" />
+            </div>
           </div>
         )}
+
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+        {/* Score badge */}
         <div className="absolute top-2 right-2 z-20">
           <ScoreBadge score={ad.bargain_score} size="sm" />
         </div>
+
+        {/* Image count indicator */}
+        {images.length > 1 && (
+          <div className="absolute bottom-2 right-2 z-20">
+            <span className="text-xs font-medium text-white bg-black/60 px-2 py-0.5 rounded-full">
+              +{images.length - 1}
+            </span>
+          </div>
+        )}
       </div>
 
-      <CardContent className="p-4 flex flex-col gap-2">
-        <div className="flex items-start justify-between gap-2">
+      <CardContent className="p-4 flex flex-col gap-2.5 flex-1">
+        <div className="flex flex-col gap-1.5">
           <h3
-            className="font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors"
+            className="font-semibold text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors"
             title={ad.title}
           >
             {ad.title}
           </h3>
+
+          {ad.ai_summary && (
+            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed" title={ad.ai_summary}>
+              {ad.ai_summary}
+            </p>
+          )}
         </div>
 
-        <div className="flex items-center justify-between">
-          <span className="text-lg font-bold text-foreground">{formatPrice(ad.price)}</span>
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-xl font-bold text-foreground">{formatPrice(ad.price)}</span>
+          {ad.seller_rating !== null && ad.seller_rating !== undefined && (
+            <SellerRatingTag rating={ad.seller_rating} size="sm" />
+          )}
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          {ad.postal_code} {ad.city} &middot; {timeAgo(ad.first_seen_at)}
-        </p>
-
-        {ad.ai_summary && (
-          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed" title={ad.ai_summary}>{ad.ai_summary}</p>
-        )}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <MapPin className="size-3 shrink-0" />
+          <span className="truncate">{ad.postal_code} {ad.city}</span>
+          <span className="text-muted-foreground/40 shrink-0">•</span>
+          <span className="shrink-0">{timeAgo(ad.first_seen_at)}</span>
+        </div>
 
         {ad.seller_name && (
-          <div className="flex items-center gap-2 pt-1">
-            <span className="text-xs text-muted-foreground truncate" title={ad.seller_name}>{ad.seller_name}</span>
-            <SellerRatingTag rating={ad.seller_rating} />
+          <div className="flex items-center gap-2 pt-1 border-t">
+            <span className="text-xs text-muted-foreground truncate flex-1" title={ad.seller_name}>
+              {ad.seller_name}
+            </span>
           </div>
         )}
       </CardContent>

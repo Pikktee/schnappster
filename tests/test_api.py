@@ -23,6 +23,42 @@ def test_create_adsearch(client):
     assert result["is_active"] is True
 
 
+def test_create_adsearch_rejects_invalid_url(client):
+    """Non-Kleinanzeigen URLs must be rejected."""
+    response = client.post(
+        "/api/adsearches/",
+        json={"name": "Test", "url": "https://www.ebay.de/sch/i.html?_nkw=podmic"},
+    )
+    assert response.status_code == 422
+
+
+def test_create_adsearch_rejects_bare_prefix_url(client):
+    """The bare prefix 'https://www.kleinanzeigen.de/s-' must be rejected."""
+    response = client.post(
+        "/api/adsearches/",
+        json={"name": "Test", "url": "https://www.kleinanzeigen.de/s-"},
+    )
+    assert response.status_code == 422
+
+
+def test_create_adsearch_rejects_detail_page_url(client):
+    """Kleinanzeigen ad detail pages must be rejected."""
+    response = client.post(
+        "/api/adsearches/",
+        json={"name": "Test", "url": "https://www.kleinanzeigen.de/s-anzeige/rode-podmic/123456"},
+    )
+    assert response.status_code == 422
+
+
+def test_patch_adsearch_rejects_detail_page_url(client, sample_adsearch):
+    """PATCH must also reject detail-page URLs."""
+    response = client.patch(
+        f"/api/adsearches/{sample_adsearch.id}",
+        json={"url": "https://www.kleinanzeigen.de/s-anzeige/rode-podmic/123456"},
+    )
+    assert response.status_code == 422
+
+
 def test_get_adsearch(client, sample_adsearch):
     response = client.get(f"/api/adsearches/{sample_adsearch.id}")
     assert response.status_code == 200
@@ -49,6 +85,25 @@ def test_delete_adsearch(client, sample_adsearch):
 
     response = client.get(f"/api/adsearches/{sample_adsearch.id}")
     assert response.status_code == 404
+
+
+def test_delete_adsearch_keeps_ads(client, sample_ads):
+    """Test that deleting an adsearch keeps the related ads (adsearch_id becomes NULL)."""
+    # Get the adsearch_id from sample_ads
+    adsearch_id = sample_ads[0].adsearch_id
+    ad_id = sample_ads[0].id
+
+    response = client.delete(f"/api/adsearches/{adsearch_id}")
+    assert response.status_code == 204
+
+    # Verify adsearch is deleted
+    response = client.get(f"/api/adsearches/{adsearch_id}")
+    assert response.status_code == 404
+
+    # Verify ads are NOT deleted (adsearch_id should be None now)
+    response = client.get(f"/api/ads/{ad_id}")
+    assert response.status_code == 200
+    assert response.json()["adsearch_id"] is None
 
 
 # --- Ad endpoints ---

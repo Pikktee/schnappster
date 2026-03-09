@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 
@@ -8,10 +9,13 @@
   --foreground: #1C1917;
   --card: #FFFFFF;
   --card-foreground: #1C1917;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
   --popover: #FFFFFF;
   --popover-foreground: #1C1917;
   --primary: #F59E0B;
   --primary-foreground: #FFFFFF;
+  --primary-glow: rgba(245, 158, 11, 0.15);
   --secondary: #F5F5F4;
   --secondary-foreground: #1C1917;
   --muted: #F5F5F4;
@@ -29,6 +33,7 @@
   --chart-4: #8B5CF6;
   --chart-5: #EC4899;
   --radius: 0.5rem;
+  --radius-lg: 0.75rem;
   --sidebar: #FEFDFB;
   --sidebar-foreground: #1C1917;
   --sidebar-primary: #F59E0B;
@@ -42,7 +47,7 @@
 
 
 @theme inline {
-  --font-sans: 'Inter', 'Inter Fallback', system-ui, sans-serif;
+  --font-sans: 'Lexend', 'Lexend Fallback', system-ui, sans-serif;
   --font-mono: 'Geist Mono', 'Geist Mono Fallback';
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -88,5 +93,58 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "cv11" 1, "ss01" 1;
+  }
+}
+
+@layer utilities {
+  /* Smooth card hover effect */
+  .card-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  /* Staggered reveal animation */
+  .reveal-stagger > * {
+    opacity: 0;
+    animation: reveal 0.5s ease forwards;
+  }
+  .reveal-stagger > *:nth-child(1) { animation-delay: 0.05s; }
+  .reveal-stagger > *:nth-child(2) { animation-delay: 0.1s; }
+  .reveal-stagger > *:nth-child(3) { animation-delay: 0.15s; }
+  .reveal-stagger > *:nth-child(4) { animation-delay: 0.2s; }
+  .reveal-stagger > *:nth-child(5) { animation-delay: 0.25s; }
+  .reveal-stagger > *:nth-child(6) { animation-delay: 0.3s; }
+  .reveal-stagger > *:nth-child(7) { animation-delay: 0.35s; }
+  .reveal-stagger > *:nth-child(8) { animation-delay: 0.4s; }
+
+  @keyframes reveal {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Subtle gradient background */
+  .gradient-subtle {
+    background: linear-gradient(135deg, var(--background) 0%, color-mix(in srgb, var(--primary) 3%, var(--background)) 100%);
+  }
+
+  /* Glow effect */
+  .glow-primary {
+    box-shadow: 0 0 20px var(--primary-glow);
+  }
+
+  /* Sticky panel */
+  .sticky-panel {
+    position: sticky;
+    top: 1.5rem;
   }
 }

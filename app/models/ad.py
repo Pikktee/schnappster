@@ -19,7 +19,7 @@ class Ad(SQLModel, table=True):
     __tablename__ = "ads"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
-    adsearch_id: int = Field(foreign_key="ad_searches.id")
+    adsearch_id: int | None = Field(default=None, foreign_key="ad_searches.id", ondelete="SET NULL")
     external_id: str
     title: str
     description: str | None = None
@@ -55,7 +55,7 @@ class AdRead(SQLModel):
     """
 
     id: int
-    adsearch_id: int
+    adsearch_id: int | None
     external_id: str
     title: str
     description: str | None

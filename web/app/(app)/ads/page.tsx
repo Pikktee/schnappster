@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { LayoutGrid, TableIcon, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react"
+import { LayoutGrid, TableIcon, SlidersHorizontal, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -175,6 +175,44 @@ function AdsPageContent() {
     sortBy !== "date",
   ].filter(Boolean).length
 
+  const activeFilters = [
+    minScore !== "8" && { label: `Score ≥ ${minScore}`, value: "minScore", currentValue: minScore },
+    searchId !== "all" && { label: searches.find((s) => s.id === Number(searchId))?.name || "Suchauftrag", value: "search", currentValue: searchId },
+    sortBy !== "date" && {
+      label: sortBy === "price-asc" ? "Preis ↑" : sortBy === "price-desc" ? "Preis ↓" : "Score ↓",
+      value: "sort",
+      currentValue: sortBy
+    },
+  ].filter(Boolean) as Array<{ label: string; value: string; currentValue: string }>
+
+  function clearFilter(key: string) {
+    if (key === "minScore") {
+      setMinScore("8")
+      setPage(1)
+      updateUrl({ minScore: "8", page: "0" })
+      reload(1, "8")
+    } else if (key === "search") {
+      setSearchId("all")
+      setPage(1)
+      updateUrl({ search: "all", page: "0" })
+      reload(1, undefined, "all")
+    } else if (key === "sort") {
+      setSortBy("date")
+      setPage(1)
+      updateUrl({ sort: "date", page: "0" })
+      reload(1, undefined, undefined, "date")
+    }
+  }
+
+  function clearAllFilters() {
+    setMinScore("8")
+    setSearchId("all")
+    setSortBy("date")
+    setPage(1)
+    updateUrl({ minScore: "8", search: "all", sort: "date", page: "0" })
+    reload(1, "8", "all", "date")
+  }
+
   const filterControls = (
     <>
       <div className="flex flex-col gap-1.5">
@@ -266,6 +304,35 @@ function AdsPageContent() {
         </BreadcrumbList>
       </Breadcrumb>
       <PageHeader title="Anzeigen" subtitle="Alle gefundenen Kleinanzeigen-Angebote" />
+
+      {/* Active Filter Chips */}
+      {activeFilters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {activeFilters.map((filter) => (
+            <span
+              key={filter.value}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 text-primary-foreground px-3 py-1 text-xs font-medium border border-primary/20 animate-in fade-in zoom-in duration-200"
+            >
+              {filter.label}
+              <button
+                onClick={() => clearFilter(filter.value)}
+                className="text-primary-foreground/70 hover:text-destructive cursor-pointer transition-colors"
+                aria-label={`${filter.label} entfernen`}
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearAllFilters}
+            className="h-7 px-3 text-xs cursor-pointer hover:bg-muted"
+          >
+            Alle löschen
+          </Button>
+        </div>
+      )}
 
       {/* Desktop filters */}
       <div className="hidden md:flex flex-wrap items-end gap-4">

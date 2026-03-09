@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass, field
 from typing import cast
 
@@ -106,6 +107,37 @@ def _parse_search_item(item: Tag) -> ScrapedAdPreview | None:
         location=location,
         image_url=image_url,
     )
+
+
+_TITLE_SUFFIX_RE = re.compile(
+    r"(?:\s*[-–|]\s*|\s+(?:auf\s+)?)kleinanzeigen(?:\.de)?\s*$",
+    re.IGNORECASE,
+)
+
+
+def parse_search_title(html: str) -> str | None:
+    """
+    Extract a human-readable title from a Kleinanzeigen.de search results page.
+
+    Tries <title> first and strips any trailing Kleinanzeigen branding
+    (e.g. '- kleinanzeigen.de', '| Kleinanzeigen', '– Kleinanzeigen'),
+    then falls back to the first <h1>.
+    """
+    soup = BeautifulSoup(html, "lxml")
+
+    title_tag = soup.find("title")
+    if title_tag:
+        title = _TITLE_SUFFIX_RE.sub("", title_tag.get_text(strip=True)).strip()
+        if title:
+            return title
+
+    h1 = soup.find("h1")
+    if h1 and isinstance(h1, Tag):
+        text = h1.get_text(strip=True)
+        if text:
+            return text
+
+    return None
 
 
 def parse_next_page_urls(html: str) -> list[str]:

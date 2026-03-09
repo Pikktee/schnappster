@@ -5,7 +5,12 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import Session, select
 
 from app.core.db import DbSession, engine
+from app.models.ad import Ad
 from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearchUpdate
+from app.models.errorlog import ErrorLog
+from app.models.scraperun import ScrapeRun
+from app.scraper.httpclient import fetch_page_checked
+from app.scraper.parser import parse_search_title
 from app.services.scraper import ScraperService
 
 logger = logging.getLogger(__name__)
@@ -42,9 +47,39 @@ def get_adsearch(adsearch_id: int, session: DbSession):
 @router.post("/", response_model=AdSearchRead, status_code=201)
 def create_adsearch(data: AdSearchCreate, session: DbSession):
     """
-    Create a new ad search (Suchauftrag)
+    Create a new ad search (Suchauftrag).
+
+    If `name` is empty, the page title is fetched from the search URL and used
+    as the name.  A 422 is returned if the page cannot be reached or yields no
+    recognisable title.
     """
-    adsearch = AdSearch.model_validate(data)
+    name = data.name.strip()
+
+    if not name:
+        status, html = fetch_page_checked(data.url)
+        if status == 0:
+            raise HTTPException(
+                status_code=422,
+                detail="URL konnte nicht aufgerufen werden. Bitte Internetverbindung und URL prüfen.",
+            )
+        if status == 404:
+            raise HTTPException(
+                status_code=422,
+                detail="Die angegebene URL wurde nicht gefunden (404). Bitte eine gültige Kleinanzeigen-Suchergebnisseite eingeben.",
+            )
+        if status >= 400:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Die Seite konnte nicht abgerufen werden (HTTP {status}). Bitte URL prüfen.",
+            )
+        name = parse_search_title(html)
+        if not name:
+            raise HTTPException(
+                status_code=422,
+                detail="Kein Seitentitel auf der Seite gefunden. Bitte URL prüfen oder einen Namen manuell eingeben.",
+            )
+
+    adsearch = AdSearch.model_validate({**data.model_dump(), "name": name})
 
     session.add(adsearch)
     session.commit()
@@ -82,11 +117,26 @@ def delete_adsearch(adsearch_id: int, session: DbSession):
     Delete an ad search (Suchauftrag)
 
     If the given ID does not exist, an error 404 is thrown.
+
+    Related ads and error logs are preserved (their adsearch_id is set to NULL).
+    Related scrape runs are deleted.
     """
     adsearch = session.get(AdSearch, adsearch_id)
 
     if not adsearch:
         raise HTTPException(status_code=404, detail="AdSearch not found")
+
+    # Delete related scrape runs (they require an adsearch_id)
+    for run in session.exec(select(ScrapeRun).where(ScrapeRun.adsearch_id == adsearch_id)).all():
+        session.delete(run)
+
+    # Set adsearch_id to NULL for related ads (they can exist independently)
+    for ad in session.exec(select(Ad).where(Ad.adsearch_id == adsearch_id)).all():
+        ad.adsearch_id = None
+
+    # Set adsearch_id to NULL for related error logs (they can exist independently)
+    for log in session.exec(select(ErrorLog).where(ErrorLog.adsearch_id == adsearch_id)).all():
+        log.adsearch_id = None
 
     session.delete(adsearch)
     session.commit()

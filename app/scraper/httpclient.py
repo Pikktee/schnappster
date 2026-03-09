@@ -40,9 +40,28 @@ def fetch_pages(urls: list[str]) -> list[str]:
 
 
 def fetch_page(url: str) -> str:
-    """Fetch a single page."""
+    """Fetch a single page (ignores HTTP status)."""
     results = fetch_pages([url])
     return results[0] if results else ""
+
+
+async def _fetch_page_checked(url: str) -> tuple[int, str]:
+    """Fetch a single page and return (status_code, html)."""
+    async with AsyncSession(impersonate="chrome") as session:
+        try:
+            response = await session.get(url)
+            return response.status_code, response.text
+        except Exception:
+            return 0, ""
+
+
+def fetch_page_checked(url: str) -> tuple[int, str]:
+    """
+    Fetch a single page and return (http_status_code, html).
+
+    Returns (0, "") on network / connection error.
+    """
+    return asyncio.run(_fetch_page_checked(url))
 
 
 async def _fetch_binary(urls: list[str]) -> list[bytes]:

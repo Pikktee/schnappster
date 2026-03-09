@@ -1,7 +1,32 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from pydantic import field_validator
 from sqlmodel import Field, Relationship, SQLModel
+
+_SEARCH_PREFIX = "https://www.kleinanzeigen.de/s-"
+_DETAIL_PREFIX = "https://www.kleinanzeigen.de/s-anzeige/"
+
+
+def _validate_search_url(url: str) -> str:
+    """Validate that a URL is a Kleinanzeigen.de search results page."""
+    if not url.startswith(_SEARCH_PREFIX):
+        raise ValueError(
+            "Nur Kleinanzeigen.de-Suchergebnislisten sind erlaubt "
+            "(URL muss mit https://www.kleinanzeigen.de/s- beginnen)."
+        )
+    if url.startswith(_DETAIL_PREFIX):
+        raise ValueError(
+            "Bitte keine Anzeigen-Detailseite eingeben — "
+            "nur Suchergebnislisten sind erlaubt."
+        )
+    # Require something meaningful after "s-" (not just the bare prefix)
+    remainder = url[len(_SEARCH_PREFIX):].strip("/")
+    if not remainder:
+        raise ValueError(
+            "Bitte eine vollständige Suchergebnisliste-URL eingeben, nicht nur das Präfix."
+        )
+    return url
 
 if TYPE_CHECKING:  # Avoid linter error
     from app.models.ad import Ad
@@ -41,7 +66,7 @@ class AdSearch(SQLModel, table=True):
 class AdSearchCreate(SQLModel):
     """API input schema for creating."""
 
-    name: str
+    name: str = ""
     url: str
     prompt_addition: str | None = None
     min_price: float | None = None
@@ -50,6 +75,11 @@ class AdSearchCreate(SQLModel):
     is_exclude_images: bool = False
     is_active: bool = True
     scrape_interval_minutes: int = 30
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        return _validate_search_url(v)
 
 
 class AdSearchRead(SQLModel):
@@ -81,3 +111,10 @@ class AdSearchUpdate(SQLModel):
     is_exclude_images: bool | None = None
     is_active: bool | None = None
     scrape_interval_minutes: int | None = None
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str | None) -> str | None:
+        if v is not None:
+            _validate_search_url(v)
+        return v

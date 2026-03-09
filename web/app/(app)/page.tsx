@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { Search, Star, Clock } from "lucide-react"
+import { Search, Star, Clock, Sparkles, TrendingUp, Zap } from "lucide-react"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,6 +18,7 @@ import { fetchSearches, fetchAds, fetchScrapeRuns } from "@/lib/api"
 import type { Ad, AdSearch, ScrapeRun } from "@/lib/types"
 import { timeAgo, formatScore } from "@/lib/format"
 import { toast } from "sonner"
+import Link from "next/link"
 
 export default function DashboardPage() {
   const [searches, setSearches] = useState<AdSearch[]>([])
@@ -78,6 +79,11 @@ export default function DashboardPage() {
     [ads]
   )
 
+  const totalDeals = useMemo(
+    () => ads.filter((a) => a.bargain_score !== null && a.bargain_score >= 7).length,
+    [ads]
+  )
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
@@ -86,9 +92,9 @@ export default function DashboardPage() {
           subtitle="Übersicht über deine Schnäppchen-Suchergebnisse"
         />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
         </div>
         <Card>
           <CardHeader>
@@ -119,6 +125,8 @@ export default function DashboardPage() {
     )
   }
 
+  const showWelcome = searches.length === 0 || ads.length === 0
+
   return (
     <div className="flex flex-col gap-6">
       <Breadcrumb>
@@ -133,7 +141,48 @@ export default function DashboardPage() {
         subtitle="Übersicht über deine Schnäppchen-Suchergebnisse"
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Welcome / Quick Actions */}
+      {showWelcome && (
+        <Card className="gradient-subtle border-primary/20">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <div className="size-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shrink-0">
+                <Sparkles className="size-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground">
+                  {searches.length === 0 ? "Willkommen bei Schnappster!" : "Bereit für die erste Suche?"}
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {searches.length === 0
+                    ? "Erstelle deinen ersten Suchauftrag und lass uns automatisch nach Schnäppchen auf Kleinanzeigen suchen."
+                    : "Deine Suchaufträge sind eingerichtet. Die ersten Ergebnisse werden in Kürze erscheinen."}
+                </p>
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {searches.length === 0 && (
+                    <Link href="/searches/">
+                      <Button className="cursor-pointer bg-primary hover:bg-primary/90">
+                        <Search className="size-4 mr-2" />
+                        Suchauftrag erstellen
+                      </Button>
+                    </Link>
+                  )}
+                  {ads.length === 0 && (
+                    <Link href="/ads/">
+                      <Button variant="outline" className="cursor-pointer">
+                        <TrendingUp className="size-4 mr-2" />
+                        Anzeigen durchsuchen
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 reveal-stagger">
         <StatCard
           label="Aktive Suchaufträge"
           value={activeSearches}
@@ -157,9 +206,24 @@ export default function DashboardPage() {
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Letzte Schnäppchen</CardTitle>
+      <Card className="reveal-stagger">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="size-5 text-primary" />
+                Letzte Schnäppchen
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                {totalDeals} Treffer
+              </p>
+            </div>
+            <Link href="/ads/?minScore=7">
+              <Button variant="ghost" size="sm" className="cursor-pointer hover:bg-primary/10">
+                Alle ansehen
+              </Button>
+            </Link>
+          </div>
         </CardHeader>
         <CardContent>
           <LatestDeals ads={latestDeals} />

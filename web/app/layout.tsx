@@ -40,7 +40,7 @@ export default function RootLayout({
           Zum Hauptinhalt springen
         </a>
         {children}
-        <Toaster position="top-right" richColors toastOptions={{ role: "status", "aria-live": "polite" } as React.HTMLAttributes<HTMLLIElement>} />
+        <Toaster position="bottom-right" richColors toastOptions={{ role: "status", "aria-live": "polite" } as React.HTMLAttributes<HTMLLIElement>} />
       </body>
     </html>
   )
