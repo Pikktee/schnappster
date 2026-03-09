@@ -214,9 +214,6 @@ export default function DashboardPage() {
                 <Zap className="size-5 text-primary" />
                 Letzte Schnäppchen
               </CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                {totalDeals} Treffer
-              </p>
             </div>
             <Link href="/ads/?minScore=7">
               <Button variant="ghost" size="sm" className="cursor-pointer hover:bg-primary/10">
