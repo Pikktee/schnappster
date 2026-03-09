@@ -60,6 +60,7 @@ import type { Ad, AdSearch } from "@/lib/types"
 import { formatPrice, timeAgo, truncateUrl } from "@/lib/format"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ContentReveal } from "@/components/content-reveal"
 
 export function SearchDetailPage() {
   const router = useRouter()
@@ -155,17 +156,17 @@ export function SearchDetailPage() {
 
   if (error || !search) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
+      <ContentReveal className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-muted-foreground">{error || "Suchauftrag nicht gefunden."}</p>
         <Button variant="outline" onClick={() => router.push("/searches")} className="cursor-pointer">
           Zurück zur Übersicht
         </Button>
-      </div>
+      </ContentReveal>
     )
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <ContentReveal className="flex flex-col gap-6">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -471,6 +472,6 @@ export function SearchDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </ContentReveal>
   )
 }

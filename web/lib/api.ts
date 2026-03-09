@@ -52,6 +52,7 @@ export const fetchAds = async (params?: { adsearch_id?: number; is_analyzed?: bo
 export const fetchAdsPaginated = (params: {
   adsearch_id?: number
   min_score?: number
+  is_analyzed?: boolean
   sort?: string
   limit?: number
   offset?: number
@@ -59,6 +60,7 @@ export const fetchAdsPaginated = (params: {
   const sp = new URLSearchParams()
   if (params.adsearch_id) sp.set("adsearch_id", String(params.adsearch_id))
   if (params.min_score && params.min_score > 0) sp.set("min_score", String(params.min_score))
+  if (params.is_analyzed !== undefined) sp.set("is_analyzed", String(params.is_analyzed))
   if (params.sort) sp.set("sort", params.sort)
   if (params.limit) sp.set("limit", String(params.limit))
   if (params.offset) sp.set("offset", String(params.offset))

@@ -25,6 +25,7 @@ import { PageHeader } from "@/components/page-header"
 import { fetchSettings, fetchTelegramConfigured, updateSetting } from "@/lib/api"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ContentReveal } from "@/components/content-reveal"
 
 const MIN_SELLER_RATING_OPTIONS = [
   { value: "0", label: "Na ja" },
@@ -101,7 +102,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <ContentReveal className="flex flex-col gap-6">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -208,6 +209,6 @@ export default function SettingsPage() {
           {isSaving ? "Speichern..." : "Einstellungen speichern"}
         </Button>
       </div>
-    </div>
+    </ContentReveal>
   )
 }

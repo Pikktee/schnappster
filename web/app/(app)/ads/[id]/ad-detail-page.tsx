@@ -39,6 +39,7 @@ import {
 } from "@/lib/format"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ContentReveal } from "@/components/content-reveal"
 
 export function AdDetailPage() {
   const router = useRouter()
@@ -139,17 +140,17 @@ export function AdDetailPage() {
 
   if (error || !ad) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
+      <ContentReveal className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-muted-foreground">{error || "Anzeige nicht gefunden."}</p>
         <Button variant="outline" onClick={() => router.push("/ads")} className="cursor-pointer">
           Zurück zur Übersicht
         </Button>
-      </div>
+      </ContentReveal>
     )
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <ContentReveal className="flex flex-col gap-6">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -157,7 +158,7 @@ export function AdDetailPage() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href="/ads">Anzeigen</BreadcrumbLink>
+            <BreadcrumbLink href="/ads">Schnäppchen</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
@@ -431,6 +432,6 @@ export function AdDetailPage() {
           </div>
         </div>
       </div>
-    </div>
+    </ContentReveal>
   )
 }

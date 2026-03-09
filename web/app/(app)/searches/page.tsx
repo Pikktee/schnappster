@@ -31,6 +31,7 @@ import { PageHeader } from "@/components/page-header"
 import { SearchCard } from "@/components/search-card"
 import { SearchForm } from "@/components/search-form"
 import { EmptyState } from "@/components/empty-state"
+import { ContentReveal } from "@/components/content-reveal"
 import { fetchSearches, createSearch, deleteSearch, triggerScrape } from "@/lib/api"
 import type { AdSearch } from "@/lib/types"
 import { toast } from "sonner"
@@ -122,7 +123,7 @@ export default function SearchesPage() {
 
   if (error) {
     return (
-      <div className="flex flex-col gap-6">
+      <ContentReveal className="flex flex-col gap-6">
         <PageHeader title="Suchaufträge" subtitle="Verwalte deine Kleinanzeigen-Suchen" />
         <div className="flex flex-col items-center gap-4 py-12">
           <p className="text-destructive">{error}</p>
@@ -130,12 +131,12 @@ export default function SearchesPage() {
             Erneut laden
           </Button>
         </div>
-      </div>
+      </ContentReveal>
     )
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <ContentReveal className="flex flex-col gap-6">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -224,6 +225,6 @@ export default function SearchesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </ContentReveal>
   )
 }

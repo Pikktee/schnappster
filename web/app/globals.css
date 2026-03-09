@@ -149,4 +149,43 @@
     position: sticky;
     top: 1.5rem;
   }
+
+  /* Skeleton shimmer animation */
+  @keyframes skeleton-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--muted) 0%,
+      var(--muted) 35%,
+      color-mix(in srgb, var(--muted) 92%, white) 50%,
+      var(--muted) 65%,
+      var(--muted) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  }
+
+  /* Content reveal after load */
+  .content-reveal {
+    animation: content-reveal 0.25s ease-out forwards;
+  }
+
+  @keyframes content-reveal {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }

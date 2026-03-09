@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { LatestDeals } from "@/components/latest-deals"
+import { ContentReveal } from "@/components/content-reveal"
 import { fetchSearches, fetchAdsPaginated, fetchScrapeRuns } from "@/lib/api"
 import type { Ad, AdSearch, ScrapeRun } from "@/lib/types"
 import { timeAgo } from "@/lib/format"
@@ -92,7 +93,7 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <div className="flex flex-col gap-6">
+      <ContentReveal className="flex flex-col gap-6">
         <PageHeader
           title="Dashboard"
           subtitle="Übersicht über deine Schnäppchen-Suchergebnisse"
@@ -103,14 +104,14 @@ export default function DashboardPage() {
             Erneut laden
           </Button>
         </div>
-      </div>
+      </ContentReveal>
     )
   }
 
   const showWelcome = searches.length === 0 || totalAds === 0
 
   return (
-    <div className="flex flex-col gap-6">
+    <ContentReveal className="flex flex-col gap-6">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -153,7 +154,7 @@ export default function DashboardPage() {
                     <Link href="/ads/">
                       <Button variant="outline" className="cursor-pointer">
                         <TrendingUp className="size-4 mr-2" />
-                        Anzeigen durchsuchen
+                        Schnäppchen durchsuchen
                       </Button>
                     </Link>
                   )}
@@ -199,6 +200,6 @@ export default function DashboardPage() {
           <LatestDeals ads={latestDeals} />
         </CardContent>
       </Card>
-    </div>
+    </ContentReveal>
   )
 }

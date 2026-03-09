@@ -39,6 +39,7 @@ import { PageHeader } from "@/components/page-header"
 import { AdCard } from "@/components/ad-card"
 import { ScoreBadge } from "@/components/score-badge"
 import { EmptyState } from "@/components/empty-state"
+import { ContentReveal } from "@/components/content-reveal"
 import { fetchAdsPaginated, fetchSearches } from "@/lib/api"
 import type { Ad, AdSearch } from "@/lib/types"
 import { formatPrice, timeAgo } from "@/lib/format"
@@ -54,7 +55,7 @@ export default function AdsPage() {
   return (
     <Suspense fallback={
       <div className="flex flex-col gap-6">
-        <PageHeader title="Anzeigen" subtitle="Alle gefundenen Kleinanzeigen-Angebote" />
+        <PageHeader title="Schnäppchen" subtitle="Von der KI bewertete Angebote aus deinen Suchen" />
         <Skeleton className="h-10 w-48" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <Skeleton className="h-64" />
@@ -104,6 +105,7 @@ function AdsPageContent() {
         fetchAdsPaginated({
           min_score: Number(score) || undefined,
           adsearch_id: search !== "all" ? Number(search) : undefined,
+          is_analyzed: true,
           sort,
           limit: PAGE_SIZE,
           offset: (p - 1) * PAGE_SIZE,
@@ -144,7 +146,7 @@ function AdsPageContent() {
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title="Anzeigen" subtitle="Alle gefundenen Kleinanzeigen-Angebote" />
+        <PageHeader title="Schnäppchen" subtitle="Von der KI bewertete Angebote aus deinen Suchen" />
         <Skeleton className="h-10 w-48" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <Skeleton className="h-64" />
@@ -157,15 +159,15 @@ function AdsPageContent() {
 
   if (error) {
     return (
-      <div className="flex flex-col gap-6">
-        <PageHeader title="Anzeigen" subtitle="Alle gefundenen Kleinanzeigen-Angebote" />
+      <ContentReveal className="flex flex-col gap-6">
+        <PageHeader title="Schnäppchen" subtitle="Von der KI bewertete Angebote aus deinen Suchen" />
         <div className="flex flex-col items-center gap-4 py-12">
           <p className="text-destructive">{error}</p>
-          <Button variant="outline" onClick={load} className="cursor-pointer">
+          <Button variant="outline" onClick={() => loadAds(page, minScore, searchId, sortBy)} className="cursor-pointer">
             Erneut laden
           </Button>
         </div>
-      </div>
+      </ContentReveal>
     )
   }
 
@@ -264,7 +266,7 @@ function AdsPageContent() {
   )
 
   return (
-    <div className="flex flex-col gap-6">
+    <ContentReveal className="flex flex-col gap-6">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -272,11 +274,11 @@ function AdsPageContent() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>Anzeigen</BreadcrumbPage>
+            <BreadcrumbPage>Schnäppchen</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <PageHeader title="Anzeigen" subtitle="Alle gefundenen Kleinanzeigen-Angebote" />
+      <PageHeader title="Schnäppchen" subtitle="Von der KI bewertete Angebote aus deinen Suchen" />
 
       {/* Desktop filters */}
       <div className="hidden md:flex flex-wrap items-end gap-4">
@@ -296,7 +298,7 @@ function AdsPageContent() {
         <div className="flex items-center gap-2 ml-auto">
           {activeFilterCount > 0 && (
             <span className="text-xs text-muted-foreground">
-              {total} Angebote
+              {total} Schnäppchen
             </span>
           )}
           <div className="flex gap-1">
@@ -364,7 +366,7 @@ function AdsPageContent() {
           </SheetContent>
         </Sheet>
         <span className="text-xs text-muted-foreground ml-auto">
-          {total} Angebote
+          {total} Schnäppchen
         </span>
         <div className="flex gap-1">
           <Button
@@ -395,7 +397,7 @@ function AdsPageContent() {
       </div>
 
       {ads.length === 0 ? (
-        <EmptyState message="Keine Angebote gefunden. Passe die Filter an oder erstelle neue Suchaufträge." />
+        <EmptyState message="Keine Schnäppchen gefunden. Passe die Filter an oder warte auf neue Analysen." />
       ) : viewMode === "cards" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {ads.map((ad) => (
@@ -474,6 +476,6 @@ function AdsPageContent() {
           </div>
         </div>
       )}
-    </div>
+    </ContentReveal>
   )
 }
