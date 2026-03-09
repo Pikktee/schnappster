@@ -7,7 +7,7 @@ Schnappster ist eine Web-App, die periodisch deine gespeicherten Kleinanzeigen-S
 ## Features
 
 - **Automatisches Scraping** – Durchsucht Kleinanzeigen.de Suchergebnisse in konfigurierbaren Intervallen
-- **KI-Analyse** – Bewertet Angebote mit Hilfe von KI (OpenRouter API) auf Basis von Preis, Zustand und Verkäuferbewertung
+- **KI-Analyse** – Bewertet Angebote mit Hilfe von KI (OpenAI-kompatible API, z. B. OpenRouter oder Alibaba Model Studio) auf Basis von Preis, Zustand und Verkäuferbewertung
 - **Vergleichspreise** – Berücksichtigt automatisch Preise ähnlicher Angebote aus derselben Suche
 - **Telegram-Benachrichtigungen** – Benachrichtigt dich bei echten Schnäppchen (Score 8+)
 - **Filter & Blacklists** – Filtert nach Preisbereich, schwarzen Keywords und Verkäufer-Typen
@@ -21,7 +21,7 @@ Schnappster ist eine Web-App, die periodisch deine gespeicherten Kleinanzeigen-S
 - **curl-cffi** für HTTP-Requests (Browser-Impersonation)
 - **BeautifulSoup4** für HTML-Parsing
 - **APScheduler** für Hintergrundaufgaben
-- **OpenRouter API** für KI-Analyse (LLM)
+- **OpenAI-kompatible API** für KI-Analyse (z. B. OpenRouter, Alibaba Model Studio Coding Plan)
 
 ### Frontend
 - **Next.js 16** + React 19
@@ -35,7 +35,7 @@ Schnappster ist eine Web-App, die periodisch deine gespeicherten Kleinanzeigen-S
 - Python 3.13+
 - [uv](https://docs.astral.sh/uv/) Package Manager
 - Node.js 20+ (für Frontend)
-- OpenRouter API Key
+- OpenRouter API Key oder anderer OpenAI-kompatibler API-Key
 
 ### 1. Repository klonen
 
@@ -52,7 +52,7 @@ uv sync
 
 # Umgebungsvariablen konfigurieren
 cp .env.example .env
-# OPENROUTER_API_KEY und OPENROUTER_AI_MODEL in .env setzen
+# OPENAI_API_KEY, OPENAI_MODEL und optional OPENAI_BASE_URL in .env setzen
 ```
 
 ### 3. Frontend einrichten (optional)
@@ -67,10 +67,13 @@ npm run build
 
 ### Umgebungsvariablen (.env)
 
+Bis März 2026 hießen die Variablen `OPENROUTER_API_KEY` und `OPENROUTER_AI_MODEL`; sie wurden durch `OPENAI_API_KEY`, `OPENAI_MODEL` und optional `OPENAI_BASE_URL` ersetzt. Bestehende `.env` bitte entsprechend anpassen.
+
 ```env
-# OpenRouter API (erforderlich)
-OPENROUTER_API_KEY=your_api_key_here
-OPENROUTER_AI_MODEL=meta-llama/llama-3.1-70b-instruct
+# OpenAI-kompatible API (erforderlich). Base-URL optional, Default: OpenRouter.
+OPENAI_API_KEY=your_api_key_here
+OPENAI_MODEL=meta-llama/llama-3.1-70b-instruct
+# Optional, z. B. für Alibaba Model Studio: OPENAI_BASE_URL=https://coding-intl.dashscope.aliyuncs.com/v1
 
 # Telegram Benachrichtigungen (optional)
 TELEGRAM_BOT_TOKEN=your_bot_token

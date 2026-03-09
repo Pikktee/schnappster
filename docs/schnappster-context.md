@@ -59,7 +59,7 @@ schnappster/
 ├── web/                         # Next.js Frontend (Static Export → web/out)
 │   ├── app/, components/, lib/, ...
 │   └── out/                     # von FastAPI ausgeliefert
-├── .env                         # OPENROUTER_API_KEY, OPENROUTER_AI_MODEL
+├── .env                         # OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL
 ├── .gitignore
 ├── pyproject.toml               # Entry Points: dbreset, scrape, analyze, start
 └── schnappster-context.md

@@ -54,7 +54,7 @@ schnappster/
 ├── tests/                       # pytest tests
 ├── web/                         # Next.js frontend (static export → web/out/)
 ├── data/                        # SQLite database (schnappster.db)
-├── .env                         # API keys (OPENROUTER_API_KEY, etc.)
+├── .env                         # API keys (OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL, etc.)
 └── pyproject.toml               # Dependencies, scripts, tool config
 ```
 
@@ -183,7 +183,7 @@ Both jobs also run once immediately on startup.
 
 - **No Alembic**: Schema changes require `uv run dbreset`
 - **Database path**: `data/schnappster.db`, resolved via `get_app_root()` (never relative paths)
-- **API keys**: Stored in `.env` (OPENROUTER_API_KEY, OPENROUTER_AI_MODEL), not in DB
+- **API keys**: Stored in `.env` (OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL), not in DB
 - **Absolute paths**: Always use `get_app_root()` instead of relative paths
 - **Models**: Table definitions as source of truth, API schemas in same file (intentional duplication)
 - **Re-exports**: `core/__init__.py` and `models/__init__.py` re-export all public symbols
@@ -193,8 +193,9 @@ Both jobs also run once immediately on startup.
 Create a `.env` file with:
 
 ```
-OPENROUTER_API_KEY=your_api_key
-OPENROUTER_AI_MODEL=your_model_choice
+OPENAI_API_KEY=your_api_key
+OPENAI_MODEL=your_model_choice
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
 TELEGRAM_BOT_TOKEN=optional_bot_token
 TELEGRAM_CHAT_ID=optional_chat_id
 ```

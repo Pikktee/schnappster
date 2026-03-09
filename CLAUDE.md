@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What is Schnappster?
 
-A personal web app that periodically scrapes Kleinanzeigen.de search results, analyzes them for bargains using AI (OpenRouter API), and displays results in a dashboard.
+A personal web app that periodically scrapes Kleinanzeigen.de search results, analyzes them for bargains using AI (OpenAI-compatible API, e.g. OpenRouter or Alibaba Model Studio), and displays results in a dashboard.
 
 ## Commands
 
@@ -43,7 +43,7 @@ The frontend is a **static export** (`web/out/`) served directly by FastAPI. Aft
 - **`app/core/`** — DB engine, settings (Pydantic `.env`), APScheduler, logging. Everything re-exported via `core/__init__.py`.
 - **`app/models/`** — SQLModel table definitions (source of truth) + API schemas (Read/Create/Update) in the same file. All re-exported via `models/__init__.py`.
 - **`app/scraper/`** — Pure HTTP/HTML layer: `httpclient.py` (curl-cffi) and `parser.py` (BeautifulSoup). No business logic here.
-- **`app/services/`** — Business logic: `ScraperService` orchestrates scraping pipeline, `AIService` handles OpenRouter analysis with comparison prices, `SettingsService` reads runtime settings from DB.
+- **`app/services/`** — Business logic: `ScraperService` orchestrates scraping pipeline, `AIService` handles AI analysis (OpenAI-compatible API) with comparison prices, `SettingsService` reads runtime settings from DB.
 - **`app/api/`** — FastAPI routers. All bundled via `api/__init__.py` into `api_router`, which is included in `main.py`.
 - **`cli/`** — Entry points (`uv run <cmd>`). No shebangs needed.
 
@@ -75,7 +75,7 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Static export served
 
 - No Alembic — schema changes require `uv run dbreset`
 - DB stored at `data/schnappster.db`, path resolved via `get_app_root()` (never relative paths)
-- API keys (`OPENROUTER_API_KEY`, `OPENROUTER_AI_MODEL`) live in `.env`, not the DB
+- API keys (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`) live in `.env`, not the DB
 - `AppSettings` table used for runtime-configurable settings (seller filters, Telegram, etc.)
 - Image URLs stored as comma-separated strings in `Ad.image_urls`
 - Seller rating is an int 0–2 (0=poor, 1=ok, 2=top)

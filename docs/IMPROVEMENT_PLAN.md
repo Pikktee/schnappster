@@ -13,7 +13,7 @@ Das Projekt hat eine **solide Grundarchitektur** (8/10): saubere Layer-Trennung,
 
 ### 1.1 API-Key im Repository exponiert
 - **Datei:** `.env`
-- `.env` enthaelt einen echten `OPENROUTER_API_KEY`
+- `.env` enthaelt einen echten `OPENAI_API_KEY`
 - **Aktion:**
   - Key sofort bei OpenRouter revoken
   - `.env` aus Git-History entfernen (`git filter-repo`)
