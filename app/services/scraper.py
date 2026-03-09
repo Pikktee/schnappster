@@ -45,12 +45,17 @@ class ScraperService:
 
     @staticmethod
     def _is_due(adsearch: AdSearch, now: datetime) -> bool:
-        """Check if an AdSearch is due for scraping."""
+        """
+        Check if an AdSearch is due for scraping.
+        """
         if adsearch.last_scraped_at is None:
             return True
         next_scrape = adsearch.last_scraped_at + timedelta(
             minutes=adsearch.scrape_interval_minutes
         )
+        # DB may return naive datetimes; treat as UTC for comparison
+        if next_scrape.tzinfo is None:
+            next_scrape = next_scrape.replace(tzinfo=UTC)
         return now >= next_scrape
 
     def scrape_adsearch(self, adsearch: AdSearch) -> ScrapeRun:
