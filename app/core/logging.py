@@ -6,7 +6,9 @@ RICH_HANDLER = RichHandler(show_path=True, show_time=True, markup=True, show_lev
 
 
 def setup_logging(level: int = logging.INFO) -> None:
-    """Configure logging for the application and Uvicorn."""
+    """
+    Configure logging for the application
+    """
     root = logging.getLogger()
     root.handlers.clear()
     root.setLevel(level)
@@ -21,7 +23,7 @@ def setup_logging(level: int = logging.INFO) -> None:
         logger.setLevel(level)
         logger.propagate = False
 
-    # Suppress noisy 'X changes detected' messages from Uvicorns file watcher
+    # Suppress 'X changes detected' messages from Uvicorns file watcher
     logging.getLogger("watchfiles.main").setLevel(logging.WARNING)
 
     # Suppress verbose APScheduler job registration messages

@@ -149,8 +149,7 @@ schnappster/
 
 | Job | Intervall | Beschreibung |
 |-----|-----------|-------------|
-| `check_and_scrape` | 1 Minute | Prüft aktive Suchaufträge und scraped fällige |
-| `analyze_ads` | 2 Minuten | Analysiert bis zu 10 unverarbeitete Ads mit KI |
+| `check_and_scrape` | 1 Minute | Prüft aktive Suchaufträge, scraped fällige; bei neuen Ads wird KI-Analyse in Warteschlange gestellt |
 
 Beide Jobs laufen auch einmal direkt beim Start.
 
