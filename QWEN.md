@@ -20,17 +20,17 @@
 ```
 schnappster/
 ├── app/
-│   ├── main.py                  # FastAPI app with lifespan (init_db, scheduler)
+│   ├── main.py                  # FastAPI app with lifespan (init_db, BackgroundJobs)
 │   ├── api/                     # FastAPI routers (bundled via api/__init__.py)
 │   │   ├── ads.py               # GET /api/ads/, GET /api/ads/{id}
 │   │   ├── adsearch.py          # CRUD /api/adsearches/
 │   │   ├── errorlogs.py         # GET /api/errorlogs/
 │   │   ├── scraperuns.py        # GET /api/scraperuns/
 │   │   └── settings.py          # GET/PUT /api/settings/
-│   ├── core/                    # Infrastructure (DB, settings, scheduler, logging)
+│   ├── core/                    # Infrastructure (DB, settings, background jobs, logging)
 │   │   ├── db.py                # SQLModel engine, DbSession, init_db()
 │   │   ├── settings.py          # Pydantic settings (.env), get_app_root()
-│   │   ├── scheduler.py         # APScheduler: check_and_scrape (1min), analyze_ads (2min)
+│   │   ├── background_jobs.py   # APScheduler: scrape due searches (1min), analyze after scrape when new ads
 │   │   └── logging.py           # RichHandler setup
 │   ├── models/                  # SQLModel tables + API schemas
 │   │   ├── ad.py                # Ad table + AdRead schema
@@ -131,7 +131,7 @@ pyright
 
 | Layer | Purpose | Key Files |
 |-------|---------|-----------|
-| **core/** | Infrastructure: DB engine, settings, scheduler, logging | Re-exported via `core/__init__.py` |
+| **core/** | Infrastructure: DB engine, settings, background jobs, logging | Re-exported via `core/__init__.py` |
 | **models/** | SQLModel table definitions + API schemas | Re-exported via `models/__init__.py` |
 | **scraper/** | Pure HTTP/HTML layer (no business logic) | `httpclient.py`, `parser.py` |
 | **services/** | Business logic: orchestration, AI analysis | `ScraperService`, `AIService`, `SettingsService` |
@@ -145,14 +145,13 @@ pyright
 3. Fetch detail pages in parallel
 4. Apply filters: price range, blacklist keywords, seller type, seller rating
 5. Save new ads to DB
-6. AI analysis runs separately via scheduler (every 2 minutes)
+6. AI analysis runs after each scrape when new ads were found (queued on analyzer); scraper and analyzer each have a single-worker queue
 
 ### Scheduler (APScheduler BackgroundScheduler)
 
 | Job | Interval | Description |
 |-----|----------|-------------|
-| `check_and_scrape` | 1 minute | Scrapes all active `AdSearch` records that are due |
-| `analyze_ads` | 2 minutes | Processes up to 10 unanalyzed ads with AI |
+| `check_and_scrape` | 1 minute | Scrapes all active `AdSearch` records that are due; when new ads found, queues AI analysis |
 
 Both jobs also run once immediately on startup.
 

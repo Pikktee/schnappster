@@ -6,16 +6,20 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import api_router
-from app.core import get_app_root, init_db, setup_logging, start_scheduler, stop_scheduler
+from app.core import BackgroundJobs, get_app_root, init_db, setup_logging
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
     init_db()
-    start_scheduler()
+
+    jobs = BackgroundJobs()
+    jobs.start()
+
     yield
-    stop_scheduler()
+
+    jobs.stop()
 
 
 app = FastAPI(

@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlmodel import Session, col, select
 
@@ -21,6 +21,37 @@ logger = logging.getLogger(__name__)
 class ScraperService:
     def __init__(self, session: Session):
         self.session = session
+
+    def scrape_due_searches(self) -> int:
+        """
+        Load active AdSearches, scrape those that are due, return total new ads.
+        """
+        searches = self.session.exec(
+            select(AdSearch).where(col(AdSearch.is_active).is_(True))
+        ).all()
+        logger.info(f"Found {len(searches)} active AdSearches")
+
+        total_new = 0
+        now = datetime.now(UTC)
+        for adsearch in searches:
+            if not self._is_due(adsearch, now):
+                continue
+            try:
+                scrape_run = self.scrape_adsearch(adsearch)
+                total_new += scrape_run.ads_new or 0
+            except Exception as e:
+                logger.error(f"Failed '{adsearch.name}': {e}")
+        return total_new
+
+    @staticmethod
+    def _is_due(adsearch: AdSearch, now: datetime) -> bool:
+        """Check if an AdSearch is due for scraping."""
+        if adsearch.last_scraped_at is None:
+            return True
+        next_scrape = adsearch.last_scraped_at + timedelta(
+            minutes=adsearch.scrape_interval_minutes
+        )
+        return now >= next_scrape
 
     def scrape_adsearch(self, adsearch: AdSearch) -> ScrapeRun:
         """

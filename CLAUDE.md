@@ -40,7 +40,7 @@ The frontend is a **static export** (`web/out/`) served directly by FastAPI. Aft
 
 ### Backend layers
 
-- **`app/core/`** — DB engine, settings (Pydantic `.env`), APScheduler, logging. Everything re-exported via `core/__init__.py`.
+- **`app/core/`** — DB engine, settings (Pydantic `.env`), background jobs (APScheduler), logging. Everything re-exported via `core/__init__.py`.
 - **`app/models/`** — SQLModel table definitions (source of truth) + API schemas (Read/Create/Update) in the same file. All re-exported via `models/__init__.py`.
 - **`app/scraper/`** — Pure HTTP/HTML layer: `httpclient.py` (curl-cffi) and `parser.py` (BeautifulSoup). No business logic here.
 - **`app/services/`** — Business logic: `ScraperService` orchestrates scraping pipeline, `AIService` handles AI analysis (OpenAI-compatible API) with comparison prices, `SettingsService` reads runtime settings from DB.
@@ -54,13 +54,11 @@ The frontend is a **static export** (`web/out/`) served directly by FastAPI. Aft
 3. Fetch detail pages in parallel
 4. Apply filters: price range, blacklist keywords, seller type, seller rating
 5. Save new ads to DB
-6. AI analysis runs separately every 2 minutes via scheduler
+6. AI analysis runs after each scrape when new ads were found (queued on analyzer); scraper and analyzer each have a single-worker queue so jobs run one after another without overlap
 
-### Scheduler (APScheduler BackgroundScheduler)
+### Scheduler (APScheduler, `core/background_jobs.py`, class `BackgroundJobs`)
 
-- `check_and_scrape` runs every 1 minute — checks all active `AdSearch` records and scrapes those that are due based on `scrape_interval_minutes`
-- `analyze_ads` runs every 2 minutes — processes up to 10 unanalyzed ads with AI
-- Both also run once immediately on startup
+- Scrape job runs every 1 minute and once at startup — loads active `AdSearch` records, scrapes those that are due via `ScraperService.scrape_due_searches()`; when new ads were scraped, queues one AI analysis run (separate single-worker queue so scrape and analyze never overlap).
 
 ### Frontend
 

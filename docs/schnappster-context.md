@@ -14,7 +14,7 @@ Eine persönliche Web-App die Kleinanzeigen.de-Suchergebnisse periodisch scrapt,
 schnappster/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                  # FastAPI App mit Lifespan (init_db, scheduler)
+│   ├── main.py                  # FastAPI App mit Lifespan (init_db, BackgroundJobs)
 │   ├── api/
 │   │   ├── __init__.py          # api_router bündelt alle Router
 │   │   ├── ads.py               # GET /api/ads/, GET /api/ads/{id}
@@ -23,10 +23,10 @@ schnappster/
 │   │   ├── scraperuns.py        # GET /api/scraperuns/
 │   │   └── settings.py          # GET/PUT /api/settings/
 │   ├── core/
-│   │   ├── __init__.py          # Re-exportiert: DbSession, engine, init_db, settings, setup_logging, get_app_root, start/stop_scheduler
+│   │   ├── __init__.py          # Re-exportiert: DbSession, engine, init_db, settings, setup_logging, get_app_root, BackgroundJobs
 │   │   ├── db.py                # SQLModel Engine, DbSession (Annotated), init_db()
 │   │   ├── logging.py           # setup_logging() mit RichHandler
-│   │   ├── scheduler.py         # APScheduler: check_and_scrape (1min), analyze_ads (2min)
+│   │   ├── background_jobs.py   # APScheduler: scrape due (1min), bei neuen Ads KI-Analyse in Queue
 │   │   └── settings.py          # Pydantic Settings (.env), get_app_root()
 │   ├── models/
 │   │   ├── __init__.py          # Re-exportiert alle Models

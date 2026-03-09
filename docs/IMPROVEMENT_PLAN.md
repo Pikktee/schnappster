@@ -74,7 +74,7 @@ Aktuell sind Magic Numbers ueber den gesamten Code verstreut:
 
 | Wert | Datei | Zeile |
 |------|-------|-------|
-| Scheduler 1min/2min | `core/scheduler.py` | 76, 82 |
+| Scheduler 1min/2min | `core/background_jobs.py` | 76, 82 |
 | `max_tokens=1000` | `services/ai.py` | 113 |
 | `temperature=0.3` | `services/ai.py` | 114 |
 | `MAX_CONCURRENT=3` | `scraper/httpclient.py` | 6 |
@@ -95,17 +95,17 @@ Aktuell sind Magic Numbers ueber den gesamten Code verstreut:
 | Problem | Datei | Zeile | Aktion |
 |---------|-------|-------|--------|
 | Bare `except Exception` | `httpclient.py` | 20-24 | Spezifische Exceptions fangen |
-| Job-Fehler nicht in DB | `scheduler.py` | 42-43 | ErrorLog-Eintraege erstellen |
+| Job-Fehler nicht in DB | `background_jobs.py` | 42-43 | ErrorLog-Eintraege erstellen |
 | `assert` statt Validierung | `scraper.py` | 29 | Durch `ValueError` ersetzen |
 | Fehlender URL-Kontext | `httpclient.py` | 23-24 | URL im Log-Eintrag ausgeben |
-| Generisches Exception Catching | `scheduler.py` | 42-43, 58-59 | Spezifische Typen fangen |
+| Generisches Exception Catching | `background_jobs.py` | 42-43, 58-59 | Spezifische Typen fangen |
 
 ### 3.4 Code-Duplikation entfernen
 - **`httpclient.py:11-63`:** `_fetch_pages()` und `_fetch_binary()` fast identisch — generische `_fetch_concurrent()` Methode extrahieren
 - **API-Router:** Aehnliche Query-Patterns in `ads.py`, `errorlogs.py`, `scraperuns.py` — Query-Builder Utility
 
 ### 3.5 Veraltete Patterns modernisieren
-- `datetime.utcnow()` in `scheduler.py:27` und `scraper.py:56` — ersetzen durch `datetime.now(datetime.UTC)` (deprecated seit Python 3.12)
+- `datetime.utcnow()` in `background_jobs.py:27` und `scraper.py:56` — ersetzen durch `datetime.now(datetime.UTC)` (deprecated seit Python 3.12)
 - `Optional["AdSearch"]` in `errorlog.py:25` — konsistent `|`-Syntax verwenden
 - Ungenutzter Import `from typing import Optional` in `errorlog.py:2` entfernen
 
@@ -116,7 +116,7 @@ Aktuell sind Magic Numbers ueber den gesamten Code verstreut:
 
 ### 3.7 Logging verbessern
 - Mix aus f-Strings und %-Formatting — einheitlich auf `%`-Style (effizienter bei deaktivierten Log-Levels)
-- Routine-Logs (`scheduler.py:24`) auf `DEBUG` statt `INFO`
+- Routine-Logs (`background_jobs.py:24`) auf `DEBUG` statt `INFO`
 - Sensible Werte (Telegram-Token) nicht in Logs ausgeben
 
 ---

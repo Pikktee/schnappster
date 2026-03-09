@@ -1,7 +1,7 @@
 from app.core.config import config, get_app_root
 from app.core.db import DbSession, engine, init_db
 from app.core.logging import setup_logging
-from app.core.scheduler import start_scheduler, stop_scheduler
+from app.core.background_jobs import BackgroundJobs
 
 __all__ = [
     "DbSession",
@@ -10,6 +10,5 @@ __all__ = [
     "init_db",
     "config",
     "setup_logging",
-    "start_scheduler",
-    "stop_scheduler",
+    "BackgroundJobs",
 ]
