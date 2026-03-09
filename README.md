@@ -126,7 +126,7 @@ Der Server startet auf http://localhost:8000
 ```
 schnappster/
 ├── app/
-│   ├── api/           # FastAPI Router (REST Endpoints)
+│   ├── routes/           # FastAPI Router (REST Endpoints)
 │   ├── core/          # DB, Scheduler, Settings, Logging
 │   ├── models/        # SQLModel Tabellen & Schemas
 │   ├── scraper/       # HTTP Client & HTML Parser

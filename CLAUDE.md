@@ -44,7 +44,7 @@ The frontend is a **static export** (`web/out/`) served directly by FastAPI. Aft
 - **`app/models/`** — SQLModel table definitions (source of truth) + API schemas (Read/Create/Update) in the same file. All re-exported via `models/__init__.py`.
 - **`app/scraper/`** — Pure HTTP/HTML layer: `httpclient.py` (curl-cffi) and `parser.py` (BeautifulSoup). No business logic here.
 - **`app/services/`** — Business logic: `ScraperService` orchestrates scraping pipeline, `AIService` handles AI analysis (OpenAI-compatible API) with comparison prices, `SettingsService` reads runtime settings from DB.
-- **`app/api/`** — FastAPI routers. All bundled via `api/__init__.py` into `api_router`, which is included in `main.py`.
+- **`app/routes/`** — FastAPI routers. All bundled via `routes/__init__.py` into `api_router`, which is included in `main.py`.
 - **`cli/`** — Entry points (`uv run <cmd>`). No shebangs needed.
 
 ### Scraping pipeline (ScraperService)

@@ -15,7 +15,7 @@ schnappster/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py                  # FastAPI App mit Lifespan (init_db, BackgroundJobs)
-│   ├── api/
+│   ├── routes/
 │   │   ├── __init__.py          # api_router bündelt alle Router
 │   │   ├── ads.py               # GET /api/ads/, GET /api/ads/{id}
 │   │   ├── adsearch.py          # CRUD /api/adsearches/ (GET, POST, PATCH, DELETE)
@@ -76,7 +76,7 @@ schnappster/
 ## Architektur-Prinzipien
 - **scraper/**: Nur technische Infrastruktur (HTTP, HTML-Parsing)
 - **services/**: Business-Logik (Orchestrierung, KI-Analyse)
-- **api/**: HTTP-Endpoints, api_router in __init__.py gebündelt
+- **routes/**: HTTP-Endpoints, api_router in __init__.py gebündelt
 - **core/**: DB, Settings, Scheduler, Logging – alles über core/__init__.py re-exportiert
 - **cli/**: Entry Points (pyproject.toml), kein Shebang nötig
 - **models/**: Table-Definition oben als Source of Truth, API-Schemas darunter (bewusste Duplizierung)

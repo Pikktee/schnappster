@@ -21,7 +21,7 @@
 schnappster/
 ├── app/
 │   ├── main.py                  # FastAPI app with lifespan (init_db, BackgroundJobs)
-│   ├── api/                     # FastAPI routers (bundled via api/__init__.py)
+│   ├── routes/                     # FastAPI routers (bundled via routes/__init__.py)
 │   │   ├── ads.py               # GET /api/ads/, GET /api/ads/{id}
 │   │   ├── adsearch.py          # CRUD /api/adsearches/
 │   │   ├── errorlogs.py         # GET /api/errorlogs/
@@ -135,7 +135,7 @@ pyright
 | **models/** | SQLModel table definitions + API schemas | Re-exported via `models/__init__.py` |
 | **scraper/** | Pure HTTP/HTML layer (no business logic) | `httpclient.py`, `parser.py` |
 | **services/** | Business logic: orchestration, AI analysis | `ScraperService`, `AIService`, `SettingsService` |
-| **api/** | FastAPI routers | Bundled via `api/__init__.py` into `api_router` |
+| **routes/** | FastAPI routers | Bundled via `routes/__init__.py` into `api_router` |
 | **cli/** | Entry points defined in `pyproject.toml` | No shebangs required |
 
 ### Scraping Pipeline (ScraperService)

@@ -25,7 +25,7 @@ Das Projekt hat eine **solide Grundarchitektur** (8/10): saubere Layer-Trennung,
 - **Aktion:** Origins auf konkrete Domain(s) einschraenken oder `allow_credentials` entfernen
 
 ### 1.3 Keine Authentifizierung
-- **Dateien:** Alle Endpoints in `app/api/`
+- **Dateien:** Alle Endpoints in `app/routes/`
 - Alle API-Endpoints sind voellig ungeschuetzt — jeder mit Netzwerkzugriff kann Daten lesen, Suchen loeschen, Settings aendern, AI-Analyse triggern
 - **Aktion:** Mindestens API-Key-Auth oder Basic-Auth einfuehren; fuer Produktivbetrieb JWT oder Session-basiert
 
@@ -34,7 +34,7 @@ Das Projekt hat eine **solide Grundarchitektur** (8/10): saubere Layer-Trennung,
 ## Phase 2 — Sicherheitshaertung (P1, diese Woche)
 
 ### 2.1 SSRF-Schutz bei URL-Eingabe
-- **Datei:** `app/api/adsearch.py:38`
+- **Datei:** `app/routes/adsearch.py:38`
 - `url` Feld akzeptiert beliebige URLs ohne Validierung
 - Scraper fetcht diese blind — SSRF moeglich (interne Netzwerke scannen)
 - **Aktion:** URL-Validierung auf `https://www.kleinanzeigen.de/*` einschraenken, private IPs blocken
@@ -60,7 +60,7 @@ Das Projekt hat eine **solide Grundarchitektur** (8/10): saubere Layer-Trennung,
 - **Aktion:** `section` gegen `["searches", "ads"]` validieren, `Path.resolve().relative_to()` nutzen
 
 ### 2.6 Informationsleck Telegram-Endpoint
-- **Datei:** `app/api/settings.py:24-32`
+- **Datei:** `app/routes/settings.py:24-32`
 - Unauthentifizierter Endpoint verraet ob Telegram konfiguriert ist
 - **Aktion:** Hinter Auth schuetzen (wird durch 1.3 geloest)
 
@@ -181,7 +181,7 @@ Aktuell sind Magic Numbers ueber den gesamten Code verstreut:
 ## Phase 5 — Architektur-Verbesserungen (P3)
 
 ### 5.1 Dependency Injection fuer Config
-- **Dateien:** `app/api/settings.py:3`, `app/services/ai.py:9`
+- **Dateien:** `app/routes/settings.py:3`, `app/services/ai.py:9`
 - `app_config` wird direkt importiert statt injiziert
 - Erschwert Tests (nur via Monkey-Patching)
 - **Aktion:** Config als Parameter an Services uebergeben

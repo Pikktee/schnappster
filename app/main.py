@@ -5,8 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import api_router
 from app.core import BackgroundJobs, get_app_root, init_db, setup_logging
+from app.routes import api_router
 
 
 @asynccontextmanager
