@@ -171,7 +171,7 @@ export default function SettingsPage() {
                   href="https://core.telegram.org/bots#how-do-i-create-a-bot"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary hover:underline"
+                  className="text-link hover:underline"
                 >
                   Anleitung: Telegram Bot erstellen &rarr;
                 </a>
