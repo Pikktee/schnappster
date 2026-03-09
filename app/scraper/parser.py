@@ -8,7 +8,9 @@ BASE_URL = "https://www.kleinanzeigen.de"
 
 @dataclass
 class ScrapedAdPreview:
-    """Basic ad data from search results page."""
+    """
+    Basic ad data from search results page.
+    """
 
     external_id: str
     title: str
@@ -20,7 +22,9 @@ class ScrapedAdPreview:
 
 @dataclass
 class ScrapedAdDetail:
-    """Full ad data from detail page."""
+    """
+    Full ad data from detail page.
+    """
 
     external_id: str
     title: str
@@ -41,9 +45,9 @@ class ScrapedAdDetail:
     seller_active_since: str | None = None
 
 
+# ------------------------------
 # --- Search results parsing ---
-
-
+# ------------------------------
 def parse_search_results(html: str) -> list[ScrapedAdPreview]:
     """Parse ad previews from a search results page."""
     soup = BeautifulSoup(html, "lxml")
@@ -58,7 +62,9 @@ def parse_search_results(html: str) -> list[ScrapedAdPreview]:
 
 
 def _parse_search_item(item: Tag) -> ScrapedAdPreview | None:
-    """Parse a single search result item."""
+    """
+    Parse a single search result item.
+    """
     link = item.select_one("a[href*='/s-anzeige/']")
     if not link:
         return None
@@ -116,11 +122,13 @@ def parse_next_page_urls(html: str) -> list[str]:
     return urls
 
 
+# ----------------------------
 # --- Detail page parsing ---
-
-
+# ----------------------------
 def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | None:
-    """Parse full ad details from a detail page."""
+    """
+    Parse full ad details from a detail page.
+    """
     soup = BeautifulSoup(html, "lxml")
 
     # Title
@@ -249,11 +257,13 @@ def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | 
     )
 
 
+# ---------------
 # --- Helpers ---
-
-
+# ---------------
 def _parse_price(text: str) -> float | None:
-    """Parse price from text like '75 €', '110 € VB', '110.00', 'VB'."""
+    """
+    Parse price from text like '75 €', '110 € VB', '110.00', 'VB'.
+    """
     cleaned = text.replace("€", "").replace("VB", "").strip()
     if not cleaned:
         return None
@@ -268,7 +278,9 @@ def _parse_price(text: str) -> float | None:
 
 
 def _split_locality(text: str) -> tuple[str | None, str | None]:
-    """Split '51105 Innenstadt - Poll' into ('51105', 'Innenstadt - Poll')."""
+    """
+    Split '51105 Innenstadt - Poll' into ('51105', 'Innenstadt - Poll').
+    """
     text = text.strip()
     if not text:
         return None, None

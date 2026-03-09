@@ -9,7 +9,9 @@ DELAY_MAX = 2.0
 
 
 async def _fetch_pages(urls: list[str]) -> list[str]:
-    """Fetch multiple pages with limited concurrency and random delays."""
+    """
+    Fetch multiple pages with limited concurrency and random delays.
+    """
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
     results: list[str] = [""] * len(urls)
 
@@ -31,7 +33,9 @@ async def _fetch_pages(urls: list[str]) -> list[str]:
 
 
 def fetch_pages(urls: list[str]) -> list[str]:
-    """Synchronous wrapper for async page fetching."""
+    """
+    Synchronous wrapper for async page fetching.
+    """
     return asyncio.run(_fetch_pages(urls))
 
 
@@ -42,7 +46,9 @@ def fetch_page(url: str) -> str:
 
 
 async def _fetch_binary(urls: list[str]) -> list[bytes]:
-    """Fetch binary content (images) with limited concurrency."""
+    """
+    Fetch binary content (images) with limited concurrency.
+    """
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
     results: list[bytes] = [b""] * len(urls)
 
@@ -64,5 +70,7 @@ async def _fetch_binary(urls: list[str]) -> list[bytes]:
 
 
 def fetch_binary(urls: list[str]) -> list[bytes]:
-    """Synchronous wrapper for binary content fetching."""
+    """
+    Synchronous wrapper for binary content fetching.
+    """
     return asyncio.run(_fetch_binary(urls))
