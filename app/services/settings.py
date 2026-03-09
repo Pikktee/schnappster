@@ -36,6 +36,9 @@ class SettingsService:
         return self._SUPPORTED_SETTINGS.copy()
 
     def get(self, key: str) -> str:
+        """
+        Returns the value of a setting.
+        """
         if key not in self._SUPPORTED_SETTINGS:
             raise ValueError(f"This setting '{key}' is not supported.")
 
@@ -44,12 +47,21 @@ class SettingsService:
         return config.value if config else self._SUPPORTED_SETTINGS[key]["default"]
 
     def get_bool(self, key: str) -> bool:
+        """
+        Returns the value of a setting as a boolean.
+        """
         return self.get(key).lower() == "true"
 
     def get_int(self, key: str) -> int:
+        """
+        Returns the value of a setting as an integer.
+        """
         return int(self.get(key))
 
     def set(self, key: str, value: str):
+        """
+        Set the value of a setting.
+        """
         if key not in self._SUPPORTED_SETTINGS:
             raise ValueError(f"This setting '{key}' is not supported.")
 
@@ -71,7 +83,7 @@ class SettingsService:
 
     def get_all(self) -> list[dict]:
         """
-        Returns a list with a settings
+        Returns all settings.
         """
         all_settings = []
         for key, details in self._SUPPORTED_SETTINGS.items():

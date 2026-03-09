@@ -15,11 +15,16 @@ class TelegramService:
 
     @property
     def is_configured(self) -> bool:
-        """Prüft, ob der Service einsatzbereit ist."""
+        """
+        Checks if the service is configured.
+        """
+
         return bool(self.bot_token and self.chat_id)
 
     def _format_message(self, ad: Ad) -> str:
-        """Interne Methode, um den Text für Telegram aufzubereiten."""
+        """
+        Formats the message for Telegram.
+        """
         price_str = f"{ad.price:.0f} €" if ad.price is not None else "VB"
         score_str = f"{ad.bargain_score:.1f}" if ad.bargain_score is not None else "–"
 
@@ -36,7 +41,9 @@ class TelegramService:
         )
 
     def send_bargain_notification(self, ad: Ad) -> None:
-        """Versendet die Nachricht an Telegram."""
+        """
+        Sends notification to Telegram.
+        """
         if not self.is_configured:
             logger.debug("Telegram is not configured, skipping notification")
             return
