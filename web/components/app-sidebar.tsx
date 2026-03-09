@@ -37,6 +37,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="px-4 py-4">
         <Link href="/" className="flex items-center cursor-pointer">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static logo SVG */}
           <img
             src="/logo.svg"
             alt="Schnappster"

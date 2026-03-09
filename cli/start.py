@@ -119,10 +119,9 @@ def main() -> None:
     skip_tests = "--skip-tests" in args
     dev_mode = "--dev" in args
 
-    if not skip_tests:
-        if not run_tests():
-            print("\n❌  Tests failed. Fix them or use --skip-tests to skip.\n")
-            sys.exit(1)
+    if not skip_tests and not run_tests():
+        print("\n❌  Tests failed. Fix them or use --skip-tests to skip.\n")
+        sys.exit(1)
 
     if dev_mode:
         print("\n" + "=" * 60)
