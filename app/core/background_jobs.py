@@ -57,10 +57,12 @@ class BackgroundJobs:
 
     def stop(self) -> None:
         """
-        Shut down the scheduler.
+        Shut down the scheduler. Does not wait for running jobs; no new jobs
+        will be started. Running jobs may still complete in the background
+        until the process exits.
         """
         if self._scheduler.running:
-            self._scheduler.shutdown()
+            self._scheduler.shutdown(wait=False)
             logger.info("Scheduler stopped")
 
     def _run_scrape_ads(self) -> None:
