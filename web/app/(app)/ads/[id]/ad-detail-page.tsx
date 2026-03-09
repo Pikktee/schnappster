@@ -55,7 +55,7 @@ export function AdDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentImage, setCurrentImage] = useState(0)
-  const [showReasoning, setShowReasoning] = useState(true)
+  const [showReasoning, setShowReasoning] = useState(false)
   const [imgErrors, setImgErrors] = useState<Set<number>>(new Set())
 
   useEffect(() => {
@@ -269,8 +269,8 @@ export function AdDetailPage() {
           </Card>
 
           {/* Price + Details */}
-          <Card>
-            <CardContent className="pt-6">
+          <Card className="pt-4">
+            <CardContent className="pt-3">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-3xl font-bold text-foreground">{formatPrice(ad.price)}</span>
                 {search && (
@@ -323,14 +323,14 @@ export function AdDetailPage() {
         <div className="flex flex-col gap-6">
           <div className="sticky-panel space-y-6">
             {/* Seller Box */}
-            <Card>
-              <CardHeader className="pb-4">
+            <Card className="gap-0">
+              <CardHeader className="pb-0">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <User className="size-4" />
                   Verkäufer
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col gap-3">
+              <CardContent className="flex flex-col gap-3 pt-1">
                 {ad.seller_name && (
                   <div>
                     {ad.seller_url ? (

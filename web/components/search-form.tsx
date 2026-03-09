@@ -67,7 +67,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
   const [keywordInput, setKeywordInput] = useState("")
   const [promptAddition, setPromptAddition] = useState(initial?.prompt_addition || "")
   const [excludeImages, setExcludeImages] = useState(initial?.is_exclude_images || false)
-  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(!!initial?.id)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -271,13 +271,13 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
               {keywords.map((kw) => (
                 <span
                   key={kw}
-                  className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary-foreground px-2 py-0.5 text-xs font-medium border border-primary/20 transition-colors hover:bg-primary/20"
+                  className="inline-flex items-center gap-1 rounded-md bg-primary/15 text-foreground px-2 py-0.5 text-xs font-medium border border-primary/25 transition-colors hover:bg-primary/25"
                 >
                   {kw}
                   <button
                     type="button"
                     onClick={() => removeKeyword(kw)}
-                    className="text-primary-foreground/70 hover:text-destructive cursor-pointer"
+                    className="text-muted-foreground hover:text-destructive cursor-pointer"
                     aria-label={`${kw} entfernen`}
                   >
                     <X className="size-3" />
