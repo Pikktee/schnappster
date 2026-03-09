@@ -4,7 +4,7 @@ import threading
 from fastapi import APIRouter, HTTPException
 from sqlmodel import Session, select
 
-from app.core.db import DbSession, engine
+from app.core.db import DbSession, db_engine
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearchUpdate
 from app.models.errorlog import ErrorLog
@@ -153,7 +153,7 @@ def trigger_scrape(adsearch_id: int, session: DbSession):
         raise HTTPException(status_code=404, detail="AdSearch not found")
 
     def _run_scrape() -> None:
-        with Session(engine) as bg_session:
+        with Session(db_engine) as bg_session:
             try:
                 scraper = ScraperService(bg_session)
                 fresh = bg_session.get(AdSearch, adsearch_id)

@@ -8,7 +8,7 @@ import logging
 
 from sqlmodel import Session
 
-from app.core import engine, get_app_root, init_db, setup_logging
+from app.core import db_engine, get_app_root, init_db, setup_logging
 from app.models import AdSearch
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ def main() -> None:
     init_db()
     logger.info("Database recreated")
 
-    with Session(engine) as session:
+    with Session(db_engine) as session:
         session.add(
             AdSearch(
                 name="PodMic Frankfurt",

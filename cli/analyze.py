@@ -10,7 +10,7 @@ import sys
 
 from sqlmodel import Session
 
-from app.core import engine, setup_logging
+from app.core import db_engine, setup_logging
 from app.services.ai import AIService
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ def main() -> None:
 
     limit = int(sys.argv[1]) if len(sys.argv) > 1 else 10
 
-    with Session(engine) as session:
+    with Session(db_engine) as session:
         try:
             ai_service = AIService(session)
         except ValueError as e:

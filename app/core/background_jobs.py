@@ -6,7 +6,7 @@ from apscheduler.schedulers.background import (  # pyright: ignore[reportMissing
 )
 from sqlmodel import Session
 
-from app.core.db import engine
+from app.core.db import db_engine
 from app.services.scraper import ScraperService
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ class BackgroundJobs:
         """
         JOB: Check all active AdSearches and scrape those that are due.
         """
-        with Session(engine) as session:
+        with Session(db_engine) as session:
             total_new = ScraperService(session).scrape_due_searches()
 
         # If new ads were found, queue AI analysis job
@@ -84,7 +84,7 @@ class BackgroundJobs:
         """
         JOB: Analyze unprocessed ads with AI.
         """
-        with Session(engine) as session:
+        with Session(db_engine) as session:
             try:
                 from app.services.ai import AIService
 

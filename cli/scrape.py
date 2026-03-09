@@ -10,7 +10,7 @@ import sys
 
 from sqlmodel import Session, col, select
 
-from app.core import engine, setup_logging
+from app.core import db_engine, setup_logging
 from app.models import AdSearch
 from app.services.scraper import ScraperService
 
@@ -22,7 +22,7 @@ def main() -> None:
 
     adsearch_id = int(sys.argv[1]) if len(sys.argv) > 1 else None
 
-    with Session(engine) as session:
+    with Session(db_engine) as session:
         if adsearch_id:
             adsearch = session.get(AdSearch, adsearch_id)
             if not adsearch:
