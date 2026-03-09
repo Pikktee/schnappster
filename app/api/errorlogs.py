@@ -7,6 +7,9 @@ from app.models.errorlog import ErrorLog, ErrorLogRead
 router = APIRouter(prefix="/errorlogs", tags=["ErrorLogs"])
 
 
+# --------------
+# --- Routes ---
+# --------------
 @router.get("/", response_model=list[ErrorLogRead])
 def list_errorlogs(session: DbSession, adsearch_id: int | None = None, limit: int = 100):
     """

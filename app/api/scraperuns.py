@@ -7,6 +7,9 @@ from app.models.scraperun import ScrapeRun, ScrapeRunRead
 router = APIRouter(prefix="/scraperuns", tags=["ScrapeRuns"])
 
 
+# --------------
+# --- Routes ---
+# --------------
 @router.get("/", response_model=list[ScrapeRunRead])
 def list_scraperuns(session: DbSession, adsearch_id: int | None = None, limit: int = 50):
     """

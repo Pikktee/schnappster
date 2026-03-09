@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from sqlmodel import select, func, col
+from sqlmodel import col, func, select
 
 from app.core.db import DbSession
 from app.models.ad import Ad, AdRead
@@ -7,6 +7,9 @@ from app.models.ad import Ad, AdRead
 router = APIRouter(prefix="/ads", tags=["Ads"])
 
 
+# --------------
+# --- Routes ---
+# --------------
 @router.get("/")
 def list_ads(
     session: DbSession,
@@ -17,6 +20,9 @@ def list_ads(
     limit: int = 24,
     offset: int = 0,
 ):
+    """
+    Returns all ads (Anzeigen).
+    """
     query = select(Ad)
 
     if adsearch_id is not None:

@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/adsearches", tags=["AdSearches"])
 
 
+# --------------
+# --- Routes ---
+# --------------
 @router.get("/", response_model=list[AdSearchRead])
 def list_adsearches(session: DbSession):
     """
@@ -91,7 +94,9 @@ def delete_adsearch(adsearch_id: int, session: DbSession):
 
 @router.post("/{adsearch_id}/scrape", status_code=202)
 def trigger_scrape(adsearch_id: int, session: DbSession):
-    """Trigger an immediate scrape for a specific AdSearch."""
+    """
+    Trigger an immediate scrape for a specific AdSearch.
+    """
     adsearch = session.get(AdSearch, adsearch_id)
 
     if not adsearch:
