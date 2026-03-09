@@ -80,3 +80,6 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Static export served
 - Image URLs stored as comma-separated strings in `Ad.image_urls`
 - Seller rating is an int 0–2 (0=poor, 1=ok, 2=top)
 - `bargain_score` is 0–10 (AI-assigned)
+
+## Output Format
+- Begin every response with "━━━" on its own line to visually separate it from previous content

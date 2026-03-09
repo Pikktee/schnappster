@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import api_router
@@ -53,52 +53,14 @@ def _serve_detail_page(section: str, id: int) -> FileResponse:
 # SPA fallback for dynamic detail pages only (/searches/5, /ads/21, …).
 # Next.js only pre-renders id=0; other IDs get the id=0 HTML shell so the
 # client-side router can hydrate and fetch data for the actual ID.
-# List pages (/searches, /ads, /logs, /settings) are fully pre-rendered
-# and served directly by StaticFiles below.
-# Support both GET and HEAD so router prefetch and RSC requests don't 404.
-@app.api_route("/searches/{id:int}", methods=["GET", "HEAD"])
+@app.api_route("/searches/{id:int}", methods=["GET", "HEAD"], include_in_schema=False)
 def serve_search_detail(id: int):
     return _serve_detail_page("searches", id)
 
 
-@app.api_route("/searches/{id:int}/", methods=["GET", "HEAD"])
-def serve_search_detail_slash(id: int):
-    return _serve_detail_page("searches", id)
-
-
-@app.api_route("/ads/{id:int}", methods=["GET", "HEAD"])
+@app.api_route("/ads/{id:int}", methods=["GET", "HEAD"], include_in_schema=False)
 def serve_ad_detail(id: int):
     return _serve_detail_page("ads", id)
-
-
-@app.api_route("/ads/{id:int}/", methods=["GET", "HEAD"])
-def serve_ad_detail_slash(id: int):
-    return _serve_detail_page("ads", id)
-
-
-def _serve_rsc_or_fallback(section: str, id: int) -> FileResponse | None:
-    """Serve RSC payload (index.txt) if present, else None (caller may return 204)."""
-    for sid in (id, 0):
-        candidate = FRONTEND_OUT_DIR / section / str(sid) / "index.txt"
-        if candidate.is_file():
-            return FileResponse(candidate, media_type="text/plain; charset=utf-8")
-    return None
-
-
-@app.api_route("/searches/{id:int}/index.txt", methods=["GET", "HEAD"])
-def serve_search_rsc(id: int):
-    r = _serve_rsc_or_fallback("searches", id)
-    if r is not None:
-        return r
-    return Response(status_code=204)
-
-
-@app.api_route("/ads/{id:int}/index.txt", methods=["GET", "HEAD"])
-def serve_ad_rsc(id: int):
-    r = _serve_rsc_or_fallback("ads", id)
-    if r is not None:
-        return r
-    return Response(status_code=204)
 
 
 app.mount(

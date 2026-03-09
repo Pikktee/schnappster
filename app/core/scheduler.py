@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from apscheduler.schedulers.background import (  # pyright: ignore[reportMissingImports]
     BackgroundScheduler,
@@ -10,7 +10,6 @@ from app.core.db import engine
 from app.models.adsearch import AdSearch
 from app.services.scraper import ScraperService
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 scheduler = BackgroundScheduler()
@@ -24,21 +23,12 @@ def check_and_scrape() -> None:
         logger.info(f"Found {len(searches)} active AdSearches")
 
         scraper = ScraperService(session)
-        now = datetime.now(UTC)
+        now = datetime.now()
 
         for adsearch in searches:
-            logger.info(
-                f"Checking '{adsearch.name}': last_scraped={adsearch.last_scraped_at}, "
-                f"interval={adsearch.scrape_interval_minutes}min, due={_is_due(adsearch, now)}"
-            )
             if _is_due(adsearch, now):
                 try:
-                    logger.info(f"Scraping '{adsearch.name}'...")
-                    scrape_run = scraper.scrape_adsearch(adsearch)
-                    logger.info(
-                        f"Done '{adsearch.name}': {scrape_run.ads_found} found, "
-                        f"{scrape_run.ads_new} new"
-                    )
+                    scraper.scrape_adsearch(adsearch)
                 except Exception as e:
                     logger.error(f"Failed '{adsearch.name}': {e}")
 

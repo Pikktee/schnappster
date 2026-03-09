@@ -24,8 +24,21 @@ logger = logging.getLogger(__name__)
 
 def run_tests() -> bool:
     """Run pytest and return True if all tests pass."""
-    logger.info("Running tests...")
+    # Print a visually distinct header that stands out
+    print("\n" + "=" * 60)
+    print("🧪  RUNNING TESTS")
+    print("=" * 60 + "\n")
+
     result = subprocess.run(["uv", "run", "pytest", "tests/", "-v"], check=False)
+
+    # Print a clear pass/fail footer
+    print("\n" + "=" * 60)
+    if result.returncode == 0:
+        print("✅  ALL TESTS PASSED")
+    else:
+        print("❌  TESTS FAILED")
+    print("=" * 60 + "\n")
+
     return result.returncode == 0
 
 
@@ -47,27 +60,37 @@ def build_frontend() -> None:
         )
         return
 
-    logger.info("Installing frontend dependencies (npm install)...")
+    print("\n" + "=" * 60)
+    print("📦  BUILDING FRONTEND")
+    print("=" * 60 + "\n")
+
+    print("Installing frontend dependencies (npm install)...\n")
     result_install = subprocess.run(
         ["npm", "install"],
         cwd=str(frontend_dir),
         check=False,
     )
     if result_install.returncode != 0:
-        logger.error("npm install failed with exit code %s", result_install.returncode)
+        print("\n" + "=" * 60)
+        print("❌  NPM INSTALL FAILED")
+        print("=" * 60 + "\n")
         sys.exit(result_install.returncode)
 
-    logger.info("Building frontend (npm run export)...")
+    print("\nBuilding frontend (npm run export)...\n")
     result_export = subprocess.run(
         ["npm", "run", "export"],
         cwd=str(frontend_dir),
         check=False,
     )
     if result_export.returncode != 0:
-        logger.error("npm run export failed with exit code %s", result_export.returncode)
+        print("\n" + "=" * 60)
+        print("❌  FRONTEND BUILD FAILED")
+        print("=" * 60 + "\n")
         sys.exit(result_export.returncode)
 
-    logger.info("Frontend build completed successfully.")
+    print("\n" + "=" * 60)
+    print("✅  FRONTEND BUILD COMPLETED")
+    print("=" * 60 + "\n")
 
 
 def start_frontend_dev() -> subprocess.Popen[bytes]:
@@ -77,7 +100,10 @@ def start_frontend_dev() -> subprocess.Popen[bytes]:
         logger.error("Frontend directory %s does not exist. Cannot start dev server.", frontend_dir)
         raise SystemExit(1)
 
-    logger.info("Starting frontend dev server (npm run dev)...")
+    print("\n" + "=" * 60)
+    print("🚀  STARTING FRONTEND DEV SERVER")
+    print("=" * 60 + "\n")
+
     proc = subprocess.Popen(
         ["npm", "run", "dev"],
         cwd=str(frontend_dir),
@@ -95,22 +121,28 @@ def main() -> None:
 
     if not skip_tests:
         if not run_tests():
-            logger.error("Tests failed. Fix them or use --skip-tests to skip.")
+            print("\n❌  Tests failed. Fix them or use --skip-tests to skip.\n")
             sys.exit(1)
-        logger.info("All tests passed!")
 
     if dev_mode:
-        logger.info("Starting Schnappster in DEV mode (Next dev server + backend)...")
+        print("\n" + "=" * 60)
+        print("🔧  SCHNAPPSTER DEV MODE")
+        print("=" * 60)
+        print("  Frontend: http://localhost:3000")
+        print("  Backend:  http://localhost:8000")
+        print("=" * 60 + "\n")
         frontend_proc: subprocess.Popen[bytes] | None = None
         try:
             frontend_proc = start_frontend_dev()
-            uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+            uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True, log_config=None)
         finally:
             if frontend_proc and frontend_proc.poll() is None:
-                logger.info("Stopping frontend dev server...")
                 frontend_proc.terminate()
     else:
-        logger.info("Building frontend for static export...")
         build_frontend()
-        logger.info("Starting Schnappster with static frontend...")
-        uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+        print("\n" + "=" * 60)
+        print("🚀  STARTING SCHNAPPSTER")
+        print("=" * 60)
+        print("  App:      http://localhost:8000")
+        print("=" * 60 + "\n")
+        uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True, log_config=None)
