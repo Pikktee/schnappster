@@ -142,6 +142,6 @@ def test_build_ad_text_with_seller_rating_labels(session, sample_adsearch, sampl
 @patch("app.services.ai.app_config")
 def test_ai_service_raises_without_api_key(mock_app_config, session):
     """Test that AIService raises ValueError without API key."""
-    mock_app_config.openrouter_api_key = ""
+    mock_app_config.openai_api_key = ""
     with pytest.raises(ValueError, match="API key not configured"):
         AIService(session)

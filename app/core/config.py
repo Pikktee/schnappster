@@ -10,14 +10,16 @@ def get_app_root() -> Path:
 
 class Config(BaseSettings):
     database_url: str = f"sqlite:///{get_app_root() / 'data' / 'schnappster.db'}"
-    openrouter_api_key: str = ""
-    openrouter_ai_model: str = "google/gemini-2.0-flash-001"
+    openai_api_key: str = ""
+    openai_model: str = "google/gemini-2.0-flash-001"
+    openai_base_url: str = "https://openrouter.ai/api/v1"
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 
     model_config = {
         "env_file": get_app_root() / ".env",
         "env_file_encoding": "utf-8",
+        "extra": "ignore",
     }
 
 
