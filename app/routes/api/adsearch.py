@@ -205,10 +205,7 @@ def _validate_search_url_reachable(url: str) -> str | None:
     if status == 0:
         raise HTTPException(
             status_code=422,
-            detail=(
-                "URL konnte nicht aufgerufen werden. Bitte Internetverbindung "
-                "und URL prüfen."
-            ),
+            detail=("URL konnte nicht aufgerufen werden. Bitte Internetverbindung und URL prüfen."),
         )
     if status == 404:
         raise HTTPException(

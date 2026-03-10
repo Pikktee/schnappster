@@ -60,7 +60,7 @@ def test_patch_adsearch_rejects_detail_page_url(client, sample_adsearch):
     assert response.status_code == 422
 
 
-@patch("app.routes.adsearch.fetch_page_checked")
+@patch("app.routes.api.adsearch.fetch_page_checked")
 def test_patch_adsearch_rejects_unreachable_url(mock_fetch, client, sample_adsearch):
     """PATCH must reject URLs that return 404 (server-side validation)."""
     mock_fetch.return_value = (404, "")
@@ -73,7 +73,7 @@ def test_patch_adsearch_rejects_unreachable_url(mock_fetch, client, sample_adsea
     mock_fetch.assert_called_once()
 
 
-@patch("app.routes.adsearch._validate_search_url_reachable")
+@patch("app.routes.api.adsearch._validate_search_url_reachable")
 def test_patch_adsearch_uses_title_when_name_cleared(mock_validate, client, sample_adsearch):
     """PATCH without name (cleared field) should derive name from page title."""
     mock_validate.return_value = "Neuer Titel von der Seite"
