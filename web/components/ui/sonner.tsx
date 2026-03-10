@@ -2,16 +2,25 @@
 
 import { Toaster as Sonner, ToasterProps } from 'sonner'
 
-const Toaster = ({ ...props }: ToasterProps) => {
+const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
   return (
     <Sonner
       theme="light"
       className="toaster group"
+      richColors
+      toastOptions={{
+        role: 'status',
+        'aria-live': 'polite',
+        classNames: {
+          toast: 'schnappster-toast',
+          title: 'schnappster-toast-title',
+          description: 'schnappster-toast-description',
+        },
+        ...toastOptions,
+      }}
       style={
         {
-          '--normal-bg': 'var(--popover)',
-          '--normal-text': 'var(--popover-foreground)',
-          '--normal-border': 'var(--border)',
+          '--width': 'min(420px, calc(100vw - 2rem))',
         } as React.CSSProperties
       }
       {...props}
