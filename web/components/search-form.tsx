@@ -157,7 +157,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="search-url" className="flex items-center gap-1.5">
           <span>Kleinanzeigen URL *</span>
@@ -171,8 +171,19 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
           type="url"
           aria-invalid={!!errors.url}
           autoFocus
+          className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-border"
         />
         {errors.url && <p className="text-xs text-destructive">{errors.url}</p>}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="search-name">Name (optional)</Label>
+        <Input
+          id="search-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Wird von der Kleinanzeigen-Seite übernommen."
+        />
       </div>
 
       {/* Progressive disclosure: Advanced options – eigenes Markup damit Inhalt immer im DOM ist und Höhe sanft animiert */}
@@ -184,7 +195,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
           onClick={() => setAdvancedOpen((v) => !v)}
           aria-expanded={advancedOpen}
           aria-controls={ADVANCED_CONTENT_ID}
-          className="w-full justify-between cursor-pointer text-muted-foreground hover:text-foreground -mx-2"
+          className="w-full justify-between cursor-pointer text-muted-foreground hover:text-foreground -mx-2 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-transparent"
         >
           <span className="text-sm">Erweiterte Optionen</span>
           {advancedOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
@@ -195,24 +206,14 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
           data-state={advancedOpen ? "open" : "closed"}
           aria-hidden={!advancedOpen}
         >
-          <div className="min-h-0 flex flex-col pt-2">
-          {/* Name – einzeln, ohne Gruppe */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="search-name">Name</Label>
-            <Input
-              id="search-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Wird automatisch aus der URL generiert"
-            />
-          </div>
-
+          <div className="min-h-0 flex flex-col">
           {/* Gruppe: Filterung (vor dem Scraping) */}
-          <div className="space-y-4 pt-5 mt-4 border-t border-border">
-            <h3 className="text-base font-semibold text-foreground pb-2 border-b border-border flex items-center gap-1.5">
+          <div className="rounded-lg border border-border bg-muted/50 p-4 mt-3">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide pb-2 mb-4 border-b border-b-primary flex items-center gap-1.5">
               Filterung (vor dem Scraping)
               <HelpTip text="Angebote, die diese Kriterien nicht erfüllen, werden nicht geladen." />
             </h3>
+            <div className="space-y-5">
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="search-min-price">Min-Preis</Label>
@@ -278,15 +279,16 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
                 </div>
               )}
             </div>
+            </div>
           </div>
 
           {/* Gruppe: Scraper */}
-          <div className="space-y-4 pt-5 mt-4 border-t border-border">
-            <h3 className="text-base font-semibold text-foreground pb-2 border-b border-border flex items-center gap-1.5">
+          <div className="rounded-lg border border-border bg-muted/50 p-4 mt-6">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide pb-2 mb-4 border-b border-b-primary flex items-center gap-1.5">
               Scraper
               <HelpTip text="Wie oft nach neuen Angeboten gesucht wird." />
             </h3>
-            <div className="flex flex-col gap-1.5">
+            <div className="space-y-5">
               <div className="flex items-center gap-1.5">
                 <Label htmlFor="search-interval">Suchintervall</Label>
                 <HelpTip text="Kürzere Intervalle finden Schnäppchen schneller, belasten aber den Server mehr." />
@@ -321,12 +323,12 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
           </div>
 
           {/* Gruppe: KI-Analyse */}
-          <div className="space-y-4 pt-5 mt-4 border-t border-border pb-1">
-            <h3 className="text-base font-semibold text-foreground pb-2 border-b border-border flex items-center gap-1.5">
+          <div className="rounded-lg border border-border bg-muted/50 p-4 mt-6 pb-5">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide pb-2 mb-4 border-b border-b-primary flex items-center gap-1.5">
               KI-Analyse
               <HelpTip text="Einstellungen für die Bewertung der Angebote durch die KI." />
             </h3>
-            <div className="flex flex-col gap-1.5">
+            <div className="space-y-5">
               <div className="flex items-center gap-1.5">
                 <Label htmlFor="search-prompt">Prompt-Ergänzung</Label>
                 <HelpTip text="Zusätzliche Anweisungen für die KI-Bewertung, z.B. 'Bevorzuge unbenutzte Artikel' oder 'Achte besonders auf den Zustand'." />
@@ -339,7 +341,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
                 rows={3}
               />
             </div>
-            <div className="flex items-center gap-3 pt-1">
+            <div className="flex items-center gap-3 pt-3">
               <Switch
                 id="search-exclude-images"
                 checked={excludeImages}
@@ -350,12 +352,12 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
                 <HelpTip text="Bilder werden weiterhin gespeichert und angezeigt, aber nicht an die KI zur Bewertung übermittelt." />
               </Label>
             </div>
-          </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="flex justify-end gap-2 pt-3">
         <Button type="button" variant="outline" onClick={onCancel} className="cursor-pointer">
           Abbrechen
         </Button>

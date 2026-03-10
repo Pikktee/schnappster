@@ -83,8 +83,17 @@ export function AdCard({ ad }: AdCardProps) {
         </div>
 
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <MapPin className="size-3 shrink-0" />
-          <span className="truncate">{ad.postal_code} {ad.city}</span>
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ad.postal_code + " " + ad.city)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 min-w-0 hover:text-link transition-colors cursor-pointer relative z-20"
+            onClick={(e) => e.stopPropagation()}
+            title={`Auf Google Maps öffnen: ${ad.postal_code} ${ad.city}`}
+          >
+            <MapPin className="size-3 shrink-0" />
+            <span className="truncate">{ad.postal_code} {ad.city}</span>
+          </a>
           <span className="text-muted-foreground/40 shrink-0">•</span>
           <span className="shrink-0">{timeAgo(ad.first_seen_at)}</span>
         </div>

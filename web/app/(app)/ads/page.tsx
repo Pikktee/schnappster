@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { LayoutGrid, TableIcon, SlidersHorizontal, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
+import { LayoutGrid, TableIcon, SlidersHorizontal, ChevronLeft, ChevronRight, RotateCcw, Euro, Star, MapPin, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -410,10 +410,30 @@ function AdsPageContent() {
             <TableHeader>
               <TableRow>
                 <TableHead>Titel</TableHead>
-                <TableHead>Preis</TableHead>
-                <TableHead>Score</TableHead>
-                <TableHead className="hidden md:table-cell">Standort</TableHead>
-                <TableHead>Gefunden</TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-1.5">
+                    <Euro className="size-3.5" />
+                    Preis
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-1.5">
+                    <Star className="size-3.5" />
+                    Score
+                  </div>
+                </TableHead>
+                <TableHead className="hidden md:table-cell">
+                  <div className="flex items-center gap-1.5">
+                    <MapPin className="size-3.5" />
+                    Standort
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="size-3.5" />
+                    Gefunden
+                  </div>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -431,7 +451,17 @@ function AdsPageContent() {
                     <ScoreBadge score={ad.bargain_score} size="sm" />
                   </TableCell>
                   <TableCell className="text-muted-foreground hidden md:table-cell">
-                    {ad.postal_code} {ad.city}
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ad.postal_code + " " + ad.city)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-muted-foreground hover:text-link transition-colors cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                      title={`Auf Google Maps öffnen: ${ad.postal_code} ${ad.city}`}
+                    >
+                      <MapPin className="size-3.5 shrink-0" />
+                      <span className="truncate max-w-[150px]">{ad.postal_code} {ad.city}</span>
+                    </a>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {timeAgo(ad.first_seen_at)}
