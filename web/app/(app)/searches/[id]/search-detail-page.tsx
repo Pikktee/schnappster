@@ -430,7 +430,7 @@ export function SearchDetailPage() {
         setIsEditOpen(open)
         if (!open) setFormDirty(false)
       }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Suche bearbeiten</DialogTitle>
           </DialogHeader>

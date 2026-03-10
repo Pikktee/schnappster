@@ -13,8 +13,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import type { AdSearch } from "@/lib/types"
+
+const ADVANCED_CONTENT_ID = "search-form-advanced-content"
 
 interface SearchFormProps {
   initial?: Partial<AdSearch>
@@ -174,23 +175,30 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
         {errors.url && <p className="text-xs text-destructive">{errors.url}</p>}
       </div>
 
-      {/* Progressive disclosure: Advanced options */}
-      <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-        <CollapsibleTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="w-full justify-between cursor-pointer text-muted-foreground hover:text-foreground -mx-2"
-          >
-            <span className="text-sm">Erweiterte Optionen</span>
-            {advancedOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="flex flex-col gap-4 pt-2">
-          {/* Name */}
+      {/* Progressive disclosure: Advanced options – eigenes Markup damit Inhalt immer im DOM ist und Höhe sanft animiert */}
+      <div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          aria-expanded={advancedOpen}
+          aria-controls={ADVANCED_CONTENT_ID}
+          className="w-full justify-between cursor-pointer text-muted-foreground hover:text-foreground -mx-2"
+        >
+          <span className="text-sm">Erweiterte Optionen</span>
+          {advancedOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        </Button>
+        <div
+          id={ADVANCED_CONTENT_ID}
+          className={`collapsible-animate ${advancedOpen ? "" : "pointer-events-none"}`}
+          data-state={advancedOpen ? "open" : "closed"}
+          aria-hidden={!advancedOpen}
+        >
+          <div className="min-h-0 flex flex-col pt-2">
+          {/* Name – einzeln, ohne Gruppe */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="search-name">Name (optional)</Label>
+            <Label htmlFor="search-name">Name</Label>
             <Input
               id="search-name"
               value={name}
@@ -199,143 +207,155 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
             />
           </div>
 
-          {/* Interval Selector - Visual */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-1.5">
-              <Label htmlFor="search-interval">Scrape-Intervall</Label>
-              <HelpTip text="Wie oft soll nach neuen Angeboten gesucht werden? Kürzere Intervalle finden Schnäppchen schneller, belasten aber den Server mehr." />
+          {/* Gruppe: Filterung (vor dem Scraping) */}
+          <div className="space-y-4 pt-5 mt-4 border-t border-border">
+            <h3 className="text-base font-semibold text-foreground pb-2 border-b border-border flex items-center gap-1.5">
+              Filterung (vor dem Scraping)
+              <HelpTip text="Angebote, die diese Kriterien nicht erfüllen, werden nicht geladen." />
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="search-min-price">Min-Preis</Label>
+                <Input
+                  id="search-min-price"
+                  type="number"
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  placeholder="0"
+                  min={0}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="search-max-price">Max-Preis</Label>
+                <Input
+                  id="search-max-price"
+                  type="number"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  placeholder="9999"
+                  min={0}
+                  aria-invalid={!!errors.maxPrice}
+                />
+                {errors.maxPrice && <p className="text-xs text-destructive">{errors.maxPrice}</p>}
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {INTERVAL_PRESETS.map((preset) => (
-                <Button
-                  key={preset.value}
-                  type="button"
-                  variant={interval === preset.value ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setInterval(preset.value)}
-                  className="cursor-pointer text-xs px-2 h-9"
-                >
-                  {preset.label}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="search-blacklist">Ausschluss-Keywords</Label>
+                <HelpTip text="Angebote mit diesen Begriffen in Titel oder Beschreibung werden nicht geladen." />
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  id="search-blacklist"
+                  value={keywordInput}
+                  onChange={(e) => setKeywordInput(e.target.value)}
+                  onKeyDown={handleKeywordKeyDown}
+                  placeholder="Keyword eingeben und Enter drücken"
+                  className="flex-1"
+                />
+                <Button type="button" variant="outline" onClick={addKeyword} className="cursor-pointer">
+                  Hinzufügen
                 </Button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <Input
-                id="search-interval"
-                type="number"
-                value={interval}
-                onChange={(e) => setInterval(Number(e.target.value))}
-                min={5}
-                max={1440}
-                className="w-24"
-              />
-              <span className="text-sm text-muted-foreground">Minuten (benutzerdefiniert)</span>
-            </div>
-          </div>
-
-          {/* Price Range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="search-min-price">Min-Preis</Label>
-              <Input
-                id="search-min-price"
-                type="number"
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-                placeholder="0"
-                min={0}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="search-max-price">Max-Preis</Label>
-              <Input
-                id="search-max-price"
-                type="number"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-                placeholder="9999"
-                min={0}
-                aria-invalid={!!errors.maxPrice}
-              />
-              {errors.maxPrice && <p className="text-xs text-destructive">{errors.maxPrice}</p>}
-            </div>
-          </div>
-
-          {/* Blacklist Keywords with Chips */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-1.5">
-              <Label htmlFor="search-blacklist">Blacklist-Keywords</Label>
-              <HelpTip text="Angebote mit diesen Begriffen in Titel oder Beschreibung werden herausgefiltert." />
-            </div>
-            <div className="flex flex-wrap gap-1.5 min-h-[2rem] p-2 border rounded-lg bg-muted/30">
-              {keywords.map((kw) => (
-                <span
-                  key={kw}
-                  className="inline-flex items-center gap-1 rounded-md bg-primary/15 text-foreground px-2 py-0.5 text-xs font-medium border border-primary/25 transition-colors hover:bg-primary/25"
-                >
-                  {kw}
-                  <button
-                    type="button"
-                    onClick={() => removeKeyword(kw)}
-                    className="text-muted-foreground hover:text-destructive cursor-pointer"
-                    aria-label={`${kw} entfernen`}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </span>
-              ))}
-              {keywords.length === 0 && (
-                <span className="text-xs text-muted-foreground">Keine Keywords hinzugefügt</span>
+              </div>
+              {keywords.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {keywords.map((kw) => (
+                    <span
+                      key={kw}
+                      className="inline-flex items-center gap-1 rounded-md bg-muted border border-border text-foreground px-2 py-0.5 text-xs font-medium"
+                    >
+                      {kw}
+                      <button
+                        type="button"
+                        onClick={() => removeKeyword(kw)}
+                        className="text-muted-foreground hover:text-destructive cursor-pointer"
+                        aria-label={`${kw} entfernen`}
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
-            <div className="flex gap-2">
-              <Input
-                id="search-blacklist"
-                value={keywordInput}
-                onChange={(e) => setKeywordInput(e.target.value)}
-                onKeyDown={handleKeywordKeyDown}
-                placeholder="Keyword eingeben und Enter drücken..."
-                className="flex-1"
+          </div>
+
+          {/* Gruppe: Scraper */}
+          <div className="space-y-4 pt-5 mt-4 border-t border-border">
+            <h3 className="text-base font-semibold text-foreground pb-2 border-b border-border flex items-center gap-1.5">
+              Scraper
+              <HelpTip text="Wie oft nach neuen Angeboten gesucht wird." />
+            </h3>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="search-interval">Suchintervall</Label>
+                <HelpTip text="Kürzere Intervalle finden Schnäppchen schneller, belasten aber den Server mehr." />
+              </div>
+              <div className="grid grid-cols-6 gap-1.5">
+                {INTERVAL_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.value}
+                    type="button"
+                    variant={interval === preset.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setInterval(preset.value)}
+                    className="cursor-pointer text-xs px-2 h-9"
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="search-interval"
+                  type="number"
+                  value={interval}
+                  onChange={(e) => setInterval(Number(e.target.value))}
+                  min={5}
+                  max={1440}
+                  className="w-24"
+                />
+                <span className="text-sm text-muted-foreground">Minuten</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Gruppe: KI-Analyse */}
+          <div className="space-y-4 pt-5 mt-4 border-t border-border pb-1">
+            <h3 className="text-base font-semibold text-foreground pb-2 border-b border-border flex items-center gap-1.5">
+              KI-Analyse
+              <HelpTip text="Einstellungen für die Bewertung der Angebote durch die KI." />
+            </h3>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="search-prompt">Prompt-Ergänzung</Label>
+                <HelpTip text="Zusätzliche Anweisungen für die KI-Bewertung, z.B. 'Bevorzuge unbenutzte Artikel' oder 'Achte besonders auf den Zustand'." />
+              </div>
+              <Textarea
+                id="search-prompt"
+                value={promptAddition}
+                onChange={(e) => setPromptAddition(e.target.value)}
+                placeholder="z.B. Bevorzuge unbenutzte Artikel oder Achte auf Originalverpackung"
+                rows={3}
               />
-              <Button type="button" variant="outline" onClick={addKeyword} className="cursor-pointer">
-                Hinzufügen
-              </Button>
             </div>
-            {keywords.length > 0 && (
-              <p className="text-xs text-muted-foreground">{keywords.length} Keyword{keywords.length !== 1 ? "s" : ""} aktiv</p>
-            )}
-          </div>
-
-          {/* Prompt Addition */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-1.5">
-              <Label htmlFor="search-prompt">Prompt-Ergänzung</Label>
-              <HelpTip text="Zusätzliche Anweisungen für die KI-Bewertung, z.B. 'Bevorzuge unbenutzte Artikel' oder 'Achte besonders auf den Zustand'." />
+            <div className="flex items-center gap-3 pt-1">
+              <Switch
+                id="search-exclude-images"
+                checked={excludeImages}
+                onCheckedChange={setExcludeImages}
+              />
+              <Label htmlFor="search-exclude-images" className="cursor-pointer flex items-center gap-1.5 leading-tight">
+                Anzeigen-Bilder nicht an die KI senden
+                <HelpTip text="Bilder werden weiterhin gespeichert und angezeigt, aber nicht an die KI zur Bewertung übermittelt." />
+              </Label>
             </div>
-            <Textarea
-              id="search-prompt"
-              value={promptAddition}
-              onChange={(e) => setPromptAddition(e.target.value)}
-              placeholder="z.B. 'Bevorzuge unbenutzte Artikel' oder 'Achte auf Originalverpackung'"
-              rows={3}
-            />
           </div>
-
-          {/* Exclude Images */}
-          <div className="flex items-center gap-3 pt-2">
-            <Switch
-              id="search-exclude-images"
-              checked={excludeImages}
-              onCheckedChange={setExcludeImages}
-            />
-            <Label htmlFor="search-exclude-images" className="cursor-pointer">
-              Bilder ausschließen
-            </Label>
           </div>
-        </CollapsibleContent>
-      </Collapsible>
+        </div>
+      </div>
 
-      <div className="flex justify-end gap-2 pt-2 border-t">
+      <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel} className="cursor-pointer">
           Abbrechen
         </Button>

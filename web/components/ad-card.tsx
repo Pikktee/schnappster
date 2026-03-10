@@ -62,7 +62,7 @@ export function AdCard({ ad }: AdCardProps) {
       <CardContent className="p-4 flex flex-col gap-2.5 flex-1">
         <div className="flex flex-col gap-1.5">
           <h3
-            className="font-semibold text-foreground line-clamp-2 leading-snug min-h-[2.5em] group-hover:text-primary transition-colors"
+            className="font-semibold text-foreground line-clamp-2 leading-snug min-h-[2.5em]"
             title={ad.title}
           >
             {ad.title}

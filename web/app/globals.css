@@ -188,4 +188,18 @@
       transform: translateY(0);
     }
   }
+
+  /* Collapsible expand/collapse animation – content stays mounted so height can transition */
+  .collapsible-animate {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease-in-out;
+  }
+  .collapsible-animate[data-state="open"] {
+    grid-template-rows: 1fr;
+  }
+  .collapsible-animate > * {
+    min-height: 0;
+    overflow: hidden;
+  }
 }

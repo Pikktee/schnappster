@@ -183,7 +183,7 @@ export default function SearchesPage() {
         setIsCreateOpen(open)
         if (!open) setFormDirty(false)
       }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Neue Suche erstellen</DialogTitle>
           </DialogHeader>
