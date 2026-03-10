@@ -1,5 +1,6 @@
 """Tests for API endpoints."""
 
+from unittest.mock import patch
 
 # --- AdSearch endpoints ---
 
@@ -57,6 +58,19 @@ def test_patch_adsearch_rejects_detail_page_url(client, sample_adsearch):
         json={"url": "https://www.kleinanzeigen.de/s-anzeige/rode-podmic/123456"},
     )
     assert response.status_code == 422
+
+
+@patch("app.routes.adsearch.fetch_page_checked")
+def test_patch_adsearch_rejects_unreachable_url(mock_fetch, client, sample_adsearch):
+    """PATCH must reject URLs that return 404 (server-side validation)."""
+    mock_fetch.return_value = (404, "")
+    response = client.patch(
+        f"/api/adsearches/{sample_adsearch.id}",
+        json={"url": "https://www.kleinanzeigen.de/s-some/category/k0c123"},
+    )
+    assert response.status_code == 422
+    assert "404" in response.json().get("detail", "")
+    mock_fetch.assert_called_once()
 
 
 def test_get_adsearch(client, sample_adsearch):

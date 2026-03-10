@@ -50,35 +50,21 @@ def create_adsearch(data: AdSearchCreate, session: DbSession):
     """
     Create a new ad search (Suchauftrag).
 
+    The URL is always validated by fetching the page (reachability, no 404).
     If `name` is empty, the page title is fetched from the search URL and used
-    as the name.  A 422 is returned if the page cannot be reached or yields no
-    recognisable title.
+    as the name. A 422 is returned if the page cannot be reached or yields no
+    recognisable title when name is empty.
     """
     name = data.name.strip()
+    title_from_page = _validate_search_url_reachable(data.url)
 
     if not name:
-        status, html = fetch_page_checked(data.url)
-        if status == 0:
-            raise HTTPException(
-                status_code=422,
-                detail="URL konnte nicht aufgerufen werden. Bitte Internetverbindung und URL prüfen.",
-            )
-        if status == 404:
-            raise HTTPException(
-                status_code=422,
-                detail="Die angegebene URL wurde nicht gefunden (404). Bitte eine gültige Kleinanzeigen-Suchergebnisseite eingeben.",
-            )
-        if status >= 400:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Die Seite konnte nicht abgerufen werden (HTTP {status}). Bitte URL prüfen.",
-            )
-        name = parse_search_title(html)
-        if not name:
+        if not title_from_page:
             raise HTTPException(
                 status_code=422,
                 detail="Kein Seitentitel auf der Seite gefunden. Bitte URL prüfen oder einen Namen manuell eingeben.",
             )
+        name = title_from_page
 
     adsearch = AdSearch.model_validate({**data.model_dump(), "name": name})
 
@@ -92,8 +78,9 @@ def create_adsearch(data: AdSearchCreate, session: DbSession):
 @router.patch("/{adsearch_id}", response_model=AdSearchRead)
 def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
     """
-    Update an existing ad search (Suchauftrag)
+    Update an existing ad search (Suchauftrag).
 
+    If the URL is being updated, it is validated by fetching the page (reachability, no 404).
     If the given ID does not exist, an error 404 is thrown.
     """
     adsearch = session.get(AdSearch, adsearch_id)
@@ -102,6 +89,9 @@ def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
         raise HTTPException(status_code=404, detail="AdSearch not found")
 
     update_data = data.model_dump(exclude_unset=True)
+
+    if "url" in update_data:
+        _validate_search_url_reachable(update_data["url"])
 
     for key, value in update_data.items():
         setattr(adsearch, key, value)
@@ -175,3 +165,30 @@ def trigger_scrape(adsearch_id: int, session: DbSession):
     threading.Thread(target=_run_scrape, daemon=True).start()
 
     return {"status": "scrape_triggered"}
+
+
+# ---------------
+# --- Helpers ---
+# ---------------
+def _validate_search_url_reachable(url: str) -> str | None:
+    """
+    Fetch the search URL and validate it is reachable and returns a valid page.
+    Raises HTTPException 422 on failure. Returns the parsed page title, or None if not parseable.
+    """
+    status, html = fetch_page_checked(url)
+    if status == 0:
+        raise HTTPException(
+            status_code=422,
+            detail="URL konnte nicht aufgerufen werden. Bitte Internetverbindung und URL prüfen.",
+        )
+    if status == 404:
+        raise HTTPException(
+            status_code=422,
+            detail="Die angegebene URL wurde nicht gefunden (404). Bitte eine gültige Kleinanzeigen-Suchergebnisseite eingeben.",
+        )
+    if status >= 400:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Die Seite konnte nicht abgerufen werden (HTTP {status}). Bitte URL prüfen.",
+        )
+    return parse_search_title(html)
