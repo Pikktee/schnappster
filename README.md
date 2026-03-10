@@ -50,8 +50,7 @@ cd schnappster
 # Installation mit uv
 uv sync
 
-# Umgebungsvariablen konfigurieren
-cp .env.example .env
+# Umgebungsvariablen konfigurieren: .env anlegen (ggf. von .env.example kopieren)
 # OPENAI_API_KEY, OPENAI_MODEL und optional OPENAI_BASE_URL in .env setzen
 ```
 
@@ -97,9 +96,12 @@ uv run start
 
 # Ohne Tests
 uv run start --skip-tests
+
+# Dev-Modus: Frontend auf :3000 (Hot Reload), Backend auf :8000
+uv run start --dev
 ```
 
-Der Server startet auf http://localhost:8000
+Der Server startet auf http://localhost:8000 (ohne `--dev` wird das Frontend vor dem Start gebaut und von FastAPI ausgeliefert).
 
 ### CLI Commands
 
@@ -109,6 +111,7 @@ Der Server startet auf http://localhost:8000
 | `uv run scrape [adsearch_id]` | Manueller Scraping-Start |
 | `uv run analyze [limit]` | Manuelle KI-Analyse starten |
 | `uv run dbreset` | Datenbank zurücksetzen (bei Schema-Änderungen) |
+| `uv run docs [show]` | API-Dokumentation (pdoc) generieren und optional im Browser öffnen |
 | `uv run pytest` | Tests ausführen |
 | `uv run ruff check .` | Code linting |
 | `uv run ruff format .` | Code formatieren |
@@ -126,9 +129,9 @@ Der Server startet auf http://localhost:8000
 ```
 schnappster/
 ├── app/
-│   ├── routes/           # FastAPI Router (REST Endpoints)
 │   ├── core/          # DB, Scheduler, Settings, Logging
 │   ├── models/        # SQLModel Tabellen & Schemas
+│   ├── routes/        # FastAPI Router (REST Endpoints)
 │   ├── scraper/       # HTTP Client & HTML Parser
 │   └── services/      # Business Logic (Scraper, AI, Settings)
 ├── cli/               # CLI Entry Points
@@ -139,19 +142,18 @@ schnappster/
 
 ### Scraping Pipeline
 
-1. **Preview List** – Suchergebnisseite parsen, neue Ads identifizieren
+1. **Preview List** – Suchergebnisseite parsen, neue Ads anhand `external_id` identifizieren
 2. **Detail Pages** – Detailseiten parallel laden
-3. **Filtering** – Preis, Keywords, Verkäufer-Typ, Bewertung
+3. **Filtering** – Preis, Blacklist-Keywords, Verkäufer-Typ, Bewertung
 4. **Speichern** – Neue Ads in der Datenbank speichern
-5. **KI-Analyse** – Separate Analyse mit Vergleichspreisen (alle 2 Min)
+5. **KI-Analyse** – Wird nach jedem Scrape bei neuen Ads in die Warteschlange gestellt (und einmal beim Start); pro Lauf bis zu 10 Anzeigen mit Vergleichspreisen, bei Restbestand erneutes Einreihen bis der Stapel abgearbeitet ist.
 
 ### Scheduler (APScheduler)
 
 | Job | Intervall | Beschreibung |
 |-----|-----------|-------------|
-| `check_and_scrape` | 1 Minute | Prüft aktive Suchaufträge, scraped fällige; bei neuen Ads wird KI-Analyse in Warteschlange gestellt |
-
-Beide Jobs laufen auch einmal direkt beim Start.
+| Scrape | 1 Minute + einmal beim Start | Prüft aktive Suchaufträge, scraped fällige; bei neuen Ads wird eine KI-Analyse in die Warteschlange gestellt |
+| KI-Analyse | Einmal beim Start, sonst nach jedem Scrape mit neuen Ads | Verarbeitet bis zu 10 unanalysierte Ads pro Lauf; bei Restbestand wird der nächste Lauf eingereiht |
 
 ## Datenbank-Modelle
 
@@ -192,16 +194,10 @@ uv run ruff format .
 
 ### Datenbank zurücksetzen
 
-Bei Schema-Änderungen (kein Alembic vorhanden):
+Bei Schema-Änderungen:
 
 ```bash
 uv run dbreset
 ```
 
 ⚠️ **Achtung**: Löscht alle Daten!
-
-## Dokumentation
-
-- [IMPROVEMENT_PLAN.md](docs/IMPROVEMENT_PLAN.md) — Architektur-Review & Verbesserungsplan
-- [UX_DESIGN_PLAN.md](docs/UX_DESIGN_PLAN.md) — UX & Design Verbesserungen
-- [schnappster-context.md](docs/schnappster-context.md) — Projekt-Kontext
