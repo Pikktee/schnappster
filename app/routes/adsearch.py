@@ -50,10 +50,8 @@ def create_adsearch(data: AdSearchCreate, session: DbSession):
     """
     Create a new ad search (Suchauftrag).
 
-    The URL is always validated by fetching the page (reachability, no 404).
-    If `name` is empty, the page title is fetched from the search URL and used
-    as the name. A 422 is returned if the page cannot be reached or yields no
-    recognisable title when name is empty.
+    The URL is always checked by fetching the page.
+    If `name` is empty, the page title is used as name.
     """
     name = data.name.strip()
     title_from_page = _validate_search_url_reachable(data.url)
@@ -62,7 +60,10 @@ def create_adsearch(data: AdSearchCreate, session: DbSession):
         if not title_from_page:
             raise HTTPException(
                 status_code=422,
-                detail="Kein Seitentitel auf der Seite gefunden. Bitte URL prüfen oder einen Namen manuell eingeben.",
+                detail=(
+                    "Kein Seitentitel auf der Seite gefunden. Bitte URL prüfen "
+                    "oder einen Namen manuell eingeben."
+                ),
             )
         name = title_from_page
 
@@ -96,16 +97,27 @@ def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
     if "url" in update_data:
         # URL is being changed: validate reachability and reuse parsed title if needed.
         title_from_page = _validate_search_url_reachable(update_data["url"])
-    elif "name" in update_data and isinstance(update_data["name"], str) and not update_data["name"].strip():
+    elif (
+        "name" in update_data
+        and isinstance(update_data["name"], str)
+        and not update_data["name"].strip()
+    ):
         # URL stays the same, but client cleared the name field:
         # fetch current URL and use its title as new name.
         title_from_page = _validate_search_url_reachable(adsearch.url)
 
-    if "name" in update_data and isinstance(update_data["name"], str) and not update_data["name"].strip():
+    if (
+        "name" in update_data
+        and isinstance(update_data["name"], str)
+        and not update_data["name"].strip()
+    ):
         if not title_from_page:
             raise HTTPException(
                 status_code=422,
-                detail="Kein Seitentitel auf der Seite gefunden. Bitte URL prüfen oder einen Namen manuell eingeben.",
+                detail=(
+                    "Kein Seitentitel auf der Seite gefunden. Bitte URL prüfen "
+                    "oder einen Namen manuell eingeben."
+                ),
             )
         update_data["name"] = title_from_page
 
@@ -121,12 +133,10 @@ def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
 @router.delete("/{adsearch_id}", status_code=204)
 def delete_adsearch(adsearch_id: int, session: DbSession):
     """
-    Delete an ad search (Suchauftrag)
+    Delete an ad search (Suchauftrag).
 
-    If the given ID does not exist, an error 404 is thrown.
-
-    Related ads and error logs are preserved (their adsearch_id is set to NULL).
-    Related scrape runs are deleted.
+    Related ads and error logs keep their data (adsearch_id is set to NULL),
+    related scrape runs are deleted.
     """
     adsearch = session.get(AdSearch, adsearch_id)
 
@@ -195,12 +205,18 @@ def _validate_search_url_reachable(url: str) -> str | None:
     if status == 0:
         raise HTTPException(
             status_code=422,
-            detail="URL konnte nicht aufgerufen werden. Bitte Internetverbindung und URL prüfen.",
+            detail=(
+                "URL konnte nicht aufgerufen werden. Bitte Internetverbindung "
+                "und URL prüfen."
+            ),
         )
     if status == 404:
         raise HTTPException(
             status_code=422,
-            detail="Die angegebene URL wurde nicht gefunden (404). Bitte eine gültige Kleinanzeigen-Suchergebnisseite eingeben.",
+            detail=(
+                "Die angegebene URL wurde nicht gefunden (404). Bitte eine "
+                "gültige Kleinanzeigen-Suchergebnisseite eingeben."
+            ),
         )
     if status >= 400:
         raise HTTPException(
