@@ -54,11 +54,12 @@ The frontend is a **static export** (`web/out/`) served directly by FastAPI. Aft
 3. Fetch detail pages in parallel
 4. Apply filters: price range, blacklist keywords, seller type, seller rating
 5. Save new ads to DB
-6. AI analysis runs after each scrape when new ads were found (queued on analyzer); scraper and analyzer each have a single-worker queue so jobs run one after another without overlap
+6. AI analysis runs after each scrape when new ads were found (queued on analyzer), and once at startup; each analyze run processes up to 10 ads and re-queues another run if backlog remains (until empty). Scraper and analyzer each have a single-worker queue so jobs run one after another without overlap
 
 ### Scheduler (APScheduler, `core/background_jobs.py`, class `BackgroundJobs`)
 
 - Scrape job runs every 1 minute and once at startup — loads active `AdSearch` records, scrapes those that are due via `ScraperService.scrape_due_searches()`; when new ads were scraped, queues one AI analysis run (separate single-worker queue so scrape and analyze never overlap).
+- Analyze job runs once at startup (to process any backlog) and is queued after each scrape when new ads were found. Each run processes up to 10 unprocessed ads; if backlog remains and at least one ad was analyzed, another analyze run is queued (re-queue until backlog is empty).
 
 ### Frontend
 

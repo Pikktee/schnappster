@@ -59,6 +59,7 @@ class AIService:
     def _analyze_ads(self, ads: Sequence[Ad]) -> int:
         """
         Process a list of ads. Returns count analyzed.
+        On error for a single ad, logs and continues with the next.
         """
         analyzed = 0
         for ad in ads:
@@ -72,12 +73,12 @@ class AIService:
                     if isinstance(e.body, dict)
                     else str(e)
                 )
-                logger.error(f"API error: {error_msg}")
-                return analyzed
+                logger.error(f"API error for ad {ad.id} '{ad.title}': {error_msg}")
+                # continue with next ad
 
             except Exception as e:
                 logger.error(f"Failed to analyze ad {ad.id} '{ad.title}': {e}")
-                return analyzed
+                # continue with next ad
 
         return analyzed
 

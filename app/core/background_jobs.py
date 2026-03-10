@@ -5,9 +5,11 @@ from datetime import datetime
 from apscheduler.schedulers.background import (  # pyright: ignore[reportMissingImports]
     BackgroundScheduler,
 )
-from sqlmodel import Session
+from sqlalchemy import func
+from sqlmodel import Session, select
 
 from app.core.db import db_engine
+from app.models.ad import Ad
 from app.models.errorlog import ErrorLog
 from app.services.scraper import ScraperService
 
@@ -51,10 +53,19 @@ class BackgroundJobs:
             executor="scraper",
         )
 
+        # Initial analyze job (run once at startup to process any backlog)
+        self._scheduler.add_job(
+            self._run_analyze_ads,
+            "date",
+            run_date=datetime.now(),
+            id="initial_analyze",
+            executor="analyzer",
+        )
+
         self._scheduler.start()
         logger.info(
             "Scheduler started: scrape every 1 min (scraper queue), "
-            "AI analysis after each scrape when new ads found (analyzer queue)"
+            "AI analysis after each scrape when new ads found and once at startup (analyzer queue)"
         )
 
     def stop(self) -> None:
@@ -87,13 +98,17 @@ class BackgroundJobs:
     def _run_analyze_ads(self) -> None:
         """
         JOB: Analyze unprocessed ads with AI.
+        Re-queues another run if backlog remains and progress was made.
         """
         with Session(db_engine) as session:
+            run_ok = False
+            analyzed = 0
             try:
                 from app.services.ai import AIService
 
                 ai_service = AIService(session)
                 analyzed = ai_service.analyze_unprocessed(limit=10)
+                run_ok = True
                 if analyzed > 0:
                     logger.info(f"AI analyzed {analyzed} ads")
             except ValueError:
@@ -109,3 +124,19 @@ class BackgroundJobs:
                     )
                 )
                 session.commit()
+
+            if run_ok:
+                remaining_query = select(Ad).where(
+                    Ad.is_analyzed.is_(False)  # pyright: ignore[reportAttributeAccessIssue]
+                )
+                remaining = session.exec(
+                    select(func.count()).select_from(remaining_query.subquery())
+                ).one()
+                if remaining > 0 and analyzed > 0:
+                    self._scheduler.add_job(
+                        self._run_analyze_ads,
+                        "date",
+                        run_date=datetime.now(),
+                        executor="analyzer",
+                    )
+                    logger.debug(f"Queued next AI analysis ({remaining} ads remaining)")

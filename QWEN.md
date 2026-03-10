@@ -30,7 +30,7 @@ schnappster/
 │   ├── core/                    # Infrastructure (DB, settings, background jobs, logging)
 │   │   ├── db.py                # SQLModel engine, DbSession, init_db()
 │   │   ├── settings.py          # Pydantic settings (.env), get_app_root()
-│   │   ├── background_jobs.py   # APScheduler: scrape due searches (1min), analyze after scrape when new ads
+│   │   ├── background_jobs.py   # APScheduler: scrape (1min + startup), analyze (startup + after scrape; re-queue until backlog empty)
 │   │   └── logging.py           # RichHandler setup
 │   ├── models/                  # SQLModel tables + API schemas
 │   │   ├── ad.py                # Ad table + AdRead schema
@@ -145,15 +145,16 @@ pyright
 3. Fetch detail pages in parallel
 4. Apply filters: price range, blacklist keywords, seller type, seller rating
 5. Save new ads to DB
-6. AI analysis runs after each scrape when new ads were found (queued on analyzer); scraper and analyzer each have a single-worker queue
+6. AI analysis runs once at startup and after each scrape when new ads were found (queued on analyzer); each run processes up to 10 ads and re-queues if backlog remains; scraper and analyzer each have a single-worker queue.
 
 ### Scheduler (APScheduler BackgroundScheduler)
 
-| Job | Interval | Description |
-|-----|----------|-------------|
-| `check_and_scrape` | 1 minute | Scrapes all active `AdSearch` records that are due; when new ads found, queues AI analysis |
+| Job | When | Description |
+|-----|------|-------------|
+| Scrape | 1 minute + once at startup | Scrapes all active `AdSearch` records that are due; when new ads found, queues AI analysis |
+| Analyze | Once at startup + when queued after scrape | Processes up to 10 unprocessed ads; if backlog remains and progress made, queues next run (re-queue until empty) |
 
-Both jobs also run once immediately on startup.
+Both scrape and analyze use separate single-worker queues so they do not overlap.
 
 ### Frontend Architecture
 

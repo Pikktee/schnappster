@@ -1,0 +1,24 @@
+%% Scheduler- und Analyze-Flow (BackgroundJobs)
+%% Quelle: app/core/background_jobs.py
+%% PNG erzeugen: npx -y @mermaid-js/mermaid-cli/mmdc -i architecture-scheduler-flow.mmd -o architecture-scheduler-flow.png
+
+flowchart TB
+    subgraph startup [Beim App-Start]
+        S0[initial_scrape]
+        A0[initial_analyze]
+    end
+
+    subgraph interval [Alle 1 Min]
+        S1[Scrape due searches]
+    end
+
+    S1 --> N{Neue Ads?}
+    N -->|ja| Q1[Analyze-Job in Queue]
+    N -->|nein| skip[Nichts]
+
+    Q1 --> Run[Analyze-Lauf limit 10]
+    A0 --> Run
+    Run --> Done{Noch Backlog?}
+    Done -->|ja, und Fortschritt| Q2[Nächsten Analyze-Job queuen]
+    Done -->|nein| endNode[Ende]
+    Q2 --> Run
