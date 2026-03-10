@@ -398,17 +398,16 @@ export function SearchDetailPage() {
                         <ScoreBadge score={ad.bargain_score} size="sm" />
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ad.postal_code + " " + ad.city)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-muted-foreground hover:text-link transition-colors cursor-pointer"
-                          onClick={(e) => e.stopPropagation()}
-                          title={`Auf Google Maps öffnen: ${ad.postal_code} ${ad.city}`}
-                        >
-                          <MapPin className="size-3.5" />
-                          <span className="truncate max-w-[150px]">{ad.postal_code} {ad.city}</span>
-                        </a>
+                        <span onClick={(e) => e.stopPropagation()} className="inline-flex items-center min-w-0">
+                          <ExternalLink
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ad.postal_code + " " + ad.city)}`}
+                            className="inline-flex items-center gap-1 min-w-0 max-w-[150px]"
+                            title={`Auf Google Maps öffnen: ${ad.postal_code} ${ad.city}`}
+                          >
+                            <MapPin className="size-3.5 shrink-0" />
+                            <span className="truncate">{ad.postal_code} {ad.city}</span>
+                          </ExternalLink>
+                        </span>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {timeAgo(ad.first_seen_at)}
