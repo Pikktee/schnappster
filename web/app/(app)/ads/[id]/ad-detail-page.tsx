@@ -373,14 +373,20 @@ export function AdDetailPage() {
                 <div>
                   <span className="text-xs text-muted-foreground uppercase tracking-wider">Standort</span>
                   <p className="mt-1 text-foreground font-medium">
-                    <ExternalLink
+                    <a
                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ad.postal_code + " " + ad.city)}`}
-                      className="inline-flex items-center gap-1.5"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 flex-wrap text-link hover:underline cursor-pointer"
                       title={`Auf Google Maps öffnen: ${ad.postal_code} ${ad.city}`}
+                      aria-label={`${ad.postal_code} ${ad.city} (öffnet neues Fenster)`}
                     >
-                      <MapPin className="size-3.5" />
-                      {ad.postal_code} {ad.city}
-                    </ExternalLink>
+                      <MapPin className="size-3.5 shrink-0" />
+                      <span className="inline-flex items-center gap-1">
+                        {ad.postal_code} {ad.city}
+                        <ExternalLinkIcon className="size-3 shrink-0" aria-hidden="true" />
+                      </span>
+                    </a>
                   </p>
                 </div>
                 <div>
