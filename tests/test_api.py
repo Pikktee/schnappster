@@ -73,6 +73,22 @@ def test_patch_adsearch_rejects_unreachable_url(mock_fetch, client, sample_adsea
     mock_fetch.assert_called_once()
 
 
+@patch("app.routes.adsearch._validate_search_url_reachable")
+def test_patch_adsearch_uses_title_when_name_cleared(mock_validate, client, sample_adsearch):
+    """PATCH without name (cleared field) should derive name from page title."""
+    mock_validate.return_value = "Neuer Titel von der Seite"
+
+    response = client.patch(
+        f"/api/adsearches/{sample_adsearch.id}",
+        json={"name": ""},
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["name"] == "Neuer Titel von der Seite"
+    mock_validate.assert_called_once()
+
+
 def test_get_adsearch(client, sample_adsearch):
     response = client.get(f"/api/adsearches/{sample_adsearch.id}")
     assert response.status_code == 200

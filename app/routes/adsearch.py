@@ -90,8 +90,24 @@ def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
 
     update_data = data.model_dump(exclude_unset=True)
 
+    # Validate URL (if changed) and, when requested, update name from page title.
+    title_from_page: str | None = None
+
     if "url" in update_data:
-        _validate_search_url_reachable(update_data["url"])
+        # URL is being changed: validate reachability and reuse parsed title if needed.
+        title_from_page = _validate_search_url_reachable(update_data["url"])
+    elif "name" in update_data and isinstance(update_data["name"], str) and not update_data["name"].strip():
+        # URL stays the same, but client cleared the name field:
+        # fetch current URL and use its title as new name.
+        title_from_page = _validate_search_url_reachable(adsearch.url)
+
+    if "name" in update_data and isinstance(update_data["name"], str) and not update_data["name"].strip():
+        if not title_from_page:
+            raise HTTPException(
+                status_code=422,
+                detail="Kein Seitentitel auf der Seite gefunden. Bitte URL prüfen oder einen Namen manuell eingeben.",
+            )
+        update_data["name"] = title_from_page
 
     for key, value in update_data.items():
         setattr(adsearch, key, value)
