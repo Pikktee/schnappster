@@ -1,0 +1,34 @@
+%% Schnappster Backend-Schichten
+%% Pfeilrichtung: höhere Schicht → nutzt → tiefere Schicht
+%% Quelle: docs/architecture/ARCHITECTURE.md
+%% PNG erzeugen: npx -y @mermaid-js/mermaid-cli/mmdc -i architecture-backend-layers.mmd -o architecture-backend-layers.png
+
+flowchart TB
+    A["1. Entry<br/><b>main.py</b>, bootstrap, CORS, Lifespan, Router, Static Mount"]
+    B["2. routes/api<br/>ads, adsearch, errorlogs, scraperuns, settings"]
+    C["3. routes/frontend<br/>SPA-Fallback, mount web/out"]
+    D["4. services<br/>ScraperService, AIService, SettingsService, telegram"]
+    E["5. scraper<br/>httpclient, parser"]
+    F["6. models<br/>Ad, AdSearch, ErrorLog, ScrapeRun, AppSettings"]
+    G["7. core<br/>db, config, logging, background_jobs"]
+    CLI["8. CLI<br/><b>start</b>, scrape, analyze, dbreset"]
+
+    A --> B
+    A --> C
+    B --> D
+    C --> D
+    D --> E
+    D --> F
+    D --> G
+    CLI -.-> D
+    CLI -.-> G
+    CLI -.-> F
+
+    style A fill:#e8f4f8
+    style B fill:#fff4e6
+    style C fill:#fff4e6
+    style D fill:#e8f5e9
+    style E fill:#f3e5f5
+    style F fill:#fce4ec
+    style G fill:#eceff1
+    style CLI fill:#e8f4f8

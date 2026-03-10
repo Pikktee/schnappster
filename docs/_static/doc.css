@@ -1,0 +1,283 @@
+/* Schnappster Dokumentation – gemeinsame Styles für Start, Architektur, Frontend */
+
+:root {
+  --doc-bg: #fafafa;
+  --doc-surface: #fff;
+  --doc-text: #1a1a1a;
+  --doc-text-muted: #5c5c5c;
+  --doc-link: #0969da;
+  --doc-link-hover: #0550ae;
+  --doc-border: #e6e6e6;
+  --doc-nav-bg: #fff;
+  --doc-nav-border: #e6e6e6;
+  --doc-card-border: #e6e6e6;
+  --doc-code-bg: #f0f0f0;
+  --doc-radius: 8px;
+  --doc-font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --doc-max-width: 52rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --doc-bg: #0d1117;
+    --doc-surface: #161b22;
+    --doc-text: #e6edf3;
+    --doc-text-muted: #8b949e;
+    --doc-link: #58a6ff;
+    --doc-link-hover: #79b8ff;
+    --doc-border: #30363d;
+    --doc-nav-bg: #161b22;
+    --doc-nav-border: #30363d;
+    --doc-card-border: #30363d;
+    --doc-code-bg: #21262d;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--doc-font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--doc-text);
+  background: var(--doc-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Nav */
+.doc-nav {
+  background: var(--doc-nav-bg);
+  border-bottom: 1px solid var(--doc-nav-border);
+  padding: 0.15rem 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.doc-nav-inner {
+  max-width: 64rem;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.doc-nav-home {
+  font-weight: 600;
+  color: var(--doc-text);
+  text-decoration: none;
+  margin-right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.doc-nav-logo {
+  display: block;
+  width: 140px;
+  height: 140px;
+  flex-shrink: 0;
+}
+
+.doc-nav-home:hover {
+  color: var(--doc-link);
+}
+
+.doc-nav-sep {
+  color: var(--doc-text-muted);
+  font-weight: 400;
+  user-select: none;
+}
+
+.doc-nav a {
+  color: var(--doc-text-muted);
+  text-decoration: none;
+  font-size: 0.9375rem;
+}
+
+.doc-nav a:hover {
+  color: var(--doc-link);
+}
+
+.doc-nav a.is-active {
+  color: var(--doc-text);
+  font-weight: 500;
+}
+
+/* Main content */
+.doc-main {
+  max-width: var(--doc-max-width);
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.doc-back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: var(--doc-text-muted);
+  text-decoration: none;
+  font-size: 0.9375rem;
+}
+
+.doc-back:hover {
+  color: var(--doc-link);
+}
+
+.doc-main h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.doc-main h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 2rem 0 0.75rem;
+  padding-bottom: 0.25rem;
+}
+
+.doc-main h3 {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem;
+}
+
+.doc-main p {
+  margin: 0 0 1rem;
+  color: var(--doc-text);
+}
+
+.doc-main a {
+  color: var(--doc-link);
+  text-decoration: none;
+}
+
+.doc-main a:hover {
+  text-decoration: underline;
+}
+
+.doc-main ul, .doc-main ol {
+  margin: 0 0 1rem;
+  padding-left: 1.5rem;
+}
+
+.doc-main li {
+  margin-bottom: 0.25rem;
+}
+
+.doc-main code {
+  font-size: 0.875em;
+  background: var(--doc-code-bg);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+}
+
+.doc-main pre {
+  background: var(--doc-code-bg);
+  padding: 1rem;
+  border-radius: var(--doc-radius);
+  overflow-x: auto;
+  margin: 0 0 1rem;
+}
+
+.doc-main pre code {
+  padding: 0;
+  background: none;
+}
+
+.doc-main figure {
+  margin: 1rem 0;
+}
+
+.doc-main figure img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--doc-radius);
+  border: 1px solid var(--doc-border);
+}
+
+.doc-main table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 1rem;
+  font-size: 0.9375rem;
+}
+
+.doc-main th,
+.doc-main td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--doc-border);
+}
+
+.doc-main th {
+  font-weight: 600;
+  color: var(--doc-text-muted);
+}
+
+/* Startseite: Kacheln */
+.doc-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.doc-card {
+  display: block;
+  padding: 1.25rem;
+  background: var(--doc-surface);
+  border: 1px solid var(--doc-card-border);
+  border-radius: var(--doc-radius);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.doc-card:hover {
+  border-color: var(--doc-link);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.doc-card h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.125rem;
+}
+
+.doc-card p {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--doc-text-muted);
+}
+
+/* Back-Link auf pdoc-Seiten (injiziert vom docs-Build) */
+.doc-pdoc-back {
+  background: var(--doc-nav-bg);
+  border-bottom: 1px solid var(--doc-nav-border);
+  padding: 0.5rem 1rem;
+  font-size: 0.9375rem;
+}
+
+.doc-pdoc-back a {
+  color: var(--doc-link);
+  text-decoration: none;
+}
+
+.doc-pdoc-back a:hover {
+  text-decoration: underline;
+}
+
+/* Intro-Text unter der Nav */
+.doc-intro {
+  color: var(--doc-text-muted);
+  font-size: 0.9375rem;
+  margin-bottom: 0.5rem;
+}

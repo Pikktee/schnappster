@@ -1,0 +1,41 @@
+/* Schnappster: Anpassungen für die Code-Referenz (pdoc) – etwas ruhiger und lesbarer */
+
+.pdoc {
+  --text: #1a1a1a;
+  --muted: #5c5c5c;
+  --link: #0969da;
+  --link-hover: #0550ae;
+  --code: #f0f0f0;
+  --active: #e8f0fe;
+  --accent: #f5f5f5;
+  --accent2: #e0e0e0;
+  --nav-hover: rgba(0, 0, 0, 0.04);
+  --name: #0969da;
+  --def: #0550ae;
+  --annotation: #8250df;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pdoc {
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --link: #58a6ff;
+    --link-hover: #79b8ff;
+    --code: #21262d;
+    --active: #1f3a5c;
+    --accent: #161b22;
+    --accent2: #30363d;
+    --nav-hover: rgba(255, 255, 255, 0.06);
+    --name: #58a6ff;
+    --def: #79b8ff;
+    --annotation: #a371f7;
+  }
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Link zurück zur Doku-Startseite oben auf pdoc-Seiten (wird per JS oder wir lassen es) – optional */
+/* Hier nur Farb-/Typo-Anpassungen für pdoc */
