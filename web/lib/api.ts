@@ -98,3 +98,7 @@ export const updateSetting = (key: string, value: string) =>
     method: "PUT",
     body: JSON.stringify({ value }),
   })
+
+// Version (from backend / pyproject.toml)
+export const fetchVersion = () =>
+  apiFetch<{ version: string }>("/api/version/")

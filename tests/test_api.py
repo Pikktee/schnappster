@@ -252,3 +252,16 @@ def test_update_setting_invalid_rating(client):
         json={"value": "5"},
     )
     assert response.status_code == 422
+
+
+# --- Version endpoint ---
+
+
+def test_get_version(client):
+    """Version comes from pyproject.toml via package metadata."""
+    response = client.get("/api/version/")
+    assert response.status_code == 200
+    data = response.json()
+    assert "version" in data
+    assert isinstance(data["version"], str)
+    assert data["version"]  # non-empty, e.g. "0.1.0"

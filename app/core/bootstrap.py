@@ -3,6 +3,7 @@ Builds the FastAPI application with middleware, routes, and static frontend.
 """
 
 from contextlib import asynccontextmanager
+from importlib.metadata import version
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,7 +29,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Schnappster",
-        version="0.1.0",
+        version=version("schnappster"),
         description="Kleinanzeigen.de Schnäppchen-Finder",
         lifespan=lifespan,
     )

@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 import { Home, Search, Tag, List, Settings } from "lucide-react"
 import {
   Sidebar,
@@ -14,6 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { fetchVersion } from "@/lib/api"
 
 const navItems = [
   { label: "Start", href: "/", icon: Home },
@@ -25,6 +27,13 @@ const navItems = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const [versionLabel, setVersionLabel] = useState<string>("v…")
+
+  useEffect(() => {
+    fetchVersion()
+      .then(({ version: v }) => setVersionLabel(`v${v}`))
+      .catch(() => setVersionLabel("—"))
+  }, [])
 
   function isActive(href: string) {
     const path = pathname.replace(/\/$/, "") || "/"
@@ -71,7 +80,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="px-4 py-3">
-        <span className="text-xs text-muted-foreground">Version v0.1.0</span>
+        <span className="text-xs text-muted-foreground">Version {versionLabel}</span>
       </SidebarFooter>
     </Sidebar>
   )
