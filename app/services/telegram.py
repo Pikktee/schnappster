@@ -9,6 +9,9 @@ logger = logging.getLogger(__name__)
 
 class TelegramService:
     def __init__(self, bot_token: str, chat_id: str):
+        """
+        Initializes the Telegram service.
+        """
         self.bot_token = bot_token.strip() if bot_token else ""
         self.chat_id = chat_id.strip() if chat_id else ""
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"

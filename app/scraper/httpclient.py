@@ -3,7 +3,10 @@ import random
 
 from curl_cffi.requests import AsyncSession
 
+# Maximum concurrent requests
 MAX_CONCURRENT = 3
+
+# Minimum and maximum delay between requests (seconds)
 DELAY_MIN = 0.5
 DELAY_MAX = 2.0
 
@@ -40,13 +43,17 @@ def fetch_pages(urls: list[str]) -> list[str]:
 
 
 def fetch_page(url: str) -> str:
-    """Fetch a single page (ignores HTTP status)."""
+    """
+    Fetch a single page (ignores HTTP status).
+    """
     results = fetch_pages([url])
     return results[0] if results else ""
 
 
 async def _fetch_page_checked(url: str) -> tuple[int, str]:
-    """Fetch a single page and return (status_code, html)."""
+    """
+    Fetch a single page and return (status_code, html).
+    """
     async with AsyncSession(impersonate="chrome") as session:
         try:
             response = await session.get(url)
