@@ -12,6 +12,7 @@ import {
   Tag,
   Euro,
   Star,
+  Image as ImageIcon,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -248,10 +249,7 @@ export function SearchDetailPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Konfiguration</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* URL - Full width */}
             <div className="md:col-span-2 lg:col-span-3">
@@ -285,11 +283,11 @@ export function SearchDetailPage() {
               </p>
             </div>
 
-            {/* Blacklist */}
+            {/* Ausschluss-Keywords */}
             <div>
               <div className="flex items-center gap-2 mb-1.5">
                 <Tag className="size-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Blacklist</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ausschluss-Keywords</span>
               </div>
               <div className="flex flex-wrap gap-1">
                 {search.blacklist_keywords ? (
@@ -318,6 +316,7 @@ export function SearchDetailPage() {
             {/* Exclude Images */}
             <div>
               <div className="flex items-center gap-2 mb-1.5">
+                <ImageIcon className="size-3.5 text-muted-foreground" />
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Bilder</span>
               </div>
               <p className="text-foreground font-medium">{search.is_exclude_images ? "Ausgeschlossen" : "Eingeschlossen"}</p>

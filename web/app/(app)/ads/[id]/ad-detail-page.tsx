@@ -11,6 +11,7 @@ import {
   ChevronUp,
   ChevronLeft,
   ChevronRight,
+  X,
   ThumbsUp,
   ShieldCheck,
   User,
@@ -18,6 +19,12 @@ import {
   MapPin,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -58,6 +65,7 @@ export function AdDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [currentImage, setCurrentImage] = useState(0)
   const [showReasoning, setShowReasoning] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const [imgErrors, setImgErrors] = useState<Set<number>>(new Set())
 
   useEffect(() => {
@@ -191,9 +199,14 @@ export function AdDetailPage() {
           {/* Image Gallery */}
           <Card className="overflow-hidden p-0 card-lift">
             <div
-              className="aspect-[16/10] relative bg-muted"
+              role="button"
+              tabIndex={0}
+              className={`aspect-[16/10] relative bg-muted ${images.length > 0 ? "cursor-pointer" : ""}`}
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
+              onClick={() => images.length > 0 && !imgErrors.has(currentImage) && setLightboxOpen(true)}
+              onKeyDown={(e) => e.key === "Enter" && images.length > 0 && !imgErrors.has(currentImage) && setLightboxOpen(true)}
+              aria-label="Bild im Vollbild anzeigen"
             >
               {images.length > 0 && !imgErrors.has(currentImage) ? (
                 <Image
@@ -218,7 +231,7 @@ export function AdDetailPage() {
                     variant="secondary"
                     size="icon"
                     className="absolute left-2 top-1/2 -translate-y-1/2 z-10 cursor-pointer opacity-80 hover:opacity-100 transition-opacity"
-                    onClick={goToPrevImage}
+                    onClick={(e) => { e.stopPropagation(); goToPrevImage() }}
                     aria-label="Vorheriges Bild"
                   >
                     <ChevronLeft className="size-5" />
@@ -227,7 +240,7 @@ export function AdDetailPage() {
                     variant="secondary"
                     size="icon"
                     className="absolute right-2 top-1/2 -translate-y-1/2 z-10 cursor-pointer opacity-80 hover:opacity-100 transition-opacity"
-                    onClick={goToNextImage}
+                    onClick={(e) => { e.stopPropagation(); goToNextImage() }}
                     aria-label="Nächstes Bild"
                   >
                     <ChevronRight className="size-5" />
@@ -269,6 +282,69 @@ export function AdDetailPage() {
               </div>
             )}
           </Card>
+
+          {/* Lightbox Vollbild */}
+          <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+            <DialogContent
+              showCloseButton={false}
+              overlayClassName="bg-black/90"
+              className="!fixed inset-0 z-50 !top-0 !right-0 !bottom-0 !left-0 !translate-x-0 !translate-y-0 !w-full !h-full !max-w-none grid place-items-center rounded-none border-0 bg-transparent p-0 shadow-none focus:outline-none"
+            >
+              <DialogTitle className="sr-only">Bild im Vollbild</DialogTitle>
+              <DialogDescription className="sr-only">
+                {ad.title}, Bild {currentImage + 1} von {images.length}
+              </DialogDescription>
+              {images.length > 0 && !imgErrors.has(currentImage) ? (
+                <>
+                  {images.length > 1 && (
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 z-10 cursor-pointer size-12 rounded-full bg-black/50 text-white border-0 hover:bg-black/70"
+                      onClick={(e) => { e.stopPropagation(); goToPrevImage() }}
+                      aria-label="Vorheriges Bild"
+                    >
+                      <ChevronLeft className="size-6" />
+                    </Button>
+                  )}
+                  <div className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center">
+                    <Image
+                      src={images[currentImage]}
+                      alt={ad.title}
+                      width={1920}
+                      height={1080}
+                      className="max-w-full max-h-[90vh] w-auto h-auto object-contain"
+                      unoptimized
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  {images.length > 1 && (
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 z-10 cursor-pointer size-12 rounded-full bg-black/50 text-white border-0 hover:bg-black/70"
+                      onClick={(e) => { e.stopPropagation(); goToNextImage() }}
+                      aria-label="Nächstes Bild"
+                    >
+                      <ChevronRight className="size-6" />
+                    </Button>
+                  )}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-black/50 text-white text-sm px-3 py-1.5 rounded-full">
+                    {currentImage + 1} / {images.length}
+                  </div>
+                </>
+              ) : null}
+              <Button
+                variant="secondary"
+                size="icon"
+                className="absolute top-4 right-4 z-10 cursor-pointer size-10 rounded-full bg-black/50 text-white border-0 hover:bg-black/70"
+                onClick={() => setLightboxOpen(false)}
+                aria-label="Vollbild schließen"
+              >
+                <X className="size-5" />
+              </Button>
+            </DialogContent>
+          </Dialog>
 
           {/* Price + Details */}
           <Card className="pt-4">
