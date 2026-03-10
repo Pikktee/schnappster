@@ -8,8 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core import BackgroundJobs, init_db, setup_logging
-from app.routes import api_router
-from app.routes.frontend import mount_frontend, router as frontend_router
+from app.routes import api_router, frontend_router, mount_frontend
 
 
 @asynccontextmanager
