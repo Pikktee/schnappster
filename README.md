@@ -97,17 +97,21 @@ uv run start
 # Ohne Tests
 uv run start --skip-tests
 
+# Anderen Port nutzen (z. B. 8080)
+uv run start --port 8080
+
 # Dev-Modus: Frontend auf :3000 (Hot Reload), Backend auf :8000
 uv run start --dev
 ```
 
-Der Server startet auf http://localhost:8000 (ohne `--dev` wird das Frontend vor dem Start gebaut und von FastAPI ausgeliefert).
+Der Server startet auf http://localhost:8000 (Standard-Port; mit `--port 8080` z. B. auf :8080). Ohne `--dev` wird das Frontend vor dem Start gebaut und von FastAPI ausgeliefert.
 
 ### CLI Commands
 
 | Command | Beschreibung |
 |---------|-------------|
-| `uv run start` | Startet den FastAPI Server |
+| `uv run start` | Startet den FastAPI Server (Standard-Port 8000) |
+| `uv run start --port 8080` | Server auf Port 8080 starten |
 | `uv run scrape [adsearch_id]` | Manueller Scraping-Start |
 | `uv run analyze [limit]` | Manuelle KI-Analyse starten |
 | `uv run dbreset` | Datenbank zurücksetzen (bei Schema-Änderungen) |

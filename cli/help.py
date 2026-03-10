@@ -13,11 +13,12 @@ console = Console()
 
 _COMMANDS = (
     (
-        "start \\[--skip-tests] \\[--dev]",
+        "start \\[--skip-tests] \\[--dev] \\[--port PORT]",
         "Server starten: Tests, Frontend-Build, FastAPI mit statischem Frontend.",
         (
             ("--skip-tests", "Tests überspringen"),
-            ("--dev", "Dev-Modus: Next.js :3000, Backend :8000 mit Reload"),
+            ("--dev", "Dev-Modus: Next.js :3000, Backend mit Reload"),
+            ("--port PORT", "Port für Backend (Standard: 8000)"),
         ),
     ),
     (
