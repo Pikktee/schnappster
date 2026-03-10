@@ -50,7 +50,7 @@ schnappster/
 │   ├── start.py                 # uv run start [--dev] [--skip-tests]
 │   ├── scrape.py                # uv run scrape [adsearch_id]
 │   ├── analyze.py               # uv run analyze [limit]
-│   └── reset_db.py              # uv run dbreset
+│   └── dbreset.py               # uv run dbreset
 ├── tests/                       # pytest tests
 ├── web/                         # Next.js frontend (static export → web/out/)
 ├── data/                        # SQLite database (schnappster.db)

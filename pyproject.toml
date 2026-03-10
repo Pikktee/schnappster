@@ -57,9 +57,9 @@ dev = [
 ]
 
 [project.scripts]
-dbreset = "cli.reset_db:main"
+dbreset = "cli.dbreset:main"
 scrape = "cli.scrape:main"
 analyze = "cli.analyze:main"
 start = "cli.start:main"
-migrate = "cli.migrate:main"
 docs = "cli.docs:main"
+help = "cli.help:main"
