@@ -78,6 +78,21 @@ class BackgroundJobs:
             self._scheduler.shutdown(wait=False)
             logger.info("Scheduler stopped")
 
+    def trigger_scrape_once(self) -> None:
+        """
+        Einmaligen Lauf von scrape_due_searches anstoßen
+        (z. B. nach Anlegen eines Suchauftrags).
+        """
+        self._scheduler.add_job(
+            self._run_scrape_ads,
+            "date",
+            run_date=datetime.now(),
+            id="trigger_scrape_once",
+            replace_existing=True,
+            executor="scraper",
+        )
+        logger.debug("Queued one-off scrape run")
+
     def _run_scrape_ads(self) -> None:
         """
         JOB: Check all active AdSearches and scrape those that are due.
@@ -140,3 +155,11 @@ class BackgroundJobs:
                         executor="analyzer",
                     )
                     logger.debug(f"Queued next AI analysis ({remaining} ads remaining)")
+
+
+# Modul-Level-Instanz → de facto Singleton
+_jobs = BackgroundJobs()
+
+
+def get_background_jobs() -> BackgroundJobs:
+    return _jobs

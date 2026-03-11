@@ -8,7 +8,8 @@ from importlib.metadata import version
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core import BackgroundJobs, init_db, setup_logging
+from app.core import init_db, setup_logging
+from app.core.background_jobs import get_background_jobs
 from app.routes import api_router, frontend_router, mount_frontend
 
 
@@ -17,8 +18,7 @@ async def lifespan(app: FastAPI):
     setup_logging()
     init_db()
 
-    # Start the background jobs for scraping and ai processing
-    jobs = BackgroundJobs()
+    jobs = get_background_jobs()
     jobs.start()
 
     yield

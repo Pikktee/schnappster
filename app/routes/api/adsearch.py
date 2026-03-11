@@ -2,9 +2,10 @@ import logging
 import threading
 import traceback
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
+from app.core.background_jobs import BackgroundJobs, get_background_jobs
 from app.core.db import DbSession, db_engine
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearchUpdate
@@ -46,7 +47,11 @@ def get_adsearch(adsearch_id: int, session: DbSession):
 
 
 @router.post("/", response_model=AdSearchRead, status_code=201)
-def create_adsearch(data: AdSearchCreate, session: DbSession):
+def create_adsearch(
+    data: AdSearchCreate,
+    session: DbSession,
+    background_jobs: BackgroundJobs = Depends(get_background_jobs),  # noqa: B008
+):
     """
     Create a new ad search (Suchauftrag).
 
@@ -72,6 +77,8 @@ def create_adsearch(data: AdSearchCreate, session: DbSession):
     session.add(adsearch)
     session.commit()
     session.refresh(adsearch)
+
+    background_jobs.trigger_scrape_once()
 
     return adsearch
 
