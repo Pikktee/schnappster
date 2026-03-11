@@ -62,6 +62,7 @@ class AIService:
                 analyzed += 1
 
             except BadRequestError as e:
+                self.session.rollback()
                 error_msg = (
                     e.body.get("error", {}).get("message", str(e))
                     if isinstance(e.body, dict)
@@ -74,14 +75,14 @@ class AIService:
                     ad.title[:50] + "..." if len(ad.title) > 50 else ad.title,
                     error_msg[:200] + "..." if len(error_msg) > 200 else error_msg,
                 )
-                self._log_analysis_error(
-                    ad,
-                    "API error",
-                    error_msg,
-                )
+                try:
+                    self._log_analysis_error(ad, "API error", error_msg)
+                except Exception:
+                    pass  # best-effort error logging
                 # continue with next ad
 
             except Exception as e:
+                self.session.rollback()
                 err_str = str(e)
                 logger.error(
                     "Failed to analyze ad %s '%s': %s",
@@ -89,11 +90,10 @@ class AIService:
                     ad.title[:50] + "..." if len(ad.title) > 50 else ad.title,
                     err_str[:200] + "..." if len(err_str) > 200 else err_str,
                 )
-                self._log_analysis_error(
-                    ad,
-                    "Analysis failed",
-                    err_str,
-                )
+                try:
+                    self._log_analysis_error(ad, "Analysis failed", err_str)
+                except Exception:
+                    pass  # best-effort error logging
                 # continue with next ad
 
         return analyzed
