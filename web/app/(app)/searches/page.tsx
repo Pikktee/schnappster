@@ -104,10 +104,6 @@ export default function SearchesPage() {
     }
   }
 
-  async function handleToggleActive(id: number, newActive: boolean) {
-    setSearches((prev) => prev.map((s) => s.id === id ? { ...s, is_active: newActive } : s))
-  }
-
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
@@ -168,7 +164,6 @@ export default function SearchesPage() {
               key={search.id}
               search={search}
               onDelete={handleDelete}
-              onToggleActive={handleToggleActive}
               isDeleting={deletingId === search.id}
             />
           ))}

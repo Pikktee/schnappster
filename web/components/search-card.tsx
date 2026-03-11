@@ -4,7 +4,6 @@ import { useState } from "react"
 import Link from "next/link"
 import { Trash2, Loader2, Power, ExternalLink } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
@@ -16,43 +15,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { Switch } from "@/components/ui/switch"
 import type { AdSearch } from "@/lib/types"
 import { timeAgo, truncateUrl } from "@/lib/format"
-import { toast } from "sonner"
-import { updateSearch } from "@/lib/api"
 
 interface SearchCardProps {
   search: AdSearch
   onDelete: (id: number) => Promise<void> | void
-  onToggleActive?: (id: number, newActive: boolean) => Promise<void> | void
   isDeleting?: boolean
 }
 
-export function SearchCard({ search, onDelete, onToggleActive, isDeleting }: SearchCardProps) {
+export function SearchCard({ search, onDelete, isDeleting }: SearchCardProps) {
   const [open, setOpen] = useState(false)
-  const [toggling, setToggling] = useState(false)
-
-  async function handleToggleActive(checked: boolean) {
-    if (!onToggleActive) return
-    setToggling(true)
-    try {
-      await updateSearch(search.id, { is_active: checked })
-      await onToggleActive(search.id, checked)
-      toast.success(checked ? "Suchauftrag aktiviert" : "Suchauftrag deaktiviert")
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Status konnte nicht geändert werden."
-      toast.error(msg)
-    } finally {
-      setToggling(false)
-    }
-  }
 
   return (
     <Link href={`/searches/${search.id}`} className="block" aria-label={`Details für ${search.name}`}>
@@ -69,28 +42,6 @@ export function SearchCard({ search, onDelete, onToggleActive, isDeleting }: Sea
               <ExternalLink className="size-3 opacity-50" />
               {truncateUrl(search.url)}
             </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0 relative z-20">
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Switch
-                    checked={search.is_active}
-                    onCheckedChange={handleToggleActive}
-                    disabled={toggling}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                    }}
-                    className="data-[state=checked]:bg-emerald-500"
-                    aria-label={search.is_active ? "Deaktivieren" : "Aktivieren"}
-                  />
-                </TooltipTrigger>
-                <TooltipContent side="left">
-                  {search.is_active ? "Deaktivieren" : "Aktivieren"}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           </div>
         </div>
 
