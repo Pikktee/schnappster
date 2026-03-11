@@ -33,10 +33,18 @@ const MIN_SELLER_RATING_OPTIONS = [
   { value: "2", label: "TOP" },
 ] as const
 
+const AUTO_DELETE_OPTIONS = [
+  { value: "0", label: "Deaktiviert" },
+  { value: "7", label: "7 Tage" },
+  { value: "14", label: "14 Tage" },
+  { value: "31", label: "31 Tage" },
+] as const
+
 export default function SettingsPage() {
   const [excludeCommercialSellers, setExcludeCommercialSellers] = useState(false)
   const [minSellerRating, setMinSellerRating] = useState("0")
   const [telegramNotificationsEnabled, setTelegramNotificationsEnabled] = useState(false)
+  const [autoDeleteAdsDays, setAutoDeleteAdsDays] = useState("7")
   const [telegramConfigured, setTelegramConfigured] = useState(false)
   const [loading, setLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -59,9 +67,13 @@ export default function SettingsPage() {
         const telegramEntry = list.find(
           (s: { key: string; value: string }) => s.key === "telegram_notifications_enabled"
         )
+        const autoDeleteEntry = list.find(
+          (s: { key: string; value: string }) => s.key === "auto_delete_ads_days"
+        )
         if (excludeEntry) setExcludeCommercialSellers(excludeEntry.value === "true")
         if (ratingEntry) setMinSellerRating(ratingEntry.value ?? "0")
         if (telegramEntry) setTelegramNotificationsEnabled(telegramEntry.value === "true")
+        if (autoDeleteEntry) setAutoDeleteAdsDays(autoDeleteEntry.value ?? "7")
       } catch {
         toast.error("Einstellungen konnten nicht geladen werden.")
       } finally {
@@ -83,6 +95,7 @@ export default function SettingsPage() {
         "telegram_notifications_enabled",
         telegramNotificationsEnabled ? "true" : "false"
       )
+      await updateSetting("auto_delete_ads_days", autoDeleteAdsDays)
       toast.success("Einstellungen gespeichert")
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Speichern fehlgeschlagen."
@@ -199,6 +212,33 @@ export default function SettingsPage() {
               disabled={!telegramConfigured}
               className={!telegramConfigured ? "opacity-60" : undefined}
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>Datenverwaltung</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-5">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="auto-delete-ads">Alte Anzeigen automatisch löschen</Label>
+            <Select value={autoDeleteAdsDays} onValueChange={setAutoDeleteAdsDays}>
+              <SelectTrigger id="auto-delete-ads" className="w-full max-w-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AUTO_DELETE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Anzeigen werden nach der gewählten Anzahl von Tagen automatisch gelöscht.
+              Bei &quot;Deaktiviert&quot; werden keine Anzeigen gelöscht.
+            </p>
           </div>
         </CardContent>
       </Card>

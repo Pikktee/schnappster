@@ -2,7 +2,7 @@
 
 import logging
 import traceback
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from apscheduler.schedulers.background import (  # pyright: ignore[reportMissingImports]
     BackgroundScheduler,
@@ -14,6 +14,7 @@ from app.core.db import db_engine
 from app.models.ad import Ad
 from app.models.errorlog import ErrorLog
 from app.services.scraper import ScraperService
+from app.services.settings import SettingsService
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +65,29 @@ class BackgroundJobs:
             executor="analyzer",
         )
 
+        # Periodic cleanup job (every 24 hours)
+        self._scheduler.add_job(
+            self._run_cleanup_old_ads,
+            "interval",
+            hours=24,
+            id="run_cleanup_old_ads",
+            replace_existing=True,
+            executor="default",
+        )
+
+        # Initial cleanup job (run once at startup)
+        self._scheduler.add_job(
+            self._run_cleanup_old_ads,
+            "date",
+            id="initial_cleanup",
+            executor="default",
+        )
+
         self._scheduler.start()
         logger.info(
             "Scheduler started: scrape every 1 min (scraper queue), "
-            "AI analysis after each scrape when new ads found and once at startup (analyzer queue)"
+            "AI analysis after each scrape when new ads found and once at startup (analyzer queue), "
+            "cleanup old ads every 24h and once at startup"
         )
 
     def stop(self) -> None:
@@ -145,6 +165,28 @@ class BackgroundJobs:
                         executor="analyzer",
                     )
                     logger.debug(f"Queued next AI analysis ({remaining} ads remaining)")
+
+    def _run_cleanup_old_ads(self) -> None:
+        """Job: delete ads older than the configured number of days."""
+        with Session(db_engine) as session:
+            days = SettingsService(session).get_int("auto_delete_ads_days")
+            if days == 0:
+                logger.debug("Auto-delete disabled (auto_delete_ads_days=0)")
+                return
+
+            cutoff = datetime.now(UTC) - timedelta(days=days)
+            old_ads = session.exec(
+                select(Ad).where(Ad.first_seen_at < cutoff)
+            ).all()
+
+            if not old_ads:
+                logger.debug(f"Cleanup: no ads older than {days} days")
+                return
+
+            for ad in old_ads:
+                session.delete(ad)
+            session.commit()
+            logger.info(f"Cleanup: deleted {len(old_ads)} ad(s) older than {days} days")
 
 
 # Modul-Level-Instanz → de facto Singleton

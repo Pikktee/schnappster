@@ -27,6 +27,12 @@ class SettingsService:
             "allowed": ["true", "false"],
             "description": "Telegram-Benachrichtigungen bei Schnäppchen",
         },
+        "auto_delete_ads_days": {
+            "type": "int",
+            "default": "7",
+            "allowed": ["0", "7", "14", "31"],
+            "description": "Alte Anzeigen automatisch löschen nach X Tagen (0 = deaktiviert)",
+        },
     }
 
     def __init__(self, session: Session):
