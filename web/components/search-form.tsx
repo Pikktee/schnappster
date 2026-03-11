@@ -171,13 +171,15 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
           type="url"
           aria-invalid={!!errors.url}
           autoFocus
-          className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-border"
         />
         {errors.url && <p className="text-xs text-destructive">{errors.url}</p>}
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="search-name">Name (optional)</Label>
+        <Label htmlFor="search-name" className="font-normal flex items-center gap-1.5">
+          <span>Name</span>
+          <HelpTip text="Ein Kurzname für diesen Suchauftrag, z.B. für die Übersicht. Wird von der Kleinanzeigen-Seite übernommen, wenn leer." />
+        </Label>
         <Input
           id="search-name"
           value={name}
@@ -216,7 +218,10 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
             <div className="space-y-5">
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="search-min-price">Min-Preis</Label>
+                <Label htmlFor="search-min-price" className="font-normal flex items-center gap-1.5">
+                  <span>Min-Preis</span>
+                  <HelpTip text="Nur Angebote ab diesem Mindestpreis anzeigen. Leer = keine Untergrenze." />
+                </Label>
                 <Input
                   id="search-min-price"
                   type="number"
@@ -227,7 +232,10 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="search-max-price">Max-Preis</Label>
+                <Label htmlFor="search-max-price" className="font-normal flex items-center gap-1.5">
+                  <span>Max-Preis</span>
+                  <HelpTip text="Nur Angebote bis zu diesem Höchstpreis anzeigen. Leer = keine Obergrenze." />
+                </Label>
                 <Input
                   id="search-max-price"
                   type="number"
@@ -242,7 +250,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
             </div>
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-1.5">
-                <Label htmlFor="search-blacklist">Ausschluss-Keywords</Label>
+                <Label htmlFor="search-blacklist" className="font-normal">Ausschluss-Keywords</Label>
                 <HelpTip text="Angebote mit diesen Begriffen in Titel oder Beschreibung werden nicht geladen." />
               </div>
               <div className="flex gap-2">
@@ -290,7 +298,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
             </h3>
             <div className="space-y-5">
               <div className="flex items-center gap-1.5">
-                <Label>Suchintervall</Label>
+                <Label className="font-normal">Suchintervall</Label>
                 <HelpTip text="Kürzere Intervalle finden Schnäppchen schneller, belasten aber den Server mehr." />
               </div>
               <div className="grid grid-cols-6 gap-1.5">
@@ -319,7 +327,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
             </h3>
             <div className="space-y-5">
               <div className="flex items-center gap-1.5">
-                <Label htmlFor="search-prompt">Prompt-Ergänzung</Label>
+                <Label htmlFor="search-prompt" className="font-normal">Prompt-Ergänzung</Label>
                 <HelpTip text="Zusätzliche Anweisungen für die KI-Bewertung, z.B. 'Bevorzuge unbenutzte Artikel' oder 'Achte besonders auf den Zustand'." />
               </div>
               <Textarea
@@ -336,7 +344,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
                 checked={excludeImages}
                 onCheckedChange={setExcludeImages}
               />
-              <Label htmlFor="search-exclude-images" className="cursor-pointer flex items-center gap-1.5 leading-tight">
+              <Label htmlFor="search-exclude-images" className="cursor-pointer flex items-center gap-1.5 leading-tight font-normal">
                 Anzeigen-Bilder nicht an die KI senden
                 <HelpTip text="Bilder werden weiterhin gespeichert und angezeigt, aber nicht an die KI zur Bewertung übermittelt." />
               </Label>
