@@ -49,7 +49,6 @@ export interface ScrapeRun {
   finished_at: string | null
   ads_found: number
   ads_new: number
-  status: string
 }
 
 export interface ErrorLog {

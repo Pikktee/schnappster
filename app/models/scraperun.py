@@ -22,7 +22,6 @@ class ScrapeRun(SQLModel, table=True):
     finished_at: datetime | None = None
     ads_found: int = 0
     ads_new: int = 0
-    status: str = "running"
 
     adsearch: "AdSearch" = Relationship(back_populates="scrape_runs")
 
@@ -39,4 +38,3 @@ class ScrapeRunRead(SQLModel):
     finished_at: datetime | None
     ads_found: int
     ads_new: int
-    status: str

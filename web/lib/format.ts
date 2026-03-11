@@ -54,19 +54,6 @@ export function getSellerRatingLabel(rating: number | null): { label: string; co
   }
 }
 
-export function getStatusInfo(status: string): { label: string; color: string } {
-  switch (status) {
-    case "completed":
-      return { label: "Abgeschlossen", color: "bg-emerald-100 text-emerald-700 border-emerald-200" }
-    case "running":
-      return { label: "Läuft", color: "bg-blue-100 text-blue-700 border-blue-200" }
-    case "failed":
-      return { label: "Fehlgeschlagen", color: "bg-red-100 text-red-700 border-red-200" }
-    default:
-      return { label: status, color: "bg-muted text-muted-foreground" }
-  }
-}
-
 export function parseImageUrls(imageUrls: string | null): string[] {
   if (!imageUrls) return []
   return imageUrls.split(",").map((url) => url.trim()).filter(Boolean)

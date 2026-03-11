@@ -44,6 +44,5 @@ def main() -> None:
             logger.info(f"Scraping '{adsearch.name}'...")
             scrape_run = scraper.scrape_adsearch(adsearch)
             logger.info(
-                f"Done: {scrape_run.ads_found} found, {scrape_run.ads_new} new, "
-                f"status: {scrape_run.status}"
+                f"Done: {scrape_run.ads_found} found, {scrape_run.ads_new} new"
             )

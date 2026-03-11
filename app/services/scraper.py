@@ -66,11 +66,11 @@ class ScraperService:
         return now >= next_scrape
 
     def scrape_adsearch(self, adsearch: AdSearch) -> ScrapeRun:
-        """Scrape all new ads for one AdSearch; create ScrapeRun, filter, save; return run."""
+        """Scrape all new ads for one AdSearch; create ScrapeRun at end, filter, save; return run."""
         assert adsearch.id is not None, "AdSearch muss eine ID haben, um gescrapt zu werden"
-        scrape_run = ScrapeRun(adsearch_id=adsearch.id, status="running")
-        self.session.add(scrape_run)
-        self.session.commit()
+        started_at = datetime.now(UTC)
+        ads_found_result = 0
+        ads_new_result = 0
 
         try:
             previews = self._collect_previews(adsearch.url)
@@ -84,13 +84,11 @@ class ScraperService:
             filtered = self._filter_ads(details, adsearch)
             ads = self._save_ads(filtered, adsearch.id)
 
-            scrape_run.ads_found = len(previews)
-            scrape_run.ads_new = len(ads)
-            scrape_run.status = "completed"
+            ads_found_result = len(previews)
+            ads_new_result = len(ads)
 
         except Exception as e:
             logger.error(f"Scrape failed for '{adsearch.name}': {e}")
-            scrape_run.status = "failed"
             self._log_error(
                 adsearch.id,
                 "ScrapeError",
@@ -100,8 +98,16 @@ class ScraperService:
             raise
 
         finally:
-            scrape_run.finished_at = datetime.now(UTC)
-            adsearch.last_scraped_at = datetime.now(UTC)
+            finished_at = datetime.now(UTC)
+            scrape_run = ScrapeRun(
+                adsearch_id=adsearch.id,
+                started_at=started_at,
+                finished_at=finished_at,
+                ads_found=ads_found_result,
+                ads_new=ads_new_result,
+            )
+            self.session.add(scrape_run)
+            adsearch.last_scraped_at = finished_at
             self.session.commit()
 
         return scrape_run
