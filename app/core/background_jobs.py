@@ -19,7 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 class BackgroundJobs:
-    """Scheduler for scrape and analyzer jobs; single-worker queues to avoid overlap."""
+    """Scheduler for scrape and analyzer jobs
+
+    Note: Single-worker queues to avoid overlap.
+    """
 
     _EXECUTORS = {
         "default": {"type": "threadpool", "max_workers": 1},  # Fallback
