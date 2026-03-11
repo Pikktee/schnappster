@@ -60,6 +60,18 @@ export interface ErrorLog {
   created_at: string
 }
 
+export interface AIAnalysisLog {
+  id: number
+  ad_id: number
+  adsearch_id: number
+  created_at: string
+  prompt_text: string
+  ad_title: string
+  score: number
+  ai_summary: string | null
+  ai_reasoning: string | null
+}
+
 export interface PaginatedAds {
   items: Ad[]
   total: number

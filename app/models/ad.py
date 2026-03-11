@@ -8,6 +8,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:  # Avoid linter error
     from app.models.adsearch import AdSearch
+    from app.models.aianalysislog import AIAnalysisLog
 
 
 # ----------------------
@@ -44,6 +45,7 @@ class Ad(SQLModel, table=True):
     first_seen_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     adsearch: "AdSearch" = Relationship(back_populates="ads")
+    ai_analysis_logs: list["AIAnalysisLog"] = Relationship(back_populates="ad")
 
 
 # -------------------

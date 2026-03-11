@@ -34,6 +34,7 @@ if TYPE_CHECKING:  # Avoid linter error
     from app.models.ad import Ad
     from app.models.errorlog import ErrorLog
     from app.models.scraperun import ScrapeRun
+    from app.models.aianalysislog import AIAnalysisLog
 
 
 # ----------------------
@@ -60,6 +61,7 @@ class AdSearch(SQLModel, table=True):
     ads: list["Ad"] = Relationship(back_populates="adsearch")
     scrape_runs: list["ScrapeRun"] = Relationship(back_populates="adsearch")
     error_logs: list["ErrorLog"] = Relationship(back_populates="adsearch")
+    ai_analysis_logs: list["AIAnalysisLog"] = Relationship(back_populates="adsearch")
 
 
 # -------------------

@@ -1,4 +1,4 @@
-import type { Ad, AdSearch, AppSetting, ErrorLog, PaginatedAds, ScrapeRun } from "./types"
+import type { Ad, AdSearch, AppSetting, ErrorLog, AIAnalysisLog, PaginatedAds, ScrapeRun } from "./types"
 
 // Use relative URL by default so the static export can be served
 // from the same origin as the FastAPI backend.
@@ -86,6 +86,15 @@ export const fetchErrorLogs = (params?: { adsearch_id?: number; limit?: number }
   if (params?.limit) searchParams.set("limit", String(params.limit))
   const qs = searchParams.toString()
   return apiFetch<ErrorLog[]>(`/api/errorlogs/${qs ? `?${qs}` : ""}`)
+}
+
+// AIAnalysisLogs
+export const fetchAIAnalysisLogs = (params?: { adsearch_id?: number; limit?: number }) => {
+  const searchParams = new URLSearchParams()
+  if (params?.adsearch_id) searchParams.set("adsearch_id", String(params.adsearch_id))
+  if (params?.limit) searchParams.set("limit", String(params.limit))
+  const qs = searchParams.toString()
+  return apiFetch<AIAnalysisLog[]>(`/api/aianalysislogs/${qs ? `?${qs}` : ""}`)
 }
 
 // Settings

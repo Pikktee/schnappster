@@ -15,7 +15,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { fetchVersion } from "@/lib/api"
+import { Badge } from "@/components/ui/badge"
+import { fetchVersion, fetchErrorLogs } from "@/lib/api"
 
 const navItems = [
   { label: "Start", href: "/", icon: Home },
@@ -28,11 +29,18 @@ const navItems = [
 export function AppSidebar() {
   const pathname = usePathname()
   const [versionLabel, setVersionLabel] = useState<string>("v…")
+  const [errorCount, setErrorCount] = useState<number>(0)
 
   useEffect(() => {
     fetchVersion()
       .then(({ version: v }) => setVersionLabel(`v${v}`))
       .catch(() => setVersionLabel("—"))
+  }, [])
+
+  useEffect(() => {
+    fetchErrorLogs({ limit: 100 })
+      .then((logs) => setErrorCount(logs.length))
+      .catch(() => setErrorCount(0))
   }, [])
 
   function isActive(href: string) {
@@ -68,9 +76,14 @@ export function AppSidebar() {
                     tooltip={item.label}
                     className="cursor-pointer"
                   >
-                    <Link href={item.href}>
-                      <item.icon className="size-4" />
-                      <span>{item.label}</span>
+                    <Link href={item.href} className="flex w-full items-center gap-2">
+                      <item.icon className="size-4 shrink-0" />
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                      {item.href === "/logs/" && errorCount > 0 && (
+                        <Badge variant="destructive" className="ml-auto size-5 shrink-0 p-0 justify-center text-[10px]">
+                          {errorCount > 99 ? "99+" : errorCount}
+                        </Badge>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

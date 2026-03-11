@@ -12,6 +12,7 @@ from sqlmodel import Session, select
 from app.core import config as app_config
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch
+from app.models.aianalysislog import AIAnalysisLog
 from app.models.errorlog import ErrorLog
 from app.prompts import ADANALYZER_PROMPT
 from app.scraper.httpclient import fetch_binary
@@ -57,8 +58,9 @@ class AIService:
         """Process ads one by one; on error log and continue; return count successfully analyzed."""
         analyzed = 0
         for ad in ads:
+            prompt_text_for_error = self._build_prompt_text_for_log(ad)
             try:
-                self._analyze_ad(ad)
+                self._analyze_ad(ad, prompt_text_for_error)
                 analyzed += 1
 
             except BadRequestError as e:
@@ -75,8 +77,10 @@ class AIService:
                     ad.title[:50] + "..." if len(ad.title) > 50 else ad.title,
                     error_msg[:200] + "..." if len(error_msg) > 200 else error_msg,
                 )
-                try:
-                    self._log_analysis_error(ad, "API error", error_msg)
+                try:  # noqa: SIM105
+                    self._log_analysis_error(
+                        ad, "API error", error_msg, prompt_text=prompt_text_for_error
+                    )
                 except Exception:
                     pass  # best-effort error logging
                 # continue with next ad
@@ -90,16 +94,29 @@ class AIService:
                     ad.title[:50] + "..." if len(ad.title) > 50 else ad.title,
                     err_str[:200] + "..." if len(err_str) > 200 else err_str,
                 )
-                try:
-                    self._log_analysis_error(ad, "Analysis failed", err_str)
+                try:  # noqa: SIM105
+                    self._log_analysis_error(
+                        ad, "Analysis failed", err_str, prompt_text=prompt_text_for_error
+                    )
                 except Exception:
                     pass  # best-effort error logging
                 # continue with next ad
 
         return analyzed
 
-    def _log_analysis_error(self, ad: Ad, error_type: str, message: str) -> None:
+    def _build_prompt_text_for_log(self, ad: Ad) -> str:
+        """Build full prompt text (no images) for logging to ErrorLog"""
+        adsearch = self.session.get(AdSearch, ad.adsearch_id)
+        ad_text = self._build_ad_text(ad, adsearch)
+        return ADANALYZER_PROMPT + "\n\n---\n\n" + ad_text
+
+    def _log_analysis_error(
+        self, ad: Ad, error_type: str, message: str, prompt_text: str | None = None
+    ) -> None:
         """Persist analysis error to ErrorLog so it appears in the frontend log."""
+        details = message
+        if prompt_text:
+            details += "\n\n--- Prompt ---\n" + prompt_text
         self.session.add(
             ErrorLog(
                 adsearch_id=ad.adsearch_id,
@@ -107,12 +124,12 @@ class AIService:
                 message=(
                     f"Ad {ad.id} ({ad.title[:60]}{'…' if len(ad.title) > 60 else ''}): {error_type}"
                 ),
-                details=message,
+                details=details,
             )
         )
         self.session.commit()
 
-    def _analyze_ad(self, ad: Ad) -> None:
+    def _analyze_ad(self, ad: Ad, prompt_text_for_log: str) -> None:
         """Run AI analysis on one ad; update score/summary/reasoning; Telegram if score >= 8."""
         adsearch = self.session.get(AdSearch, ad.adsearch_id)
         ad_text = self._build_ad_text(ad, adsearch)
@@ -135,6 +152,20 @@ class AIService:
         ad.ai_reasoning = result["reasoning"]
         ad.is_analyzed = True
         self.session.commit()
+
+        if ad.id is not None and ad.adsearch_id is not None:
+            self.session.add(
+                AIAnalysisLog(
+                    ad_id=ad.id,
+                    adsearch_id=ad.adsearch_id,
+                    prompt_text=prompt_text_for_log,
+                    ad_title=ad.title,
+                    score=result["score"],
+                    ai_summary=result["summary"],
+                    ai_reasoning=result["reasoning"],
+                )
+            )
+            self.session.commit()
 
         logger.info(f"Analyzed ad {ad.id} '{ad.title}': score={result['score']}")
 
