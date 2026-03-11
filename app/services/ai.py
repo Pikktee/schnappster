@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 from app.core import config as app_config
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch
+from app.models.errorlog import ErrorLog
 from app.prompts import ADANALYZER_PROMPT
 from app.scraper.httpclient import fetch_binary
 from app.services.settings import SettingsService
@@ -73,14 +74,48 @@ class AIService:
                     if isinstance(e.body, dict)
                     else str(e)
                 )
-                logger.error(f"API error for ad {ad.id} '{ad.title}': {error_msg}")
+                # Kurze, einzeilige Meldung für Konsole (vermeidet Rich-Rendering-Probleme)
+                logger.error(
+                    "API error for ad %s '%s': %s",
+                    ad.id,
+                    ad.title[:50] + "..." if len(ad.title) > 50 else ad.title,
+                    error_msg[:200] + "..." if len(error_msg) > 200 else error_msg,
+                )
+                self._log_analysis_error(
+                    ad,
+                    "API error",
+                    error_msg,
+                )
                 # continue with next ad
 
             except Exception as e:
-                logger.error(f"Failed to analyze ad {ad.id} '{ad.title}': {e}")
+                err_str = str(e)
+                logger.error(
+                    "Failed to analyze ad %s '%s': %s",
+                    ad.id,
+                    ad.title[:50] + "..." if len(ad.title) > 50 else ad.title,
+                    err_str[:200] + "..." if len(err_str) > 200 else err_str,
+                )
+                self._log_analysis_error(
+                    ad,
+                    "Analysis failed",
+                    err_str,
+                )
                 # continue with next ad
 
         return analyzed
+
+    def _log_analysis_error(self, ad: Ad, error_type: str, message: str) -> None:
+        """Fehler in ErrorLog persistieren, damit er im Frontend (Log) erscheint."""
+        self.session.add(
+            ErrorLog(
+                adsearch_id=ad.adsearch_id,
+                error_type="AIAnalysisError",
+                message=f"Ad {ad.id} ({ad.title[:60]}{'…' if len(ad.title) > 60 else ''}): {error_type}",
+                details=message,
+            )
+        )
+        self.session.commit()
 
     def _analyze_ad(self, ad: Ad) -> None:
         """
