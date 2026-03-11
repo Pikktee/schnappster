@@ -125,23 +125,23 @@ def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
 
 @router.delete("/{adsearch_id}", status_code=204)
 def delete_adsearch(adsearch_id: int, session: DbSession):
-    """Delete ad search; ads and error logs keep data (adsearch_id NULL), scrape runs removed."""
+    """Delete ad search together with its ads, scrape runs, and error logs."""
     adsearch = session.get(AdSearch, adsearch_id)
 
     if not adsearch:
         raise HTTPException(status_code=404, detail="AdSearch not found")
 
-    # Delete related scrape runs (they require an adsearch_id)
+    # Delete related scrape runs
     for run in session.exec(select(ScrapeRun).where(ScrapeRun.adsearch_id == adsearch_id)).all():
         session.delete(run)
 
-    # Set adsearch_id to NULL for related ads (they can exist independently)
+    # Delete related ads
     for ad in session.exec(select(Ad).where(Ad.adsearch_id == adsearch_id)).all():
-        ad.adsearch_id = None
+        session.delete(ad)
 
-    # Set adsearch_id to NULL for related error logs (they can exist independently)
+    # Delete related error logs
     for log in session.exec(select(ErrorLog).where(ErrorLog.adsearch_id == adsearch_id)).all():
-        log.adsearch_id = None
+        session.delete(log)
 
     session.delete(adsearch)
     session.commit()

@@ -123,9 +123,8 @@ def test_delete_adsearch(client, sample_adsearch):
     assert response.status_code == 404
 
 
-def test_delete_adsearch_keeps_ads(client, sample_ads):
-    """Deleting an adsearch sets adsearch_id to NULL on related ads; ads are not deleted."""
-    # Get the adsearch_id from sample_ads
+def test_delete_adsearch_deletes_ads(client, sample_ads):
+    """Deleting an adsearch also deletes all related ads."""
     adsearch_id = sample_ads[0].adsearch_id
     ad_id = sample_ads[0].id
 
@@ -136,10 +135,9 @@ def test_delete_adsearch_keeps_ads(client, sample_ads):
     response = client.get(f"/api/adsearches/{adsearch_id}")
     assert response.status_code == 404
 
-    # Verify ads are NOT deleted (adsearch_id should be None now)
+    # Verify ads are also deleted
     response = client.get(f"/api/ads/{ad_id}")
-    assert response.status_code == 200
-    assert response.json()["adsearch_id"] is None
+    assert response.status_code == 404
 
 
 # --- Ad endpoints ---
