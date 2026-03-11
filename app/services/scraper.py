@@ -66,7 +66,7 @@ class ScraperService:
         return now >= next_scrape
 
     def scrape_adsearch(self, adsearch: AdSearch) -> ScrapeRun:
-        """Scrape all new ads for one AdSearch; create ScrapeRun at end, filter, save; return run."""
+        """Scrape all new ads for one AdSearch; return run."""
         assert adsearch.id is not None, "AdSearch muss eine ID haben, um gescrapt zu werden"
         started_at = datetime.now(UTC)
         ads_found_result = 0
