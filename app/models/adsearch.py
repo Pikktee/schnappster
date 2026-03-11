@@ -103,10 +103,9 @@ class AdSearchRead(SQLModel):
 
 
 class AdSearchUpdate(SQLModel):
-    """API input schema for partial updates to an ad search."""
+    """API input schema for partial updates to an ad search. URL cannot be changed after create."""
 
     name: str | None = None
-    url: str | None = None
     prompt_addition: str | None = None
     min_price: float | None = None
     max_price: float | None = None
@@ -115,10 +114,3 @@ class AdSearchUpdate(SQLModel):
     is_active: bool | None = None
     scrape_interval_minutes: int | None = None
 
-    @field_validator("url")
-    @classmethod
-    def validate_url(cls, v: str | None) -> str | None:
-        """Validate URL when provided."""
-        if v is not None:
-            _validate_search_url(v)
-        return v

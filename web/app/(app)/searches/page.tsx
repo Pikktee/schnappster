@@ -17,16 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { PageHeader } from "@/components/page-header"
 import { SearchCard } from "@/components/search-card"
 import { SearchForm } from "@/components/search-form"
@@ -45,7 +35,6 @@ export default function SearchesPage() {
   const [isCreating, setIsCreating] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [formDirty, setFormDirty] = useState(false)
-  const [confirmClose, setConfirmClose] = useState(false)
 
   async function loadSearches() {
     setLoading(true)
@@ -171,24 +160,16 @@ export default function SearchesPage() {
       )}
 
       <Dialog open={isCreateOpen} onOpenChange={(open) => {
-        if (!open && formDirty) {
-          setConfirmClose(true)
-          return
-        }
         setIsCreateOpen(open)
         if (!open) setFormDirty(false)
       }}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-xl" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Neue Suche erstellen</DialogTitle>
           </DialogHeader>
           <SearchForm
             onSubmit={handleCreate}
             onCancel={() => {
-              if (formDirty) {
-                setConfirmClose(true)
-                return
-              }
               setIsCreateOpen(false)
               setFormDirty(false)
             }}
@@ -197,29 +178,6 @@ export default function SearchesPage() {
           />
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Ungespeicherte Änderungen</AlertDialogTitle>
-            <AlertDialogDescription>
-              Du hast ungespeicherte Änderungen. Wirklich schließen?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="cursor-pointer">Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              className="cursor-pointer"
-              onClick={() => {
-                setIsCreateOpen(false)
-                setFormDirty(false)
-              }}
-            >
-              Schließen
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </ContentReveal>
   )
 }

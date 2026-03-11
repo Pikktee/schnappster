@@ -76,7 +76,7 @@ def create_adsearch(
 
 @router.patch("/{adsearch_id}", response_model=AdSearchRead)
 def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
-    """Update an existing ad search; URL changes are validated; raise 404 if not found."""
+    """Update an existing ad search. URL cannot be changed after create; raise 404 if not found."""
     adsearch = session.get(AdSearch, adsearch_id)
 
     if not adsearch:
@@ -84,19 +84,13 @@ def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
 
     update_data = data.model_dump(exclude_unset=True)
 
-    # Validate URL (if changed) and, when requested, update name from page title.
+    # If client cleared the name, fetch current URL and use its title as new name.
     title_from_page: str | None = None
-
-    if "url" in update_data:
-        # URL is being changed: validate reachability and reuse parsed title if needed.
-        title_from_page = _validate_search_url_reachable(update_data["url"])
-    elif (
+    if (
         "name" in update_data
         and isinstance(update_data["name"], str)
         and not update_data["name"].strip()
     ):
-        # URL stays the same, but client cleared the name field:
-        # fetch current URL and use its title as new name.
         title_from_page = _validate_search_url_reachable(adsearch.url)
 
     if (

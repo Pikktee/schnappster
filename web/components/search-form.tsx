@@ -73,7 +73,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const isDirty = name !== (initial?.name || "") ||
-    url !== (initial?.url || "") ||
+    (!initial?.id && url !== (initial?.url || "")) ||
     interval !== (initial?.scrape_interval_minutes || 60) ||
     minPrice !== (initial?.min_price?.toString() || "") ||
     maxPrice !== (initial?.max_price?.toString() || "") ||
@@ -140,16 +140,17 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
     e.preventDefault()
     if (!validate()) return
     try {
-      await onSubmit({
+      const payload: Partial<AdSearch> = {
         name: name.trim() || undefined,
-        url,
         scrape_interval_minutes: interval,
         min_price: minPrice ? Number(minPrice) : null,
         max_price: maxPrice ? Number(maxPrice) : null,
         blacklist_keywords: keywords.length > 0 ? keywords.join(", ") : null,
         prompt_addition: promptAddition || null,
         is_exclude_images: excludeImages,
-      })
+      }
+      if (!initial?.id) payload.url = url
+      await onSubmit(payload)
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Fehler beim Speichern."
       setErrors((prev) => ({ ...prev, url: msg }))
@@ -170,7 +171,10 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
           placeholder="https://www.kleinanzeigen.de/s-..."
           type="url"
           aria-invalid={!!errors.url}
-          autoFocus
+          autoFocus={!initial?.id}
+          disabled={!!initial?.id}
+          title={initial?.id ? "Die URL kann nach dem Anlegen nicht mehr geändert werden." : undefined}
+          aria-readonly={!!initial?.id}
         />
         {errors.url && <p className="text-xs text-destructive">{errors.url}</p>}
       </div>

@@ -81,7 +81,6 @@ export function SearchDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isToggling, setIsToggling] = useState(false)
   const [formDirty, setFormDirty] = useState(false)
-  const [confirmClose, setConfirmClose] = useState(false)
 
   useEffect(() => {
     if (Number.isNaN(id)) return
@@ -421,14 +420,10 @@ export function SearchDetailPage() {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={(open) => {
-        if (!open && formDirty) {
-          setConfirmClose(true)
-          return
-        }
         setIsEditOpen(open)
         if (!open) setFormDirty(false)
       }}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-xl" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Suche bearbeiten</DialogTitle>
           </DialogHeader>
@@ -436,10 +431,6 @@ export function SearchDetailPage() {
             initial={search}
             onSubmit={handleUpdate}
             onCancel={() => {
-              if (formDirty) {
-                setConfirmClose(true)
-                return
-              }
               setIsEditOpen(false)
               setFormDirty(false)
             }}
@@ -447,29 +438,6 @@ export function SearchDetailPage() {
           />
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Ungespeicherte Änderungen</AlertDialogTitle>
-            <AlertDialogDescription>
-              Du hast ungespeicherte Änderungen. Wirklich schließen?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="cursor-pointer">Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              className="cursor-pointer"
-              onClick={() => {
-                setIsEditOpen(false)
-                setFormDirty(false)
-              }}
-            >
-              Schließen
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </ContentReveal>
   )
 }
