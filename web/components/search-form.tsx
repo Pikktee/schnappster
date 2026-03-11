@@ -290,7 +290,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
             </h3>
             <div className="space-y-5">
               <div className="flex items-center gap-1.5">
-                <Label htmlFor="search-interval">Suchintervall</Label>
+                <Label>Suchintervall</Label>
                 <HelpTip text="Kürzere Intervalle finden Schnäppchen schneller, belasten aber den Server mehr." />
               </div>
               <div className="grid grid-cols-6 gap-1.5">
@@ -307,18 +307,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
                   </Button>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="search-interval"
-                  type="number"
-                  value={interval}
-                  onChange={(e) => setInterval(Number(e.target.value))}
-                  min={5}
-                  max={1440}
-                  className="w-24"
-                />
-                <span className="text-sm text-muted-foreground">Minuten</span>
-              </div>
+              {/* Intervall nur über Buttons wählbar – kein sichtbares Texteingabefeld */}
             </div>
           </div>
 
