@@ -1,3 +1,5 @@
+"""Background job scheduler for periodic scraping and AI analysis."""
+
 import logging
 import traceback
 from datetime import datetime
@@ -17,9 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class BackgroundJobs:
-    """
-    Background job scheduler for scraping and AI analysis.
-    """
+    """Scheduler for scrape and analyzer jobs; single-worker queues to avoid overlap."""
 
     _EXECUTORS = {
         "default": {"type": "threadpool", "max_workers": 1},  # Fallback
@@ -28,12 +28,11 @@ class BackgroundJobs:
     }
 
     def __init__(self) -> None:
+        """Create the scheduler with threadpool executors for scraper and analyzer."""
         self._scheduler = BackgroundScheduler(executors=self._EXECUTORS)
 
     def start(self) -> None:
-        """
-        Start the scheduler and register jobs.
-        """
+        """Start the scheduler and register periodic and one-off jobs."""
 
         # Periodic scrape job
         self._scheduler.add_job(
@@ -69,20 +68,13 @@ class BackgroundJobs:
         )
 
     def stop(self) -> None:
-        """
-        Shut down the scheduler. Does not wait for running jobs; no new jobs
-        will be started. Running jobs may still complete in the background
-        until the process exits.
-        """
+        """Shut down the scheduler; no new jobs, running jobs may finish in background."""
         if self._scheduler.running:
             self._scheduler.shutdown(wait=False)
             logger.info("Scheduler stopped")
 
     def trigger_scrape_once(self) -> None:
-        """
-        Einmaligen Lauf von scrape_due_searches anstoßen
-        (z. B. nach Anlegen eines Suchauftrags).
-        """
+        """Queue a one-off scrape run (e.g. after creating a new ad search)."""
         self._scheduler.add_job(
             self._run_scrape_ads,
             "date",
@@ -94,9 +86,7 @@ class BackgroundJobs:
         logger.debug("Queued one-off scrape run")
 
     def _run_scrape_ads(self) -> None:
-        """
-        JOB: Check all active AdSearches and scrape those that are due.
-        """
+        """Job: run scrape_due_searches; queue analyzer if new ads found."""
         with Session(db_engine) as session:
             total_new = ScraperService(session).scrape_due_searches()
 
@@ -111,10 +101,7 @@ class BackgroundJobs:
             logger.info(f"Queued AI analysis after scraping {total_new} new ad(s)")
 
     def _run_analyze_ads(self) -> None:
-        """
-        JOB: Analyze unprocessed ads with AI.
-        Re-queues another run if backlog remains and progress was made.
-        """
+        """Job: analyze unprocessed ads; re-queue if backlog remains and progress made."""
         with Session(db_engine) as session:
             run_ok = False
             analyzed = 0
@@ -162,4 +149,5 @@ _jobs = BackgroundJobs()
 
 
 def get_background_jobs() -> BackgroundJobs:
+    """Return the shared BackgroundJobs instance (module-level singleton)."""
     return _jobs

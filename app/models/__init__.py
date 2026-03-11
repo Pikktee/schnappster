@@ -1,3 +1,5 @@
+"""Re-export of API models (Ad, AdSearch, ErrorLog, ScrapeRun, AppSettings)."""
+
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch
 from app.models.errorlog import ErrorLog

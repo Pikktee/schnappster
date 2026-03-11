@@ -1,19 +1,17 @@
+"""Application configuration and project root path."""
+
 from pathlib import Path
 
 from pydantic_settings import BaseSettings
 
 
 def get_app_root() -> Path:
-    """
-    Return the project root directory.
-    """
+    """Return the project root directory."""
     return Path(__file__).resolve().parent.parent.parent
 
 
 class Config(BaseSettings):
-    """
-    Application configuration (env / .env).
-    """
+    """Application configuration loaded from environment and .env."""
 
     database_url: str = f"sqlite:///{get_app_root() / 'data' / 'schnappster.db'}"
     openai_api_key: str = ""

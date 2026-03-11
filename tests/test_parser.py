@@ -11,7 +11,7 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 def test_parse_ad_detail():
-    """Test parsing a full ad detail page."""
+    """Parse full ad detail page fixture and assert all fields."""
     html = (FIXTURES_DIR / "ad.html").read_text()
     ad = parse_ad_detail(
         html,
@@ -38,13 +38,13 @@ def test_parse_ad_detail():
 
 
 def test_parse_ad_detail_returns_none_for_empty_html():
-    """Test that parser returns None for empty HTML."""
+    """parse_ad_detail returns None for empty HTML."""
     ad = parse_ad_detail("", url="https://example.com", external_id="123")
     assert ad is None
 
 
 def test_parse_ad_detail_returns_none_for_missing_title():
-    """Test that parser returns None when title is missing."""
+    """parse_ad_detail returns None when title element is missing."""
     html = "<html><body><div>No title here</div></body></html>"
     ad = parse_ad_detail(html, url="https://example.com", external_id="123")
     assert ad is None

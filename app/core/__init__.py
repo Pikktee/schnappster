@@ -1,3 +1,5 @@
+"""Core utilities: DB, config, logging, background jobs, bootstrap."""
+
 from app.core.background_jobs import BackgroundJobs, get_background_jobs
 from app.core.config import config, get_app_root
 from app.core.db import DbSession, db_engine, init_db

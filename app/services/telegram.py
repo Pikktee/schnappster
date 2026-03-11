@@ -1,3 +1,5 @@
+"""Send Telegram notifications for high-scoring bargains."""
+
 import logging
 
 import httpx
@@ -8,26 +10,21 @@ logger = logging.getLogger(__name__)
 
 
 class TelegramService:
+    """Send messages to a Telegram chat via Bot API."""
+
     def __init__(self, bot_token: str, chat_id: str):
-        """
-        Initializes the Telegram service.
-        """
+        """Store bot token and chat ID; build sendMessage API URL."""
         self.bot_token = bot_token.strip() if bot_token else ""
         self.chat_id = chat_id.strip() if chat_id else ""
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
 
     @property
     def is_configured(self) -> bool:
-        """
-        Checks if the service is configured.
-        """
-
+        """Return True if bot token and chat id are non-empty."""
         return bool(self.bot_token and self.chat_id)
 
     def _format_message(self, ad: Ad) -> str:
-        """
-        Formats the message for Telegram.
-        """
+        """Format ad as Markdown for Telegram (title, url, price, score, summary, reasoning)."""
         price_str = f"{ad.price:.0f} €" if ad.price is not None else "VB"
         score_str = f"{ad.bargain_score:.1f}" if ad.bargain_score is not None else "–"
 
@@ -44,9 +41,7 @@ class TelegramService:
         )
 
     def send_bargain_notification(self, ad: Ad) -> None:
-        """
-        Sends notification to Telegram.
-        """
+        """Send formatted ad message to configured Telegram chat; no-op if not configured."""
         if not self.is_configured:
             logger.debug("Telegram is not configured, skipping notification")
             return

@@ -1,3 +1,5 @@
+"""API route modules; api_router includes all API routers under /api."""
+
 from fastapi import APIRouter
 
 from app.routes.api.ads import router as ads_router

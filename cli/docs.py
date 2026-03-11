@@ -21,7 +21,7 @@ STATIC_PREFIX = "_static"
 
 
 def _nav_html(active: str | None) -> str:
-    """Navigation: Start, Code-Referenz (Backend), Frontend, Architektur."""
+    """Build navigation HTML for doc pages (Start, Backend, Frontend, Architektur)."""
     items = [
         ("index.html", "Start", None),
         ("app.html", "Backend (Referenz)", "code"),
@@ -52,7 +52,7 @@ def _doc_page(
     active: str | None = None,
     back_link: bool = False,
 ) -> str:
-    """Vollständige HTML-Seite mit einheitlichem Layout und doc.css."""
+    """Build full HTML page with shared layout and doc.css."""
     back = ''
     if back_link:
         back = '<a href="index.html" class="doc-back">← Zur Übersicht</a>'
@@ -65,7 +65,8 @@ def _doc_page(
   <link rel="stylesheet" href="{STATIC_PREFIX}/doc.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
 </head>
 <body>
   {_nav_html(active)}
@@ -84,7 +85,7 @@ def _markdown_to_html(
     code_to_img_pattern: str = r"<code>([a-zA-Z0-9_.-]+\.(?:png|svg))</code>",
     img_prefix_replace: str = r'<figure><img src="\1" alt="\1" style="max-width:100%;"/></figure>',
 ) -> str:
-    """Markdown-Text zu HTML; optionale Bild-Prefix-Ersetzung und code→img."""
+    """Convert Markdown to HTML; optional image prefix and code-to-img replacement."""
     try:
         import markdown
     except ImportError:
@@ -103,7 +104,7 @@ def _markdown_to_html(
 
 
 def _inject_pdoc_back_link(html_path: Path, build_dir: Path) -> None:
-    """In eine pdoc-generierte HTML-Datei Back-Link und doc.css einfügen."""
+    """Inject back-link and doc.css into a pdoc-generated HTML file."""
     try:
         text = html_path.read_text(encoding="utf-8")
     except OSError:
@@ -127,6 +128,7 @@ def _inject_pdoc_back_link(html_path: Path, build_dir: Path) -> None:
 
 
 def main() -> None:
+    """Build docs (pdoc, architecture, frontend) into docs/build; optionally open in browser."""
     setup_logging()
     args = set(sys.argv[1:])
     open_browser = "--open" in args or "-O" in args
@@ -180,7 +182,10 @@ def main() -> None:
             html_body = _markdown_to_html(
                 raw,
                 image_prefix="architecture/",
-                img_prefix_replace=r'<figure><img src="architecture/\1" alt="\1" style="max-width:100%;"/></figure>',
+                img_prefix_replace=(
+                    r'<figure><img src="architecture/\1" alt="\1" style="max-width:100%;"/>'
+                    r'</figure>'
+                ),
             )
             page = _doc_page(
                 "Architektur",
@@ -226,7 +231,7 @@ def main() -> None:
         )
     body = (
         "<h1>Dokumentation</h1>"
-        '<p class="doc-intro">Übersicht über Backend-Code, Frontend über Architektur von Schnappster.</p>'
+        '<p class="doc-intro">Übersicht über Backend-Code, Frontend und Architektur.</p>'
         '<div class="doc-cards">' + "".join(cards) + "</div>"
     )
     index_html = _doc_page("Dokumentation", body, active=None)

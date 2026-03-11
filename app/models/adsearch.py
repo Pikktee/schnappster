@@ -1,3 +1,5 @@
+"""Ad search (Suchauftrag) model, validation, and API schemas."""
+
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -9,7 +11,7 @@ _DETAIL_PREFIX = "https://www.kleinanzeigen.de/s-anzeige/"
 
 
 def _validate_search_url(url: str) -> str:
-    """Validate that a URL is a Kleinanzeigen.de search results page."""
+    """Ensure URL is a Kleinanzeigen.de search results page (not detail page or bare prefix)."""
     if not url.startswith(_SEARCH_PREFIX):
         raise ValueError(
             "Nur Kleinanzeigen.de-Suchergebnislisten sind erlaubt "
@@ -38,7 +40,7 @@ if TYPE_CHECKING:  # Avoid linter error
 # --- Database Table ---
 # ----------------------
 class AdSearch(SQLModel, table=True):
-    """Database table."""
+    """Ad search (Suchauftrag) database table."""
 
     __tablename__ = "ad_searches"  # type: ignore
 
@@ -64,7 +66,7 @@ class AdSearch(SQLModel, table=True):
 # --- API Schemas ---
 # -------------------
 class AdSearchCreate(SQLModel):
-    """API input schema for creating."""
+    """API input schema for creating an ad search."""
 
     name: str = ""
     url: str
@@ -79,11 +81,12 @@ class AdSearchCreate(SQLModel):
     @field_validator("url")
     @classmethod
     def validate_url(cls, v: str) -> str:
+        """Validate URL is a search results page."""
         return _validate_search_url(v)
 
 
 class AdSearchRead(SQLModel):
-    """API output schema."""
+    """API output schema for an ad search."""
 
     id: int
     name: str
@@ -100,7 +103,7 @@ class AdSearchRead(SQLModel):
 
 
 class AdSearchUpdate(SQLModel):
-    """API input schema for partial updates."""
+    """API input schema for partial updates to an ad search."""
 
     name: str | None = None
     url: str | None = None
@@ -115,6 +118,7 @@ class AdSearchUpdate(SQLModel):
     @field_validator("url")
     @classmethod
     def validate_url(cls, v: str | None) -> str | None:
+        """Validate URL when provided."""
         if v is not None:
             _validate_search_url(v)
         return v

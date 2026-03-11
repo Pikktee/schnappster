@@ -1,3 +1,5 @@
+"""API and frontend routers; mount_frontend for static app."""
+
 from app.routes.api import api_router
 from app.routes.frontend import mount_frontend
 from app.routes.frontend import router as frontend_router

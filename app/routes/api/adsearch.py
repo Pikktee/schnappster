@@ -1,3 +1,5 @@
+"""Ad search (Suchauftrag) API routes."""
+
 import logging
 import threading
 import traceback
@@ -25,19 +27,13 @@ router = APIRouter(prefix="/adsearches", tags=["AdSearches"])
 # --------------
 @router.get("/", response_model=list[AdSearchRead])
 def list_adsearches(session: DbSession):
-    """
-    Returns all ad searches (Suchaufträge).
-    """
+    """Return all ad searches (Suchaufträge)."""
     return session.exec(select(AdSearch)).all()
 
 
 @router.get("/{adsearch_id}", response_model=AdSearchRead)
 def get_adsearch(adsearch_id: int, session: DbSession):
-    """
-    Returns a specific ad search (Suchauftrag).
-
-    If the given ID does not exist, an error 404 is thrown.
-    """
+    """Return a specific ad search by ID; raise 404 if not found."""
     adsearch = session.get(AdSearch, adsearch_id)
 
     if not adsearch:
@@ -52,12 +48,7 @@ def create_adsearch(
     session: DbSession,
     background_jobs: BackgroundJobs = Depends(get_background_jobs),  # noqa: B008
 ):
-    """
-    Create a new ad search (Suchauftrag).
-
-    The URL is always checked by fetching the page.
-    If `name` is empty, the page title is used as name.
-    """
+    """Create a new ad search; URL is validated by fetch, name from page title if empty."""
     name = data.name.strip()
     title_from_page = _validate_search_url_reachable(data.url)
 
@@ -85,12 +76,7 @@ def create_adsearch(
 
 @router.patch("/{adsearch_id}", response_model=AdSearchRead)
 def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
-    """
-    Update an existing ad search (Suchauftrag).
-
-    If the URL is being updated, it is validated by fetching the page (reachability, no 404).
-    If the given ID does not exist, an error 404 is thrown.
-    """
+    """Update an existing ad search; URL changes are validated; raise 404 if not found."""
     adsearch = session.get(AdSearch, adsearch_id)
 
     if not adsearch:
@@ -139,12 +125,7 @@ def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
 
 @router.delete("/{adsearch_id}", status_code=204)
 def delete_adsearch(adsearch_id: int, session: DbSession):
-    """
-    Delete an ad search (Suchauftrag).
-
-    Related ads and error logs keep their data (adsearch_id is set to NULL),
-    related scrape runs are deleted.
-    """
+    """Delete ad search; ads and error logs keep data (adsearch_id NULL), scrape runs removed."""
     adsearch = session.get(AdSearch, adsearch_id)
 
     if not adsearch:
@@ -168,15 +149,14 @@ def delete_adsearch(adsearch_id: int, session: DbSession):
 
 @router.post("/{adsearch_id}/scrape", status_code=202)
 def trigger_scrape(adsearch_id: int, session: DbSession):
-    """
-    Trigger an immediate scrape for a specific AdSearch.
-    """
+    """Trigger an immediate scrape for the given AdSearch (async in background)."""
     adsearch = session.get(AdSearch, adsearch_id)
 
     if not adsearch:
         raise HTTPException(status_code=404, detail="AdSearch not found")
 
     def _run_scrape() -> None:
+        """Run scrape in a background thread; log errors to ErrorLog on failure."""
         with Session(db_engine) as bg_session:
             try:
                 scraper = ScraperService(bg_session)
@@ -204,10 +184,7 @@ def trigger_scrape(adsearch_id: int, session: DbSession):
 # --- Helpers ---
 # ---------------
 def _validate_search_url_reachable(url: str) -> str | None:
-    """
-    Fetch the search URL and validate it is reachable and returns a valid page.
-    Raises HTTPException 422 on failure. Returns the parsed page title, or None if not parseable.
-    """
+    """Fetch URL, validate reachability; raise 422 on failure; return page title or None."""
     status, html = fetch_page_checked(url)
     if status == 0:
         raise HTTPException(

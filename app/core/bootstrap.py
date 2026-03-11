@@ -1,6 +1,4 @@
-"""
-Builds the FastAPI application with middleware, routes, and static frontend.
-"""
+"""Build the FastAPI app with middleware, routes, and static frontend."""
 
 from contextlib import asynccontextmanager
 from importlib.metadata import version
@@ -15,6 +13,7 @@ from app.routes import api_router, frontend_router, mount_frontend
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Startup: setup logging, init DB, start background jobs; shutdown: stop jobs."""
     setup_logging()
     init_db()
 
@@ -27,6 +26,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    """Create and configure the FastAPI application instance."""
     app = FastAPI(
         title="Schnappster",
         version=version("schnappster"),

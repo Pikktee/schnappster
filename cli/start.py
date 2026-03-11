@@ -26,7 +26,7 @@ DEFAULT_PORT = 8000
 
 
 def _parse_start_args() -> tuple[int, bool, bool]:
-    """Parse sys.argv for start command. Returns (port, skip_tests, dev_mode)."""
+    """Parse sys.argv for start command; return (port, skip_tests, dev_mode)."""
     argv = sys.argv[1:]
     port = DEFAULT_PORT
     skip_tests = False
@@ -94,6 +94,7 @@ def get_project_root() -> Path:
 
 
 def get_frontend_dir() -> Path:
+    """Return path to the web (Next.js) frontend directory."""
     return get_app_root() / "web"
 
 
@@ -159,6 +160,7 @@ def start_frontend_dev(port: int) -> subprocess.Popen[bytes]:
 
 
 def main() -> None:
+    """Parse args, run tests (unless --skip-tests), build frontend or start dev, run uvicorn."""
     setup_logging()
 
     port, skip_tests, dev_mode = _parse_start_args()

@@ -11,7 +11,7 @@ INDEX_HTML = FRONTEND_OUT_DIR / "index.html"
 
 
 def _serve_detail_page(section: str, id: int) -> FileResponse:
-    """Serve the pre-rendered detail page for *id*, falling back to the id=0 shell."""
+    """Serve pre-rendered detail page for section/id, or id=0 shell if missing."""
     candidate = FRONTEND_OUT_DIR / section / str(id) / "index.html"
     if candidate.is_file():
         return FileResponse(candidate)
@@ -26,11 +26,13 @@ router = APIRouter(include_in_schema=False)
 # so the client router can hydrate and fetch data for the actual ID.
 @router.api_route("/searches/{id:int}", methods=["GET", "HEAD"])
 def serve_search_detail(id: int):
+    """Serve search detail SPA shell for the given id."""
     return _serve_detail_page("searches", id)
 
 
 @router.api_route("/ads/{id:int}", methods=["GET", "HEAD"])
 def serve_ad_detail(id: int):
+    """Serve ad detail SPA shell for the given id."""
     return _serve_detail_page("ads", id)
 
 

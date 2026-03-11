@@ -1,3 +1,5 @@
+"""Error log database model and API schema."""
+
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Optional
 
@@ -11,8 +13,7 @@ if TYPE_CHECKING:  # Avoid linter error
 # --- Database Table ---
 # ----------------------
 class ErrorLog(SQLModel, table=True):
-    """Database table."""
-
+    """Error log database table (scrape/AI errors for display in frontend)."""
     __tablename__ = "error_logs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
@@ -29,7 +30,7 @@ class ErrorLog(SQLModel, table=True):
 # --- API Schemas ---
 # -------------------
 class ErrorLogRead(SQLModel):
-    """API output schema."""
+    """API output schema for an error log entry."""
 
     id: int
     adsearch_id: int | None

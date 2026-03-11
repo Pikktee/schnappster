@@ -50,6 +50,7 @@ _COMMANDS = (
 
 
 def main() -> None:
+    """Print CLI command overview (Schnappster commands and options)."""
     console.print()
     console.print("[bold]Schnappster[/bold]  Kleinanzeigen.de Schnäppchen-Finder")
     console.print()

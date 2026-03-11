@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
+    """Drop database file, recreate schema, create example AdSearch."""
     setup_logging()
     db_path = get_app_root() / "data" / "schnappster.db"
 

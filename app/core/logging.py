@@ -1,3 +1,5 @@
+"""Logging setup with Rich handler for console output."""
+
 import logging
 
 from rich.logging import RichHandler
@@ -8,9 +10,7 @@ RICH_HANDLER = RichHandler(
 
 
 def setup_logging(level: int = logging.INFO) -> None:
-    """
-    Configure logging for the application
-    """
+    """Configure application logging and attach Rich handler to root and uvicorn loggers."""
     root = logging.getLogger()
     root.handlers.clear()
     root.setLevel(level)

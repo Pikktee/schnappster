@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
+    """Run scraper for all active AdSearches or a single one by ID (from argv)."""
     setup_logging()
 
     adsearch_id = int(sys.argv[1]) if len(sys.argv) > 1 else None

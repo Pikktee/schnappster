@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
+    """Run AI analysis for unprocessed ads; limit from argv or default 10."""
     setup_logging()
 
     limit = int(sys.argv[1]) if len(sys.argv) > 1 else 10

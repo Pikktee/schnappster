@@ -1,3 +1,5 @@
+"""Scrape run API routes."""
+
 from fastapi import APIRouter
 from sqlmodel import col, select
 
@@ -12,9 +14,7 @@ router = APIRouter(prefix="/scraperuns", tags=["ScrapeRuns"])
 # --------------
 @router.get("/", response_model=list[ScrapeRunRead])
 def list_scraperuns(session: DbSession, adsearch_id: int | None = None, limit: int = 50):
-    """
-    Returns all scrape runs.
-    """
+    """Return scrape runs, optionally filtered by adsearch_id, ordered by started_at desc."""
     query = select(ScrapeRun).order_by(col(ScrapeRun.started_at).desc()).limit(limit)
 
     if adsearch_id is not None:

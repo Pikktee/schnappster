@@ -1,3 +1,5 @@
+"""Ad (Kleinanzeige) database model and API read schema."""
+
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -12,9 +14,7 @@ if TYPE_CHECKING:  # Avoid linter error
 # --- Database Table ---
 # ----------------------
 class Ad(SQLModel, table=True):
-    """
-    Ad (Kleinanzeige) database table.
-    """
+    """Ad (Kleinanzeige) database table."""
 
     __tablename__ = "ads"  # type: ignore
 
@@ -50,9 +50,7 @@ class Ad(SQLModel, table=True):
 # --- API Schemas ---
 # -------------------
 class AdRead(SQLModel):
-    """
-    Ad (Kleinanzeige) read api schema
-    """
+    """Ad read schema for API responses."""
 
     id: int
     adsearch_id: int | None
@@ -84,4 +82,5 @@ class AdRead(SQLModel):
     @computed_field
     @property
     def image_url(self) -> str | None:
+        """First image URL from comma-separated image_urls, or None if empty."""
         return self.image_urls.split(",")[0] if self.image_urls else None

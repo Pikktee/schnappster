@@ -1,3 +1,5 @@
+"""HTTP client: fetch HTML and binary content with concurrency limits and delays (curl_cffi)."""
+
 import asyncio
 import random
 
@@ -12,9 +14,7 @@ DELAY_MAX = 2.0
 
 
 async def _fetch_pages(urls: list[str]) -> list[str]:
-    """
-    Fetch multiple pages with limited concurrency and random delays.
-    """
+    """Fetch multiple URLs with limited concurrency and random delay between requests."""
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
     results: list[str] = [""] * len(urls)
 
@@ -36,24 +36,18 @@ async def _fetch_pages(urls: list[str]) -> list[str]:
 
 
 def fetch_pages(urls: list[str]) -> list[str]:
-    """
-    Synchronous wrapper for async page fetching.
-    """
+    """Synchronous wrapper around async _fetch_pages."""
     return asyncio.run(_fetch_pages(urls))
 
 
 def fetch_page(url: str) -> str:
-    """
-    Fetch a single page (ignores HTTP status).
-    """
+    """Fetch a single URL; return body or empty string; ignore HTTP status."""
     results = fetch_pages([url])
     return results[0] if results else ""
 
 
 async def _fetch_page_checked(url: str) -> tuple[int, str]:
-    """
-    Fetch a single page and return (status_code, html).
-    """
+    """Fetch one URL; return (status_code, body); (0, '') on connection error."""
     async with AsyncSession(impersonate="chrome") as session:
         try:
             response = await session.get(url)
@@ -63,18 +57,12 @@ async def _fetch_page_checked(url: str) -> tuple[int, str]:
 
 
 def fetch_page_checked(url: str) -> tuple[int, str]:
-    """
-    Fetch a single page and return (http_status_code, html).
-
-    Returns (0, "") on network / connection error.
-    """
+    """Fetch one URL; return (status_code, html); (0, '') on network/connection error."""
     return asyncio.run(_fetch_page_checked(url))
 
 
 async def _fetch_binary(urls: list[str]) -> list[bytes]:
-    """
-    Fetch binary content (images) with limited concurrency.
-    """
+    """Fetch binary content (e.g. images) with limited concurrency and delays."""
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
     results: list[bytes] = [b""] * len(urls)
 
@@ -96,7 +84,5 @@ async def _fetch_binary(urls: list[str]) -> list[bytes]:
 
 
 def fetch_binary(urls: list[str]) -> list[bytes]:
-    """
-    Synchronous wrapper for binary content fetching.
-    """
+    """Synchronous wrapper around async _fetch_binary."""
     return asyncio.run(_fetch_binary(urls))

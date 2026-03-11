@@ -1,3 +1,5 @@
+"""AI service: analyze ads via OpenAI-compatible API, persist scores, optional Telegram."""
+
 import base64
 import json
 import logging
@@ -20,14 +22,10 @@ logger = logging.getLogger(__name__)
 
 
 class AIService:
-    """
-    Service for analyzing ads with the AI model.
-    """
+    """Analyzes ads via OpenAI API; assigns bargain score, summary, reasoning; optional Telegram."""
 
     def __init__(self, session: Session):
-        """
-        Initialize the AIService.
-        """
+        """Create AI client; raise ValueError if OPENAI_API_KEY is not set."""
         self.session = session
         if not app_config.openai_api_key:
             raise ValueError(
@@ -41,9 +39,7 @@ class AIService:
         )
 
     def analyze_unprocessed(self, limit: int = 10) -> int:
-        """
-        Analyze unprocessed ads. Returns number of ads analyzed.
-        """
+        """Analyze up to limit unprocessed ads (oldest first); return count analyzed."""
         ads = self.session.exec(
             select(Ad)
             .where(Ad.is_analyzed.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
@@ -58,10 +54,7 @@ class AIService:
         return self._analyze_ads(ads)
 
     def _analyze_ads(self, ads: Sequence[Ad]) -> int:
-        """
-        Process a list of ads. Returns count analyzed.
-        On error for a single ad, logs and continues with the next.
-        """
+        """Process ads one by one; on error log and continue; return count successfully analyzed."""
         analyzed = 0
         for ad in ads:
             try:
@@ -106,21 +99,21 @@ class AIService:
         return analyzed
 
     def _log_analysis_error(self, ad: Ad, error_type: str, message: str) -> None:
-        """Fehler in ErrorLog persistieren, damit er im Frontend (Log) erscheint."""
+        """Persist analysis error to ErrorLog so it appears in the frontend log."""
         self.session.add(
             ErrorLog(
                 adsearch_id=ad.adsearch_id,
                 error_type="AIAnalysisError",
-                message=f"Ad {ad.id} ({ad.title[:60]}{'…' if len(ad.title) > 60 else ''}): {error_type}",
+                message=(
+                    f"Ad {ad.id} ({ad.title[:60]}{'…' if len(ad.title) > 60 else ''}): {error_type}"
+                ),
                 details=message,
             )
         )
         self.session.commit()
 
     def _analyze_ad(self, ad: Ad) -> None:
-        """
-        Analyze a single ad with the AI model.
-        """
+        """Run AI analysis on one ad; update score/summary/reasoning; Telegram if score >= 8."""
         adsearch = self.session.get(AdSearch, ad.adsearch_id)
         ad_text = self._build_ad_text(ad, adsearch)
         images = self._download_images(ad)
@@ -154,9 +147,7 @@ class AIService:
             tg.send_bargain_notification(ad)
 
     def _build_ad_text(self, ad: Ad, adsearch: AdSearch | None) -> str:
-        """
-        Build a text representation of the ad for the AI.
-        """
+        """Build plain-text representation of ad (and price context) for the AI prompt."""
         parts = [
             f"Titel: {ad.title}",
             f"Preis: {ad.price:.0f}€" if ad.price else "Preis: VB",
@@ -200,9 +191,7 @@ class AIService:
         return "\n".join(parts)
 
     def _download_images(self, ad: Ad, max_images: int = 1) -> list[dict]:
-        """
-        Download ad images and return as base64-encoded dicts.
-        """
+        """Download up to max_images from ad; return list of image_url dicts (base64 data URLs)."""
         if not ad.image_urls:
             return []
 
@@ -230,9 +219,7 @@ class AIService:
 
     @staticmethod
     def _detect_image_type(data: bytes) -> str | None:
-        """
-        Detect image MIME type from binary data.
-        """
+        """Detect MIME type from magic bytes (PNG, JPEG, WebP, GIF); return None if unknown."""
         if data[:8] == b"\x89PNG\r\n\x1a\n":
             return "image/png"
         if data[:2] == b"\xff\xd8":
@@ -246,9 +233,7 @@ class AIService:
     def _build_messages(
         self, ad_text: str, images: list[dict], adsearch: AdSearch | None
     ) -> list[dict]:
-        """
-        Build the messages array for the API call.
-        """
+        """Build messages list for chat completion: system prompt + user content (text + images)."""
         content: list[dict] = [{"type": "text", "text": ad_text}]
         content.extend(images)
 
@@ -259,10 +244,7 @@ class AIService:
 
     @staticmethod
     def _parse_response(content: str | None) -> dict:
-        """
-        Parse the JSON response from the AI model. Returns a dictionary with the
-        score, summary, and reasoning.
-        """
+        """Parse JSON from model; return dict with score, summary, reasoning; raise on invalid."""
         if not content:
             raise ValueError("Empty response from AI")
 
@@ -284,9 +266,7 @@ class AIService:
         }
 
     def _build_price_context(self, ad: Ad) -> str:
-        """
-        Build price comparison context from other ads in the same search.
-        """
+        """Build comparison text from other ads in same AdSearch (prices, average, median)."""
         other_ads = self.session.exec(
             select(Ad)
             .where(Ad.adsearch_id == ad.adsearch_id)

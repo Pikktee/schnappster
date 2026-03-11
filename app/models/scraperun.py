@@ -1,3 +1,5 @@
+"""Scrape run database model and API schema."""
+
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -11,8 +13,7 @@ if TYPE_CHECKING:  # Avoid linter error
 # --- Database Table ---
 # ----------------------
 class ScrapeRun(SQLModel, table=True):
-    """Database table."""
-
+    """Scrape run database table (one record per scrape execution)."""
     __tablename__ = "scrape_runs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
@@ -30,7 +31,7 @@ class ScrapeRun(SQLModel, table=True):
 # --- API Schemas ---
 # -------------------
 class ScrapeRunRead(SQLModel):
-    """API output schema."""
+    """API output schema for a scrape run."""
 
     id: int
     adsearch_id: int
