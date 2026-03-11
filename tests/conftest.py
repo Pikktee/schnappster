@@ -5,10 +5,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, StaticPool, create_engine
 
-from app.routes import api_router
 from app.core.db import get_db_session
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch
+from app.routes import api_router
 
 
 @pytest.fixture(name="engine")
