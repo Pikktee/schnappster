@@ -32,9 +32,14 @@ _COMMANDS = (
         (("\\[limit]", "Max. Anzahl (Standard: 10)"),),
     ),
     (
-        "dbreset \\[--seed]",
+        "dbreset",
         "Datenbank löschen und neu anlegen (Schema nur).",
-        (("--seed", "Optional: Beispiel-AdSearch (PodMic Frankfurt) anlegen"),),
+        (),
+    ),
+    (
+        "seed",
+        "Datenbank mit Beispieldaten füllen (alle Tabellen).",
+        (),
     ),
     (
         "docs \\[--open]",
