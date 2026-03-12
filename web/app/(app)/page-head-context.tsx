@@ -14,6 +14,7 @@ type PageHeadState = {
   title: string
   subtitle: string
   headerActions: ReactNode
+  titleSuffix: ReactNode
 }
 
 const defaultTitles: Record<string, { title: string; subtitle: string }> = {
@@ -44,6 +45,7 @@ function getDefaultForPath(pathname: string): { title: string; subtitle: string 
 type PageHeadContextValue = PageHeadState & {
   setTitle: (title: string, subtitle?: string) => void
   setHeaderActions: (node: ReactNode) => void
+  setTitleSuffix: (node: ReactNode) => void
 }
 
 const PageHeadContext = createContext<PageHeadContextValue | null>(null)
@@ -59,12 +61,14 @@ export function PageHeadProvider({
   const [title, setTitleState] = useState(defaults.title)
   const [subtitle, setSubtitleState] = useState(defaults.subtitle)
   const [headerActions, setHeaderActionsState] = useState<ReactNode>(null)
+  const [titleSuffix, setTitleSuffixState] = useState<ReactNode>(null)
 
   useEffect(() => {
     const d = getDefaultForPath(pathname)
     setTitleState(d.title)
     setSubtitleState(d.subtitle)
     setHeaderActionsState(null)
+    setTitleSuffixState(null)
   }, [pathname])
 
   const setTitle = useCallback((t: string, s?: string) => {
@@ -76,15 +80,21 @@ export function PageHeadProvider({
     setHeaderActionsState(node)
   }, [])
 
+  const setTitleSuffix = useCallback((node: ReactNode) => {
+    setTitleSuffixState(node)
+  }, [])
+
   const value = useMemo<PageHeadContextValue>(
     () => ({
       title,
       subtitle,
       headerActions,
+      titleSuffix,
       setTitle,
       setHeaderActions,
+      setTitleSuffix,
     }),
-    [title, subtitle, headerActions, setTitle, setHeaderActions]
+    [title, subtitle, headerActions, titleSuffix, setTitle, setHeaderActions, setTitleSuffix]
   )
 
   return (

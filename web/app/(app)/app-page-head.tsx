@@ -14,7 +14,7 @@ import { usePageHead } from "./page-head-context"
 
 export function AppPageHead() {
   const pathname = usePathname()
-  const { title, subtitle, headerActions } = usePageHead()
+  const { title, subtitle, headerActions, titleSuffix } = usePageHead()
 
   const pathSegments = pathname.split("/").filter(Boolean)
   const isDetail =
@@ -84,7 +84,7 @@ export function AppPageHead() {
           )}
         </BreadcrumbList>
       </Breadcrumb>
-      <PageHeader title={title} subtitle={subtitle || undefined}>
+      <PageHeader title={title} subtitle={subtitle || undefined} titleSuffix={titleSuffix}>
         {headerActions}
       </PageHeader>
     </div>

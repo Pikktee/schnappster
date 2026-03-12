@@ -4,9 +4,12 @@ import { de } from "date-fns/locale"
 export function timeAgo(dateStr: string | null): string {
   if (!dateStr) return "Noch nie"
   try {
-    // Naive timestamps (no timezone) from the DB are UTC — append "Z" so JS parses them correctly
     const normalized = dateStr.includes("+") || dateStr.endsWith("Z") ? dateStr : dateStr + "Z"
-    return formatDistanceToNow(new Date(normalized), { addSuffix: true, includeSeconds: true, locale: de })
+    const date = new Date(normalized)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    if (diffMs >= 0 && diffMs < 60 * 1000) return "kürzlich"
+    return formatDistanceToNow(date, { addSuffix: true, includeSeconds: true, locale: de })
   } catch {
     return "Unbekannt"
   }

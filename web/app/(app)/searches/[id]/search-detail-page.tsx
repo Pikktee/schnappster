@@ -60,7 +60,7 @@ import { usePageHead } from "../../page-head-context"
 export function SearchDetailPage() {
   const router = useRouter()
   const pathname = usePathname()
-  const { setTitle } = usePageHead()
+  const { setTitle, setTitleSuffix } = usePageHead()
   const [id, setId] = useState<number>(NaN)
 
   useEffect(() => {
@@ -106,8 +106,23 @@ export function SearchDetailPage() {
   useRefetchOnFocus(load)
 
   useEffect(() => {
-    if (search) setTitle(search.name)
-  }, [search, setTitle])
+    if (search) {
+      setTitle(search.name)
+      setTitleSuffix(
+        <Badge
+          variant="secondary"
+          className={
+            search.is_active
+              ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+              : "bg-muted text-muted-foreground"
+          }
+        >
+          {search.is_active ? "Aktiv" : "Inaktiv"}
+        </Badge>
+      )
+    }
+    return () => setTitleSuffix(null)
+  }, [search, setTitle, setTitleSuffix])
 
   async function handleUpdate(data: Partial<AdSearch>) {
     if (!search) return
@@ -173,32 +188,20 @@ export function SearchDetailPage() {
         <Button variant="ghost" size="icon-sm" onClick={() => router.push("/searches")} className="cursor-pointer" aria-label="Zurück">
           <ArrowLeft className="size-4" />
         </Button>
-        <div className="flex-1 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <Badge
-              variant="secondary"
-              className={
-                search.is_active
-                  ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                  : "bg-muted text-muted-foreground"
-              }
-            >
+        <div className="flex-1 flex items-center justify-end gap-4 flex-wrap">
+          <div className="flex items-center gap-2 mr-2">
+            <Switch
+              id="active-toggle"
+              checked={search.is_active}
+              onCheckedChange={handleToggleActive}
+              disabled={isToggling}
+              className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-600"
+            />
+            <Label htmlFor="active-toggle" className="text-sm cursor-pointer">
               {search.is_active ? "Aktiv" : "Inaktiv"}
-            </Badge>
+            </Label>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 mr-2">
-              <Switch
-                id="active-toggle"
-                checked={search.is_active}
-                onCheckedChange={handleToggleActive}
-                disabled={isToggling}
-              />
-              <Label htmlFor="active-toggle" className="text-sm cursor-pointer">
-                {search.is_active ? "Aktiv" : "Inaktiv"}
-              </Label>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)} className="cursor-pointer">
+          <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)} className="cursor-pointer">
               <Pencil className="size-3.5" />
               Bearbeiten
             </Button>
@@ -226,9 +229,8 @@ export function SearchDetailPage() {
                     Löschen
                   </AlertDialogAction>
                 </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 

@@ -106,10 +106,10 @@ export default function SearchesPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+          <Skeleton className="h-[140px] rounded-xl" />
+          <Skeleton className="h-[140px] rounded-xl" />
+          <Skeleton className="h-[140px] rounded-xl" />
         </div>
       </div>
     )
@@ -137,16 +137,17 @@ export default function SearchesPage() {
           onAction={() => setIsCreateOpen(true)}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 list-none p-0 m-0">
           {searches.map((search) => (
-            <SearchCard
-              key={search.id}
-              search={search}
-              onDelete={handleDelete}
-              isDeleting={deletingId === search.id}
-            />
+            <li key={search.id} className="min-w-0">
+              <SearchCard
+                search={search}
+                onDelete={handleDelete}
+                isDeleting={deletingId === search.id}
+              />
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       <Dialog open={isCreateOpen} onOpenChange={(open) => {
