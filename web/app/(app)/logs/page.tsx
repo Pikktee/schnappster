@@ -439,30 +439,37 @@ export default function LogsPage() {
             {aiLogs.length === 0 ? (
               <EmptyState message="Keine AI-Analysen." />
             ) : (
-              <div className="overflow-x-auto -mx-1 min-w-0 max-w-full">
-                <table className="w-full min-w-[320px] text-sm border-collapse table-fixed">
+              <div className="overflow-x-auto -mx-1 min-w-0">
+                <table className="w-full min-w-[400px] text-sm border-collapse table-fixed">
+                  <colgroup>
+                    <col className="w-8" />
+                    <col className="w-[7rem]" />
+                    <col className="w-[35%]" />
+                    <col className="w-[28%]" />
+                    <col className="w-14" />
+                  </colgroup>
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="w-9 py-3 px-1 shrink-0" aria-label="Aufklappen" />
-                      <th className="text-left font-medium text-muted-foreground py-3 px-3 whitespace-nowrap w-[100px] shrink-0">
+                      <th className="py-3 px-1 text-left" aria-label="Aufklappen" />
+                      <th className="text-left font-medium text-muted-foreground py-3 px-3 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5">
                           <Clock className="size-3.5" />
                           Zeitpunkt
                         </span>
                       </th>
-                      <th className="text-left font-medium text-muted-foreground py-3 px-3 whitespace-nowrap w-[120px] shrink-0">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Search className="size-3.5" />
-                          Suchauftrag
-                        </span>
-                      </th>
-                      <th className="text-left font-medium text-muted-foreground py-3 px-3 min-w-0 w-[1%]">
-                        <span className="inline-flex items-center gap-1.5">
-                          <FileText className="size-3.5" />
+                      <th className="text-left font-medium text-muted-foreground py-3 px-3 overflow-hidden">
+                        <span className="inline-flex items-center gap-1.5 min-w-0 truncate" title="Anzeige">
+                          <FileText className="size-3.5 shrink-0" />
                           Anzeige
                         </span>
                       </th>
-                      <th className="text-left font-medium text-muted-foreground py-3 px-3 whitespace-nowrap w-14 shrink-0">
+                      <th className="text-left font-medium text-muted-foreground py-3 px-3 overflow-hidden">
+                        <span className="inline-flex items-center gap-1.5 min-w-0 truncate" title="Suchauftrag">
+                          <Search className="size-3.5 shrink-0" />
+                          Suchauftrag
+                        </span>
+                      </th>
+                      <th className="text-left font-medium text-muted-foreground py-3 px-3 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5">
                           <Star className="size-3.5" />
                           Score
@@ -477,7 +484,7 @@ export default function LogsPage() {
                       return (
                         <Fragment key={log.id}>
                           <tr className="border-b border-border/80 hover:bg-muted/20 transition-colors">
-                            <td className="align-top py-3 px-1 w-9 shrink-0">
+                            <td className="align-top py-3 px-1 w-8">
                               <button
                                 type="button"
                                 onClick={() => toggleAi(log.id)}
@@ -489,27 +496,28 @@ export default function LogsPage() {
                                 />
                               </button>
                             </td>
-                            <td className="align-top py-3 px-3 text-muted-foreground whitespace-nowrap shrink-0">
+                            <td className="align-top py-3 px-3 text-muted-foreground whitespace-nowrap">
                               {timeAgo(log.created_at)}
                             </td>
-                            <td className="align-top py-3 px-3 whitespace-nowrap shrink-0">
+                            <td className="align-top py-3 px-3 overflow-hidden">
+                              <Link
+                                href={`/ads/${log.ad_id}`}
+                                className="text-primary hover:underline font-medium cursor-pointer block min-w-0 truncate"
+                                title={log.ad_title ?? undefined}
+                              >
+                                {log.ad_title || "—"}
+                              </Link>
+                            </td>
+                            <td className="align-top py-3 px-3 overflow-hidden">
                               <Link
                                 href={`/searches/${log.adsearch_id}`}
-                                className="text-primary hover:underline text-sm cursor-pointer"
+                                className="text-primary hover:underline text-sm cursor-pointer block min-w-0 truncate"
+                                title={search?.name ?? `Suchauftrag #${log.adsearch_id}`}
                               >
                                 {search?.name ?? `Suchauftrag #${log.adsearch_id}`}
                               </Link>
                             </td>
-                            <td className="align-top py-3 px-3 min-w-0 overflow-hidden">
-                              <Link
-                                href={`/ads/${log.ad_id}`}
-                                className="text-primary hover:underline font-medium line-clamp-2 block cursor-pointer truncate w-full"
-                                title={log.ad_title}
-                              >
-                                {log.ad_title}
-                              </Link>
-                            </td>
-                            <td className="align-top py-3 px-3 whitespace-nowrap font-medium shrink-0">
+                            <td className="align-top py-3 px-3 whitespace-nowrap font-medium">
                               {Math.round(log.score)}
                             </td>
                           </tr>
