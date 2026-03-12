@@ -55,6 +55,7 @@ export default function LogsPage() {
   const [aiLogs, setAILogs] = useState<AIAnalysisLog[]>([])
   const [loading, setLoading] = useState(true)
   const [clearing, setClearing] = useState<"runs" | "errors" | "ai" | null>(null)
+  const [activeTab, setActiveTab] = useState<"runs" | "errors" | "ai">("runs")
   const [expandedErrors, setExpandedErrors] = useState<Set<number>>(new Set())
   const [expandedAi, setExpandedAi] = useState<Set<number>>(new Set())
 
@@ -119,6 +120,7 @@ export default function LogsPage() {
     try {
       await clearErrorLogs()
       setErrorLogs([])
+      window.dispatchEvent(new CustomEvent("schnappster-error-logs-cleared"))
       toast.success("Fehlerprotokolle geleert")
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Leeren fehlgeschlagen")
@@ -174,26 +176,26 @@ export default function LogsPage() {
         }
       />
 
-      <div className="mt-20">
-      <Tabs defaultValue="runs" className="w-full">
-        <TabsList className="w-full sm:w-auto inline-flex h-auto p-0 gap-0 border-b-2 border-border bg-transparent rounded-none min-h-[3rem]">
+      <div className="mt-6">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "runs" | "errors" | "ai")} className="w-full">
+        <TabsList className="w-full sm:w-auto inline-flex h-auto p-0 gap-0 border-b-2 border-border bg-muted/40 rounded-none min-h-[3rem]">
           <TabsTrigger
             value="runs"
-            className="flex items-center gap-2 cursor-pointer rounded-t-md border-b-2 border-transparent bg-transparent px-5 py-3 -mb-[2px] text-sm font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:border-primary data-[state=active]:border-b-2 data-[state=active]:bg-primary/5 shadow-none transition-colors hover:text-foreground"
+            className="flex items-center gap-2 cursor-pointer rounded-t-lg rounded-b-none border-b-[3px] border-transparent bg-transparent px-5 py-3 -mb-[2px] text-sm font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-primary data-[state=active]:border-b-2 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-border data-[state=active]:rounded-b-none shadow-none transition-all duration-200 hover:text-foreground"
           >
             <RefreshCw className="size-4" />
             Scraper-Durchläufe
           </TabsTrigger>
           <TabsTrigger
             value="ai"
-            className="flex items-center gap-2 cursor-pointer rounded-t-md border-b-2 border-transparent bg-transparent px-5 py-3 -mb-[2px] text-sm font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:border-primary data-[state=active]:border-b-2 data-[state=active]:bg-primary/5 shadow-none transition-colors hover:text-foreground"
+            className="flex items-center gap-2 cursor-pointer rounded-t-lg rounded-b-none border-b-[3px] border-transparent bg-transparent px-5 py-3 -mb-[2px] text-sm font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-primary data-[state=active]:border-b-2 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-border data-[state=active]:rounded-b-none shadow-none transition-all duration-200 hover:text-foreground"
           >
             <Sparkles className="size-4" />
             AI-Analysen
           </TabsTrigger>
           <TabsTrigger
             value="errors"
-            className="flex items-center gap-2 cursor-pointer rounded-t-md border-b-2 border-transparent bg-transparent px-5 py-3 -mb-[2px] text-sm font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:border-primary data-[state=active]:border-b-2 data-[state=active]:bg-primary/5 shadow-none transition-colors hover:text-foreground"
+            className="flex items-center gap-2 cursor-pointer rounded-t-lg rounded-b-none border-b-[3px] border-transparent bg-transparent px-5 py-3 -mb-[2px] text-sm font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-primary data-[state=active]:border-b-2 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-border data-[state=active]:rounded-b-none shadow-none transition-all duration-200 hover:text-foreground"
           >
             <AlertCircle className="size-4" />
             Fehler
@@ -208,7 +210,10 @@ export default function LogsPage() {
         <TabsContent value="runs" className="mt-4">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-2">
-              <h2 className="text-lg font-semibold text-foreground">Scraper-Durchläufe</h2>
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <RefreshCw className="size-5 text-primary/80" />
+                Scraper-Durchläufe
+              </h2>
               <Button
                 variant="ghost"
                 size="sm"
@@ -225,7 +230,7 @@ export default function LogsPage() {
               </Button>
             </div>
             {scraperuns.length === 0 ? (
-              <EmptyState message="Noch keine Scraper-Durchläufe." />
+              <EmptyState message="Keine Scraper-Durchläufe." />
             ) : (
               <div className="overflow-x-auto -mx-1">
                 <table className="w-full min-w-[320px] text-sm border-collapse">
@@ -321,7 +326,7 @@ export default function LogsPage() {
               </Button>
             </div>
             {errorLogs.length === 0 ? (
-              <EmptyState message="Keine Fehler protokolliert." />
+              <EmptyState message="Keine Fehler." />
             ) : (
               <div className="overflow-x-auto -mx-1">
                 <table className="w-full min-w-[320px] text-sm border-collapse">
@@ -441,7 +446,7 @@ export default function LogsPage() {
               </Button>
             </div>
             {aiLogs.length === 0 ? (
-              <EmptyState message="Noch keine AI-Analysen protokolliert." />
+              <EmptyState message="Keine AI-Analysen." />
             ) : (
               <div className="overflow-x-auto -mx-1">
                 <table className="w-full min-w-[320px] text-sm border-collapse">

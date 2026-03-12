@@ -43,6 +43,12 @@ export function AppSidebar() {
       .catch(() => setErrorCount(0))
   }, [])
 
+  useEffect(() => {
+    const onCleared = () => setErrorCount(0)
+    window.addEventListener("schnappster-error-logs-cleared", onCleared)
+    return () => window.removeEventListener("schnappster-error-logs-cleared", onCleared)
+  }, [])
+
   function isActive(href: string) {
     const path = pathname.replace(/\/$/, "") || "/"
     const base = href.replace(/\/$/, "") || "/"
