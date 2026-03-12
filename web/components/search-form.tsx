@@ -331,7 +331,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
             </h3>
             <div className="space-y-5">
               <div className="flex items-center gap-1.5">
-                <Label htmlFor="search-prompt" className="font-normal">Prompt-Ergänzung</Label>
+                <Label htmlFor="search-prompt" className="font-normal">Zusätzliche Anweisungen</Label>
                 <HelpTip text="Zusätzliche Anweisungen für die KI-Bewertung, z.B. 'Bevorzuge unbenutzte Artikel' oder 'Achte besonders auf den Zustand'." />
               </div>
               <Textarea

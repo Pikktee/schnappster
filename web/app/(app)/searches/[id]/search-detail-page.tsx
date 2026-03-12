@@ -293,7 +293,7 @@ export function SearchDetailPage() {
               <div className="md:col-span-2 lg:col-span-3">
                 <div className="flex items-center gap-2 mb-1.5">
                   <Star className="size-3.5 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Prompt-Ergänzung</span>
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Zusätzliche Anweisungen</span>
                 </div>
                 <p className="p-3 rounded-lg bg-muted/50 border text-sm leading-relaxed">{search.prompt_addition}</p>
               </div>
