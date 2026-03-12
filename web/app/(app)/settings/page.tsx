@@ -203,7 +203,7 @@ export default function SettingsPage() {
                 Telegram-Benachrichtigungen bei Schnäppchen
               </Label>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Bei identifizierten Schnäppchen (Score ≥ 7) eine Nachricht an
+                Bei identifizierten Schnäppchen (Score ≥ 8) eine Nachricht an
                 den konfigurierten Telegram-Chat senden.
               </p>
             </div>
