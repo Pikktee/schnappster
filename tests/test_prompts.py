@@ -41,11 +41,15 @@ def test_render_user_content_minimal():
 
 
 def test_render_user_content_with_comparison():
-    """User content with comparison shows Vergleichspreise block."""
+    """User content with comparison shows Vergleichsangebote block with titles and prices."""
     out = render_user_content({
         "title": "X",
         "price_display": "VB",
         "comparison": {
+            "entries": [
+                {"title": "Software Lizenz", "price": 10.0, "condition": None},
+                {"title": "Blu-ray Film", "price": 20.0, "condition": "Wie neu"},
+            ],
             "prices": [10.0, 20.0],
             "count": 2,
             "price_list": "10€, 20€",
@@ -53,8 +57,12 @@ def test_render_user_content_with_comparison():
             "median": 15,
         },
     })
-    assert "Vergleichspreise" in out
-    assert "10€, 20€" in out
+    assert "Vergleichsangebote" in out
+    assert "Software Lizenz" in out
+    assert "Blu-ray Film" in out
+    assert "Wie neu" in out
+    assert "10€" in out
+    assert "20€" in out
     assert "Durchschnitt" in out
     assert "Median" in out
 

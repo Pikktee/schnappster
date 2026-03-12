@@ -84,7 +84,7 @@ def test_detect_unknown():
 
 
 def test_build_price_context(session, sample_adsearch, sample_ads):
-    """Price context returns dict with comparison prices, average and median from same AdSearch."""
+    """Price context returns dict with entries (title+price), average and median from same AdSearch."""
     ai_service = AIService.__new__(AIService)
     ai_service.session = session
 
@@ -92,6 +92,7 @@ def test_build_price_context(session, sample_adsearch, sample_ads):
     context = ai_service._build_price_context(ad)
 
     assert context is not None
+    assert "entries" in context
     assert "prices" in context
     assert "price_list" in context
     assert "average" in context
@@ -99,6 +100,9 @@ def test_build_price_context(session, sample_adsearch, sample_ads):
     assert context["count"] == 2  # sample_ads[1] and [2]
     assert "80" in context["price_list"]
     assert "15" in context["price_list"]
+    titles = [e["title"] for e in context["entries"]]
+    assert "Rode PodMic USB" in titles
+    assert "Rode PodMic defekt" in titles
 
 
 def test_build_price_context_no_other_ads(session, sample_adsearch):

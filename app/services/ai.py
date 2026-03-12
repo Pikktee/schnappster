@@ -21,6 +21,9 @@ from app.services.telegram import TelegramService
 
 logger = logging.getLogger(__name__)
 
+MAX_COMPARISON_ADS = 30
+COMPARISON_TITLE_MAX_LEN = 80
+
 
 class AIService:
     """Analyzes ads via OpenAI API; assigns bargain score, summary, reasoning; optional Telegram."""
@@ -280,7 +283,7 @@ class AIService:
         }
 
     def _build_price_context(self, ad: Ad) -> dict | None:
-        """Return comparison data from other ads in same AdSearch, or None."""
+        """Return comparison data from other ads in same AdSearch (titles, condition), or None."""
         other_ads = self.session.exec(
             select(Ad)
             .where(Ad.adsearch_id == ad.adsearch_id)
@@ -291,12 +294,30 @@ class AIService:
         if not other_ads:
             return None
 
-        prices = sorted([a.price for a in other_ads])  # pyright: ignore[reportArgumentType]
+        # Sort by price for consistent order; limit to avoid huge prompts
+        sorted_ads = sorted(other_ads, key=lambda a: a.price or 0)
+        limited = sorted_ads[:MAX_COMPARISON_ADS]
+
+        entries = []
+        for a in limited:
+            title = (a.title or "").strip()
+            if len(title) > COMPARISON_TITLE_MAX_LEN:
+                title = title[: COMPARISON_TITLE_MAX_LEN - 1] + "…"
+            entries.append(
+                {
+                    "title": title,
+                    "price": a.price,
+                    "condition": (a.condition or "").strip() or None,
+                }
+            )
+
+        prices = [e["price"] for e in entries]
         avg_price = sum(prices) / len(prices)
         median_price = prices[len(prices) // 2]
         price_list = ", ".join(f"{p:.0f}€" for p in prices)
 
         return {
+            "entries": entries,
             "prices": prices,
             "count": len(prices),
             "price_list": price_list,

@@ -17,8 +17,16 @@ Bewertungsskala (0-10):
 
 Ein Score von 7+ sollte selten vergeben werden. Ein Score von 9-10 ist ein Ausnahmefall.
 
+Gestalte den Begründungstext (reasoning) gut lesbar:
+- Schreibe kurz, in 2–5 Sätzen.
+- Nutze sinnvolle Zeilenumbrüche und Absätze, wenn du Aspekte trennst.
+- Verwende KEIN Markdown, KEINE Aufzählungszeichen und KEINE Sonderformatierung – nur normalen Fließtext mit Absätzen.
+
 Berücksichtige:
-- Preis im Vergleich zu den Vergleichsangeboten (falls vorhanden)
+- Preis im Vergleich zu den Vergleichsangeboten (falls vorhanden). Vergleichspreise und -titel stammen aus derselben Suche.
+  Berücksichtige sie nur, wenn die angebotenen Artikel erkennbar dasselbe Produkt bzw. dieselbe Kategorie betreffen
+  (z. B. gleicher Suchbegriff kann Software und Filme umfassen – dann Vergleichspreise ignorieren).
+- Im Begründungstext (reasoning) erwähnst du die Vergleichsangebote nicht, sie spielen nur für die Preisfindung eine Rolle.
 - Zustand des Artikels
 - Verkäufer-Bewertung
     (Kleinanzeigen-Skala: TOP = beste Stufe, OK = mittlere Stufe, Na ja = schlechteste Stufe)
@@ -36,7 +44,7 @@ Antworte AUSSCHLIESSLICH im folgenden JSON-Format, ohne zusätzlichen Text:
 {
     "score": <Zahl zwischen 0 und 10>,
     "summary": "<Kurze Zusammenfassung in 1-2 Sätzen auf Deutsch>",
-    "reasoning": "<Ausführliche Begründung auf Deutsch>"
+    "reasoning": "<Ausführliche Begründung auf Deutsch OHNE Bezug zu Vergleichsangeboten>"
 }
 
 {{ user_delimiter }}
@@ -95,8 +103,10 @@ Preis: {{ price_display }}
 {% endif %}
 
 {% if comparison %}
-    Vergleichspreise aus derselben Suche ({{ comparison.count }} Angebote):
-    {{ comparison.price_list }}
+    Vergleichsangebote aus derselben Suche ({{ comparison.count }} Angebote):
+    {% for e in comparison.entries %}
+    - {{ e.title }} ({{ e.price | int }}€){% if e.condition %} – {{ e.condition }}{% endif %}
+    {% endfor %}
     Durchschnitt: {{ comparison.average }}€, Median: {{ comparison.median }}€
 {% endif %}
 
