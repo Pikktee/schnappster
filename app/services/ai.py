@@ -14,7 +14,7 @@ from app.models.ad import Ad
 from app.models.adsearch import AdSearch
 from app.models.logs_aianalysis import AIAnalysisLog
 from app.models.logs_error import ErrorLog
-from app.prompts import ADANALYZER_PROMPT, USER_CONTENT_DELIMITER, render_user_content
+from app.prompts import render_system_prompt, render_user_prompt
 from app.scraper.httpclient import fetch_binary
 from app.services.settings import SettingsService
 from app.services.telegram import TelegramService
@@ -110,7 +110,7 @@ class AIService:
     def _build_prompt_text_for_log(self, ad: Ad) -> str:
         """Build full prompt text (no images) for logging to ErrorLog."""
         context = self._build_user_context(ad, self.session.get(AdSearch, ad.adsearch_id))
-        return ADANALYZER_PROMPT + USER_CONTENT_DELIMITER + render_user_content(context)
+        return render_system_prompt() + "\n\n--- Nutzerinhalt ---\n\n" + render_user_prompt(context)
 
     def _log_analysis_error(
         self, ad: Ad, error_type: str, message: str, prompt_text: str | None = None
@@ -135,7 +135,7 @@ class AIService:
         """Run AI analysis on one ad; update score/summary/reasoning; Telegram if score >= 8."""
         adsearch = self.session.get(AdSearch, ad.adsearch_id)
         context = self._build_user_context(ad, adsearch)
-        user_content = render_user_content(context)
+        user_content = render_user_prompt(context)
         images = self._download_images(ad)
 
         messages = self._build_messages(user_content, images)
@@ -255,7 +255,7 @@ class AIService:
         content.extend(images)
 
         return [
-            {"role": "system", "content": ADANALYZER_PROMPT},
+            {"role": "system", "content": render_system_prompt()},
             {"role": "user", "content": content},
         ]
 
