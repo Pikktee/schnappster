@@ -52,6 +52,36 @@ type ViewMode = "cards" | "table"
 
 const PAGE_SIZE = 24
 
+const ADS_FILTERS_KEY = "schnappster-ads-filters"
+
+type StoredFilters = {
+  minScore: string
+  searchId: string
+  sortBy: SortOption
+  viewMode: ViewMode
+  page: number
+}
+
+function loadStoredFilters(): Partial<StoredFilters> | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = window.localStorage.getItem(ADS_FILTERS_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as Partial<StoredFilters>
+  } catch {
+    return null
+  }
+}
+
+function saveStoredFilters(f: StoredFilters) {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.setItem(ADS_FILTERS_KEY, JSON.stringify(f))
+  } catch {
+    // ignore
+  }
+}
+
 export default function AdsPage() {
   return (
     <Suspense fallback={
@@ -125,7 +155,34 @@ function AdsPageContent() {
     }
   }, [])
 
-  useEffect(() => { loadAds(page, minScore, searchId, sortBy) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const stored = loadStoredFilters()
+    const defaultSort: SortOption = "date"
+    const defaultView: ViewMode = "cards"
+    const validSort = (v: unknown): v is SortOption =>
+      v === "date" || v === "price-asc" || v === "price-desc" || v === "score-desc"
+    const validView = (v: unknown): v is ViewMode => v === "cards" || v === "table"
+    const effective = {
+      minScore: stored?.minScore ?? searchParams.get("minScore") ?? "8",
+      searchId: stored?.searchId ?? searchParams.get("search") ?? "all",
+      sortBy: validSort(stored?.sortBy) ? stored.sortBy : (searchParams.get("sort") as SortOption) || defaultSort,
+      viewMode: validView(stored?.viewMode) ? stored.viewMode : (searchParams.get("view") as ViewMode) || defaultView,
+      page: stored?.page ?? (Number(searchParams.get("page")) || 1),
+    }
+    setMinScore(effective.minScore)
+    setSearchId(effective.searchId)
+    setSortBy(effective.sortBy)
+    setViewMode(effective.viewMode)
+    setPage(effective.page)
+    updateUrl({
+      minScore: effective.minScore,
+      search: effective.searchId,
+      sort: effective.sortBy,
+      view: effective.viewMode,
+      page: effective.page === 1 ? "0" : String(effective.page),
+    })
+    loadAds(effective.page, effective.minScore, effective.searchId, effective.sortBy)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useRefetchOnFocus(() => loadAds(page, minScore, searchId, sortBy))
 
@@ -142,6 +199,7 @@ function AdsPageContent() {
   function goToPage(p: number) {
     setPage(p)
     updateUrl({ page: p === 1 ? "0" : String(p) })
+    saveFilters({ minScore, searchId, sortBy, viewMode, page: p })
     reload(p)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -182,12 +240,17 @@ function AdsPageContent() {
 
   const hasActiveFilters = activeFilterCount > 0
 
+  function saveFilters(f: { minScore: string; searchId: string; sortBy: SortOption; viewMode: ViewMode; page: number }) {
+    saveStoredFilters(f)
+  }
+
   function resetFilters() {
     setMinScore("8")
     setSearchId("all")
     setSortBy("date")
     setPage(1)
     updateUrl({ minScore: "8", search: "all", sort: "date", page: "0" })
+    saveFilters({ minScore: "8", searchId: "all", sortBy: "date", viewMode, page: 1 })
     reload(1, "8", "all", "date")
   }
 
@@ -201,6 +264,7 @@ function AdsPageContent() {
             setMinScore(v)
             setPage(1)
             updateUrl({ minScore: v, page: "0" })
+            saveFilters({ minScore: v, searchId, sortBy, viewMode, page: 1 })
             reload(1, v)
           }}
         >
@@ -226,6 +290,7 @@ function AdsPageContent() {
             setSearchId(v)
             setPage(1)
             updateUrl({ search: v, page: "0" })
+            saveFilters({ minScore, searchId: v, sortBy, viewMode, page: 1 })
             reload(1, undefined, v)
           }}
         >
@@ -251,6 +316,7 @@ function AdsPageContent() {
             setSortBy(v as SortOption)
             setPage(1)
             updateUrl({ sort: v, page: "0" })
+            saveFilters({ minScore, searchId, sortBy: v as SortOption, viewMode, page: 1 })
             reload(1, undefined, undefined, v)
           }}
         >
@@ -299,11 +365,9 @@ function AdsPageContent() {
           </Button>
         )}
         <div className="flex items-center gap-2 ml-auto">
-          {activeFilterCount > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {total} Schnäppchen
-            </span>
-          )}
+          <span className="text-xs text-muted-foreground">
+            {total} Schnäppchen
+          </span>
           <div className="flex gap-1">
             <Button
               variant={viewMode === "cards" ? "default" : "outline"}
@@ -311,6 +375,7 @@ function AdsPageContent() {
               onClick={() => {
                 setViewMode("cards")
                 updateUrl({ view: "cards" })
+                saveFilters({ minScore, searchId, sortBy, viewMode: "cards", page })
               }}
               className="cursor-pointer"
               aria-label="Karten-Ansicht"
@@ -323,6 +388,7 @@ function AdsPageContent() {
               onClick={() => {
                 setViewMode("table")
                 updateUrl({ view: "table" })
+                saveFilters({ minScore, searchId, sortBy, viewMode: "table", page })
               }}
               className="cursor-pointer"
               aria-label="Tabellen-Ansicht"
@@ -378,9 +444,8 @@ function AdsPageContent() {
             onClick={() => {
               setViewMode("cards")
               updateUrl({ view: "cards" })
+              saveFilters({ minScore, searchId, sortBy, viewMode: "cards", page })
             }}
-            className="cursor-pointer min-h-11 min-w-11"
-            aria-label="Karten-Ansicht"
           >
             <LayoutGrid className="size-4" />
           </Button>
@@ -390,6 +455,7 @@ function AdsPageContent() {
             onClick={() => {
               setViewMode("table")
               updateUrl({ view: "table" })
+              saveFilters({ minScore, searchId, sortBy, viewMode: "table", page })
             }}
             className="cursor-pointer min-h-11 min-w-11"
             aria-label="Tabellen-Ansicht"
