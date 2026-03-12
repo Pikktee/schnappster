@@ -109,24 +109,24 @@
     box-shadow: var(--card-shadow-hover);
   }
 
-  /* Staggered reveal animation */
+  /* Staggered reveal animation – dezent */
   .reveal-stagger > * {
     opacity: 0;
-    animation: reveal 0.5s ease forwards;
+    animation: reveal 0.35s ease forwards;
   }
-  .reveal-stagger > *:nth-child(1) { animation-delay: 0.05s; }
-  .reveal-stagger > *:nth-child(2) { animation-delay: 0.1s; }
-  .reveal-stagger > *:nth-child(3) { animation-delay: 0.15s; }
-  .reveal-stagger > *:nth-child(4) { animation-delay: 0.2s; }
-  .reveal-stagger > *:nth-child(5) { animation-delay: 0.25s; }
-  .reveal-stagger > *:nth-child(6) { animation-delay: 0.3s; }
-  .reveal-stagger > *:nth-child(7) { animation-delay: 0.35s; }
-  .reveal-stagger > *:nth-child(8) { animation-delay: 0.4s; }
+  .reveal-stagger > *:nth-child(1) { animation-delay: 0.03s; }
+  .reveal-stagger > *:nth-child(2) { animation-delay: 0.06s; }
+  .reveal-stagger > *:nth-child(3) { animation-delay: 0.09s; }
+  .reveal-stagger > *:nth-child(4) { animation-delay: 0.12s; }
+  .reveal-stagger > *:nth-child(5) { animation-delay: 0.15s; }
+  .reveal-stagger > *:nth-child(6) { animation-delay: 0.18s; }
+  .reveal-stagger > *:nth-child(7) { animation-delay: 0.21s; }
+  .reveal-stagger > *:nth-child(8) { animation-delay: 0.24s; }
 
   @keyframes reveal {
     from {
       opacity: 0;
-      transform: translateY(8px);
+      transform: translateY(4px);
     }
     to {
       opacity: 1;
@@ -201,19 +201,17 @@
     animation: skeleton-shimmer 1.5s ease-in-out infinite;
   }
 
-  /* Content reveal after load */
+  /* Content reveal after load – dezent, kein Sprung */
   .content-reveal {
-    animation: content-reveal 0.25s ease-out forwards;
+    animation: content-reveal 0.2s ease-out forwards;
   }
 
   @keyframes content-reveal {
     from {
       opacity: 0;
-      transform: translateY(6px);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
     }
   }
 

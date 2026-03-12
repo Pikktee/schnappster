@@ -4,20 +4,11 @@ import { useEffect, useState } from "react"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { PageHeader } from "@/components/page-header"
 import { SearchCard } from "@/components/search-card"
 import { SearchForm } from "@/components/search-form"
 import { EmptyState } from "@/components/empty-state"
@@ -27,6 +18,7 @@ import type { AdSearch } from "@/lib/types"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
+import { usePageHead } from "../page-head-context"
 
 export default function SearchesPage() {
   const [searches, setSearches] = useState<AdSearch[]>([])
@@ -36,6 +28,7 @@ export default function SearchesPage() {
   const [isCreating, setIsCreating] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [formDirty, setFormDirty] = useState(false)
+  const { setHeaderActions } = usePageHead()
 
   async function loadSearches() {
     setLoading(true)
@@ -57,6 +50,20 @@ export default function SearchesPage() {
   }, [])
 
   useRefetchOnFocus(loadSearches)
+
+  useEffect(() => {
+    if (!loading && !error) {
+      setHeaderActions(
+        <Button onClick={() => setIsCreateOpen(true)} className="cursor-pointer">
+          <Plus className="size-4" />
+          Neue Suche erstellen
+        </Button>
+      )
+    } else {
+      setHeaderActions(null)
+    }
+    return () => setHeaderActions(null)
+  }, [loading, error, setHeaderActions])
 
   async function handleCreate(data: Partial<AdSearch>) {
     setIsCreating(true)
@@ -99,7 +106,6 @@ export default function SearchesPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title="Suchaufträge" subtitle="Verwalte deine Kleinanzeigen-Suchen" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Skeleton className="h-40" />
           <Skeleton className="h-40" />
@@ -112,7 +118,6 @@ export default function SearchesPage() {
   if (error) {
     return (
       <ContentReveal className="flex flex-col gap-6">
-        <PageHeader title="Suchaufträge" subtitle="Verwalte deine Kleinanzeigen-Suchen" />
         <div className="flex flex-col items-center gap-4 py-12">
           <p className="text-destructive">{error}</p>
           <Button variant="outline" onClick={loadSearches} className="cursor-pointer">
@@ -125,24 +130,6 @@ export default function SearchesPage() {
 
   return (
     <ContentReveal className="flex flex-col gap-6">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/">Start</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Suchaufträge</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-      <PageHeader title="Suchaufträge" subtitle="Verwalte deine Kleinanzeigen-Suchen">
-        <Button onClick={() => setIsCreateOpen(true)} className="cursor-pointer">
-          <Plus className="size-4" />
-          Neue Suche erstellen
-        </Button>
-      </PageHeader>
-
       {searches.length === 0 ? (
         <EmptyState
           message="Noch keine Suchaufträge. Erstelle deinen ersten!"

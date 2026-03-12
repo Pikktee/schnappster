@@ -6,14 +6,6 @@ import { LayoutGrid, TableIcon, SlidersHorizontal, ChevronLeft, ChevronRight, Ro
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -35,7 +27,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { PageHeader } from "@/components/page-header"
 import { AdCard } from "@/components/ad-card"
 import { ScoreBadge } from "@/components/score-badge"
 import { EmptyState } from "@/components/empty-state"
@@ -86,7 +77,6 @@ export default function AdsPage() {
   return (
     <Suspense fallback={
       <div className="flex flex-col gap-6">
-        <PageHeader title="Schnäppchen" subtitle="Von der KI bewertete Angebote aus deinen Suchen" />
         <Skeleton className="h-10 w-48" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <Skeleton className="h-64" />
@@ -207,7 +197,6 @@ function AdsPageContent() {
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title="Schnäppchen" subtitle="Von der KI bewertete Angebote aus deinen Suchen" />
         <Skeleton className="h-10 w-48" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <Skeleton className="h-64" />
@@ -221,7 +210,6 @@ function AdsPageContent() {
   if (error) {
     return (
       <ContentReveal className="flex flex-col gap-6">
-        <PageHeader title="Schnäppchen" subtitle="Von der KI bewertete Angebote aus deinen Suchen" />
         <div className="flex flex-col items-center gap-4 py-12">
           <p className="text-destructive">{error}</p>
           <Button variant="outline" onClick={() => loadAds(page, minScore, searchId, sortBy)} className="cursor-pointer">
@@ -336,19 +324,6 @@ function AdsPageContent() {
 
   return (
     <ContentReveal className="flex flex-col gap-6">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/">Start</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Schnäppchen</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-      <PageHeader title="Schnäppchen" subtitle="Von der KI bewertete Angebote aus deinen Suchen" />
-
       {/* Desktop filters */}
       <div className="hidden md:flex flex-wrap items-end gap-4">
         {filterControls}

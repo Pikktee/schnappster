@@ -2,16 +2,9 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { Search, Package, Clock, Sparkles, Zap, Settings, X } from "lucide-react"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { LatestDeals } from "@/components/latest-deals"
 import { ContentReveal } from "@/components/content-reveal"
@@ -82,10 +75,6 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader
-          title="Dashboard"
-          subtitle="Übersicht über deine Schnäppchen-Suchergebnisse"
-        />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Skeleton className="h-28" />
           <Skeleton className="h-28" />
@@ -106,10 +95,6 @@ export default function DashboardPage() {
   if (error) {
     return (
       <ContentReveal className="flex flex-col gap-6">
-        <PageHeader
-          title="Dashboard"
-          subtitle="Übersicht über deine Schnäppchen-Suchergebnisse"
-        />
         <div className="flex flex-col items-center gap-4 py-12">
           <p className="text-destructive">{error}</p>
           <Button variant="outline" onClick={() => window.location.reload()} className="cursor-pointer">
@@ -124,18 +109,6 @@ export default function DashboardPage() {
 
   return (
     <ContentReveal className="flex flex-col gap-6">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbPage>Start</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-      <PageHeader
-        title="Dashboard"
-        subtitle="Übersicht über deine Schnäppchen-Suchergebnisse"
-      />
-
       {/* Welcome – nur bei noch keinen Suchaufträgen, schließbar */}
       {showWelcome && !welcomeDismissed && (
         <Card className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-background via-background to-primary/[0.06] shadow-sm">

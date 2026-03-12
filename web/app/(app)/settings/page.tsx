@@ -2,14 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { Save } from "lucide-react"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -21,7 +13,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { PageHeader } from "@/components/page-header"
 import { fetchSettings, fetchTelegramConfigured, updateSetting } from "@/lib/api"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -108,7 +99,6 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-8">
-        <PageHeader title="Einstellungen" subtitle="Globale App-Einstellungen" />
         <Skeleton className="h-48 max-w-2xl" />
       </div>
     )
@@ -116,19 +106,6 @@ export default function SettingsPage() {
 
   return (
     <ContentReveal className="flex flex-col gap-8">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/">Start</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Einstellungen</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-      <PageHeader title="Einstellungen" subtitle="Globale App-Einstellungen" />
-
       <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle>Verkäufer-Filter</CardTitle>

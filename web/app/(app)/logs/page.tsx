@@ -2,16 +2,7 @@
 
 import { useEffect, useState, Fragment } from "react"
 import Link from "next/link"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
-import { PageHeader } from "@/components/page-header"
 import { EmptyState } from "@/components/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -45,6 +36,7 @@ import {
   FileText,
 } from "lucide-react"
 import { ContentReveal } from "@/components/content-reveal"
+import { usePageHead } from "../page-head-context"
 
 const LIMIT = 100
 
@@ -58,6 +50,7 @@ export default function LogsPage() {
   const [activeTab, setActiveTab] = useState<"runs" | "errors" | "ai">("runs")
   const [expandedErrors, setExpandedErrors] = useState<Set<number>>(new Set())
   const [expandedAi, setExpandedAi] = useState<Set<number>>(new Set())
+  const { setHeaderActions } = usePageHead()
 
   function load() {
     setLoading(true)
@@ -82,6 +75,20 @@ export default function LogsPage() {
   useEffect(() => {
     load()
   }, [])
+
+  useEffect(() => {
+    if (!loading) {
+      setHeaderActions(
+        <Button variant="outline" size="sm" onClick={load} className="cursor-pointer">
+          <RefreshCw className="size-4 mr-2" />
+          Aktualisieren
+        </Button>
+      )
+    } else {
+      setHeaderActions(null)
+    }
+    return () => setHeaderActions(null)
+  }, [loading, setHeaderActions])
 
   const searchMap = new Map(searches.map((s) => [s.id, s]))
 
@@ -145,7 +152,6 @@ export default function LogsPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title="Logs" subtitle="Scraper-Durchläufe, Fehler und AI-Analysen" />
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -154,29 +160,7 @@ export default function LogsPage() {
 
   return (
     <ContentReveal className="flex flex-col gap-6">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/">Start</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Logs</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-      <PageHeader
-        title="Logs"
-        subtitle="Scraper-Durchläufe, Fehlerprotokolle und AI-Analysen"
-        children={
-          <Button variant="outline" size="sm" onClick={load} className="cursor-pointer">
-            <RefreshCw className="size-4 mr-2" />
-            Aktualisieren
-          </Button>
-        }
-      />
-
-      <div className="mt-6">
+      <div>
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "runs" | "errors" | "ai")} className="w-full">
         <TabsList className="w-full sm:w-auto inline-flex h-auto p-0 gap-0 border-b-2 border-border bg-muted/40 rounded-none min-h-[3rem]">
           <TabsTrigger

@@ -27,14 +27,6 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { ScoreBadge } from "@/components/score-badge"
 import { SellerRatingTag } from "@/components/seller-rating-tag"
 import { ExternalLink } from "@/components/external-link"
@@ -49,10 +41,12 @@ import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ContentReveal } from "@/components/content-reveal"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
+import { usePageHead } from "../../page-head-context"
 
 export function AdDetailPage() {
   const router = useRouter()
   const pathname = usePathname()
+  const { setTitle } = usePageHead()
   const [id, setId] = useState<number>(NaN)
 
   useEffect(() => {
@@ -138,6 +132,10 @@ export function AdDetailPage() {
     setImgErrors((prev) => new Set(prev).add(index))
   }
 
+  useEffect(() => {
+    if (ad) setTitle(ad.title)
+  }, [ad, setTitle])
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
@@ -164,36 +162,17 @@ export function AdDetailPage() {
 
   return (
     <ContentReveal className="flex flex-col gap-6">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/">Start</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/ads">Schnäppchen</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{ad.title.length > 40 ? ad.title.slice(0, 40) + "..." : ad.title}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon-sm" onClick={() => router.push("/ads")} className="cursor-pointer" aria-label="Zurück">
           <ArrowLeft className="size-4" />
         </Button>
-        <div className="flex-1 flex items-center justify-between gap-4 flex-wrap">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{ad.title}</h1>
-          <div className="flex items-center gap-2">
-            <Button asChild variant="outline" size="sm" className="cursor-pointer">
-              <a href={ad.url} target="_blank" rel="noopener noreferrer" aria-label="Auf Kleinanzeigen ansehen (neues Fenster)">
-                <ExternalLinkIcon className="size-3.5" />
-                Auf Kleinanzeigen ansehen
-              </a>
-            </Button>
-          </div>
+        <div className="flex-1 flex justify-end">
+          <Button asChild variant="outline" size="sm" className="cursor-pointer">
+            <a href={ad.url} target="_blank" rel="noopener noreferrer" aria-label="Auf Kleinanzeigen ansehen (neues Fenster)">
+              <ExternalLinkIcon className="size-3.5" />
+              Auf Kleinanzeigen ansehen
+            </a>
+          </Button>
         </div>
       </div>
 

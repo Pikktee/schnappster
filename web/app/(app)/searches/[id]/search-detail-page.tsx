@@ -17,14 +17,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import {
@@ -63,10 +55,12 @@ import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ContentReveal } from "@/components/content-reveal"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
+import { usePageHead } from "../../page-head-context"
 
 export function SearchDetailPage() {
   const router = useRouter()
   const pathname = usePathname()
+  const { setTitle } = usePageHead()
   const [id, setId] = useState<number>(NaN)
 
   useEffect(() => {
@@ -110,6 +104,10 @@ export function SearchDetailPage() {
   }, [load])
 
   useRefetchOnFocus(load)
+
+  useEffect(() => {
+    if (search) setTitle(search.name)
+  }, [search, setTitle])
 
   async function handleUpdate(data: Partial<AdSearch>) {
     if (!search) return
@@ -171,29 +169,12 @@ export function SearchDetailPage() {
 
   return (
     <ContentReveal className="flex flex-col gap-6">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/">Start</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/searches">Suchaufträge</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{search.name}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon-sm" onClick={() => router.push("/searches")} className="cursor-pointer" aria-label="Zurück">
           <ArrowLeft className="size-4" />
         </Button>
         <div className="flex-1 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">{search.name}</h1>
             <Badge
               variant="secondary"
               className={
