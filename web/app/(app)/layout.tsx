@@ -18,9 +18,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="text-sm font-semibold text-foreground">Schnappster</span>
           </header>
           <main id="main-content" className="main-scroll flex-1 overflow-y-scroll overflow-x-hidden p-6 lg:p-8">
-            <div className="w-full max-w-7xl flex flex-col gap-6">
-              <AppPageHead />
-              {children}
+            <div className="w-full ltr">
+              <div className="w-full max-w-7xl flex flex-col gap-6">
+                <AppPageHead />
+                {children}
+              </div>
             </div>
           </main>
         </SidebarInset>
