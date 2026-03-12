@@ -5,7 +5,11 @@ import logging
 from rich.logging import RichHandler
 
 RICH_HANDLER = RichHandler(
-    show_path=True, show_time=True, markup=False, show_level=True
+    show_path=True,
+    show_time=True,
+    log_time_format="%H:%M:%S",
+    markup=False,
+    show_level=True,
 )
 
 

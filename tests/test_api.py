@@ -62,7 +62,7 @@ def test_patch_adsearch_rejects_detail_page_url(client, sample_adsearch):
     assert response.status_code == 422
 
 
-@patch("app.routes.api.adsearch.fetch_page_checked")
+@patch("app.routes.api.adsearch.fetch_page_with_status")
 def test_patch_adsearch_rejects_unreachable_url(mock_fetch, client, sample_adsearch):
     """PATCH rejects URL that returns 404 (server-side validation)."""
     mock_fetch.return_value = (404, "")

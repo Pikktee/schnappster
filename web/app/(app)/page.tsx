@@ -197,7 +197,7 @@ export default function DashboardPage() {
           iconTextColor="text-emerald-600"
         />
         <StatCard
-          label="Angebote gesamt"
+          label="Anzeigen insgesamt"
           value={totalAds}
           icon={Package}
           iconBgColor="bg-amber-50"

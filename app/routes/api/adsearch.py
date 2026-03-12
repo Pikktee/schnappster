@@ -13,7 +13,7 @@ from app.models.ad import Ad
 from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearchUpdate
 from app.models.errorlog import ErrorLog
 from app.models.scraperun import ScrapeRun
-from app.scraper.httpclient import fetch_page_checked
+from app.scraper.httpclient import fetch_page_with_status
 from app.scraper.parser import parse_search_title
 from app.services.scraper import ScraperService
 
@@ -183,7 +183,7 @@ def trigger_scrape(adsearch_id: int, session: DbSession):
 # ---------------
 def _validate_search_url_reachable(url: str) -> str | None:
     """Fetch URL, validate reachability; raise 422 on failure; return page title or None."""
-    status, html = fetch_page_checked(url)
+    status, html = fetch_page_with_status(url)
     if status == 0:
         raise HTTPException(
             status_code=422,
