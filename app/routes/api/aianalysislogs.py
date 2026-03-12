@@ -21,3 +21,11 @@ def list_aianalysislogs(session: DbSession, adsearch_id: int | None = None, limi
         query = query.where(AIAnalysisLog.adsearch_id == adsearch_id)
 
     return session.exec(query).all()
+
+
+@router.delete("/", status_code=204)
+def clear_aianalysislogs(session: DbSession):
+    """Delete all AI analysis logs."""
+    for log in session.exec(select(AIAnalysisLog)).all():
+        session.delete(log)
+    session.commit()

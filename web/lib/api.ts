@@ -78,6 +78,8 @@ export const fetchScrapeRuns = (params?: { adsearch_id?: number; limit?: number 
   const qs = searchParams.toString()
   return apiFetch<ScrapeRun[]>(`/api/scraperuns/${qs ? `?${qs}` : ""}`)
 }
+export const clearScrapeRuns = () =>
+  apiFetch<void>("/api/scraperuns/", { method: "DELETE" })
 
 // ErrorLogs
 export const fetchErrorLogs = (params?: { adsearch_id?: number; limit?: number }) => {
@@ -87,6 +89,8 @@ export const fetchErrorLogs = (params?: { adsearch_id?: number; limit?: number }
   const qs = searchParams.toString()
   return apiFetch<ErrorLog[]>(`/api/errorlogs/${qs ? `?${qs}` : ""}`)
 }
+export const clearErrorLogs = () =>
+  apiFetch<void>("/api/errorlogs/", { method: "DELETE" })
 
 // AIAnalysisLogs
 export const fetchAIAnalysisLogs = (params?: { adsearch_id?: number; limit?: number }) => {
@@ -96,6 +100,8 @@ export const fetchAIAnalysisLogs = (params?: { adsearch_id?: number; limit?: num
   const qs = searchParams.toString()
   return apiFetch<AIAnalysisLog[]>(`/api/aianalysislogs/${qs ? `?${qs}` : ""}`)
 }
+export const clearAIAnalysisLogs = () =>
+  apiFetch<void>("/api/aianalysislogs/", { method: "DELETE" })
 
 // Settings
 export const fetchSettings = () => apiFetch<AppSetting[]>("/api/settings/")

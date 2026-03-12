@@ -38,6 +38,8 @@ data/*
 
 # Web
 logs
+!web/app/(app)/logs/
+!web/app/(app)/logs/*
 docs/build
 *.log
 npm-debug.log*

@@ -21,3 +21,11 @@ def list_scraperuns(session: DbSession, adsearch_id: int | None = None, limit: i
         query = query.where(ScrapeRun.adsearch_id == adsearch_id)
 
     return session.exec(query).all()
+
+
+@router.delete("/", status_code=204)
+def clear_scraperuns(session: DbSession):
+    """Delete all scrape runs."""
+    for run in session.exec(select(ScrapeRun)).all():
+        session.delete(run)
+    session.commit()

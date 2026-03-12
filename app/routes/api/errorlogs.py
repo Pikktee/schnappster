@@ -21,3 +21,11 @@ def list_errorlogs(session: DbSession, adsearch_id: int | None = None, limit: in
         query = query.where(ErrorLog.adsearch_id == adsearch_id)
 
     return session.exec(query).all()
+
+
+@router.delete("/", status_code=204)
+def clear_errorlogs(session: DbSession):
+    """Delete all error logs."""
+    for log in session.exec(select(ErrorLog)).all():
+        session.delete(log)
+    session.commit()
