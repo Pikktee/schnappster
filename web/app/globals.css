@@ -150,18 +150,14 @@
     top: 1.5rem;
   }
 
-  /* Main content scroll: reserve scrollbar space (no layout shift) + scrollbar on left, always visible */
+  /* Main content scroll: reserve scrollbar space (no layout shift), scrollbar on right, always visible */
   .main-scroll {
     scrollbar-gutter: stable;
-    direction: rtl;
     /* Firefox: dauerhaft sichtbare Scrollleiste */
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
   }
-  .main-scroll > * {
-    direction: ltr;
-  }
-  /* WebKit (Chrome, Safari, Edge): erzwingt klassische, immer sichtbare Scrollleiste (kein Overlay) */
+  /* WebKit (Chrome, Safari, Edge): klassische, immer sichtbare Scrollleiste (rechts) */
   .main-scroll::-webkit-scrollbar {
     width: 11px;
   }

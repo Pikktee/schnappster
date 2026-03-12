@@ -159,9 +159,9 @@ export default function LogsPage() {
   }
 
   return (
-    <ContentReveal className="flex flex-col gap-6">
+    <ContentReveal className="flex flex-col gap-6 min-w-0">
       <div>
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "runs" | "errors" | "ai")} className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "runs" | "errors" | "ai")} className="w-full min-w-0">
         <TabsList className="w-full sm:w-auto inline-flex h-auto p-0 gap-0 border-b-2 border-border bg-muted/40 rounded-none min-h-[3rem]">
           <TabsTrigger
             value="runs"
@@ -432,30 +432,30 @@ export default function LogsPage() {
             {aiLogs.length === 0 ? (
               <EmptyState message="Keine AI-Analysen." />
             ) : (
-              <div className="overflow-x-auto -mx-1">
-                <table className="w-full min-w-[320px] text-sm border-collapse">
+              <div className="overflow-x-auto -mx-1 min-w-0 max-w-full">
+                <table className="w-full min-w-[320px] text-sm border-collapse table-fixed">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="w-9 py-3 px-1" aria-label="Aufklappen" />
-                      <th className="text-left font-medium text-muted-foreground py-3 px-3 whitespace-nowrap">
+                      <th className="w-9 py-3 px-1 shrink-0" aria-label="Aufklappen" />
+                      <th className="text-left font-medium text-muted-foreground py-3 px-3 whitespace-nowrap w-[100px] shrink-0">
                         <span className="inline-flex items-center gap-1.5">
                           <Clock className="size-3.5" />
                           Zeitpunkt
                         </span>
                       </th>
-                      <th className="text-left font-medium text-muted-foreground py-3 px-3 whitespace-nowrap">
+                      <th className="text-left font-medium text-muted-foreground py-3 px-3 whitespace-nowrap w-[120px] shrink-0">
                         <span className="inline-flex items-center gap-1.5">
                           <Search className="size-3.5" />
                           Suchauftrag
                         </span>
                       </th>
-                      <th className="text-left font-medium text-muted-foreground py-3 px-3 min-w-[120px]">
+                      <th className="text-left font-medium text-muted-foreground py-3 px-3 min-w-0 w-[1%]">
                         <span className="inline-flex items-center gap-1.5">
                           <FileText className="size-3.5" />
                           Anzeige
                         </span>
                       </th>
-                      <th className="text-left font-medium text-muted-foreground py-3 px-3 whitespace-nowrap">
+                      <th className="text-left font-medium text-muted-foreground py-3 px-3 whitespace-nowrap w-14 shrink-0">
                         <span className="inline-flex items-center gap-1.5">
                           <Star className="size-3.5" />
                           Score
@@ -470,7 +470,7 @@ export default function LogsPage() {
                       return (
                         <Fragment key={log.id}>
                           <tr className="border-b border-border/80 hover:bg-muted/20 transition-colors">
-                            <td className="align-top py-3 px-1 w-9">
+                            <td className="align-top py-3 px-1 w-9 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => toggleAi(log.id)}
@@ -482,10 +482,10 @@ export default function LogsPage() {
                                 />
                               </button>
                             </td>
-                            <td className="align-top py-3 px-3 text-muted-foreground whitespace-nowrap">
+                            <td className="align-top py-3 px-3 text-muted-foreground whitespace-nowrap shrink-0">
                               {timeAgo(log.created_at)}
                             </td>
-                            <td className="align-top py-3 px-3 whitespace-nowrap">
+                            <td className="align-top py-3 px-3 whitespace-nowrap shrink-0">
                               <Link
                                 href={`/searches/${log.adsearch_id}`}
                                 className="text-primary hover:underline text-sm cursor-pointer"
@@ -493,16 +493,16 @@ export default function LogsPage() {
                                 {search?.name ?? `Suchauftrag #${log.adsearch_id}`}
                               </Link>
                             </td>
-                            <td className="align-top py-3 px-3 min-w-0">
+                            <td className="align-top py-3 px-3 min-w-0 overflow-hidden">
                               <Link
                                 href={`/ads/${log.ad_id}`}
-                                className="text-primary hover:underline font-medium line-clamp-2 truncate block cursor-pointer"
+                                className="text-primary hover:underline font-medium line-clamp-2 block cursor-pointer truncate w-full"
                                 title={log.ad_title}
                               >
                                 {log.ad_title}
                               </Link>
                             </td>
-                            <td className="align-top py-3 px-3 whitespace-nowrap font-medium">
+                            <td className="align-top py-3 px-3 whitespace-nowrap font-medium shrink-0">
                               {Math.round(log.score)}
                             </td>
                           </tr>

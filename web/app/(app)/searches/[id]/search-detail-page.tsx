@@ -77,10 +77,12 @@ export function SearchDetailPage() {
   const [isToggling, setIsToggling] = useState(false)
   const [formDirty, setFormDirty] = useState(false)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (Number.isNaN(id)) return
-    setLoading(true)
-    setError(null)
+    if (!opts?.silent) {
+      setLoading(true)
+      setError(null)
+    }
     try {
       const [s, a] = await Promise.all([
         fetchSearch(id),
@@ -90,10 +92,12 @@ export function SearchDetailPage() {
       setAds(a.sort((x, y) => new Date(y.first_seen_at).getTime() - new Date(x.first_seen_at).getTime()))
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Daten konnten nicht geladen werden."
-      setError(msg)
-      toast.error(msg)
-      setSearch(null)
-      setAds([])
+      if (!opts?.silent) {
+        setError(msg)
+        toast.error(msg)
+        setSearch(null)
+        setAds([])
+      }
     } finally {
       setLoading(false)
     }
@@ -103,7 +107,7 @@ export function SearchDetailPage() {
     load()
   }, [load])
 
-  useRefetchOnFocus(load)
+  useRefetchOnFocus(() => load({ silent: true }))
 
   useEffect(() => {
     if (search) {

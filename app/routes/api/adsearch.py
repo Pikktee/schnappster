@@ -69,7 +69,6 @@ def create_adsearch(
     session.add(adsearch)
     session.commit()
     session.refresh(adsearch)
-
     background_jobs.trigger_scrape_once()
 
     return adsearch

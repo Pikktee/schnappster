@@ -13,7 +13,7 @@ import { SearchCard } from "@/components/search-card"
 import { SearchForm } from "@/components/search-form"
 import { EmptyState } from "@/components/empty-state"
 import { ContentReveal } from "@/components/content-reveal"
-import { fetchSearches, createSearch, deleteSearch, triggerScrape } from "@/lib/api"
+import { fetchSearches, createSearch, deleteSearch } from "@/lib/api"
 import type { AdSearch } from "@/lib/types"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -30,16 +30,20 @@ export default function SearchesPage() {
   const [formDirty, setFormDirty] = useState(false)
   const { setHeaderActions } = usePageHead()
 
-  async function loadSearches() {
-    setLoading(true)
-    setError(null)
+  async function loadSearches(opts?: { silent?: boolean }) {
+    if (!opts?.silent) {
+      setLoading(true)
+      setError(null)
+    }
     try {
       const data = await fetchSearches()
       setSearches(data)
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Suchaufträge konnten nicht geladen werden."
-      setError(msg)
-      toast.error(msg)
+      if (!opts?.silent) {
+        setError(msg)
+        toast.error(msg)
+      }
     } finally {
       setLoading(false)
     }
@@ -49,7 +53,7 @@ export default function SearchesPage() {
     loadSearches()
   }, [])
 
-  useRefetchOnFocus(loadSearches)
+  useRefetchOnFocus(() => loadSearches({ silent: true }))
 
   useEffect(() => {
     if (!loading && !error) {
@@ -82,7 +86,6 @@ export default function SearchesPage() {
       setSearches((prev) => [newSearch, ...prev])
       setIsCreateOpen(false)
       toast.success("Suchauftrag erstellt — erste Ergebnisse erscheinen in wenigen Minuten.")
-      triggerScrape(newSearch.id).catch(() => {})
     } finally {
       setIsCreating(false)
     }
