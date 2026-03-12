@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo, useCallback } from "react"
-import { Search, Package, Clock, Sparkles, TrendingUp, Zap } from "lucide-react"
+import { Search, Package, Clock, Sparkles, Zap, Settings, X } from "lucide-react"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -22,13 +22,21 @@ import { toast } from "sonner"
 import Link from "next/link"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
 
+const WELCOME_DISMISSED_KEY = "schnappster-welcome-dismissed"
+
 export default function DashboardPage() {
   const [searches, setSearches] = useState<AdSearch[]>([])
   const [totalAds, setTotalAds] = useState<number>(0)
   const [latestDeals, setLatestDeals] = useState<Ad[]>([])
   const [scraperuns, setScraperuns] = useState<ScrapeRun[]>([])
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    setWelcomeDismissed(localStorage.getItem(WELCOME_DISMISSED_KEY) === "true")
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -128,40 +136,51 @@ export default function DashboardPage() {
         subtitle="Übersicht über deine Schnäppchen-Suchergebnisse"
       />
 
-      {/* Welcome / Quick Actions */}
-      {showWelcome && (
-        <Card className="gradient-subtle border-primary/20">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <div className="size-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shrink-0">
-                <Sparkles className="size-6 text-primary" />
+      {/* Welcome – nur bei noch keinen Suchaufträgen, schließbar */}
+      {showWelcome && !welcomeDismissed && (
+        <Card className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-background via-background to-primary/[0.06] shadow-sm">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 right-2 size-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-primary/10 cursor-pointer"
+            onClick={() => {
+              setWelcomeDismissed(true)
+              if (typeof window !== "undefined") localStorage.setItem(WELCOME_DISMISSED_KEY, "true")
+            }}
+            aria-label="Willkommens-Hinweis schließen"
+          >
+            <X className="size-4" aria-hidden />
+          </Button>
+          <CardContent className="pt-5 pb-5">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4 pr-8">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/20">
+                <Sparkles className="size-6" aria-hidden />
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-foreground">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-semibold tracking-tight text-foreground">
                   {searches.length === 0 ? "Willkommen bei Schnappster!" : "Bereit für die erste Suche?"}
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">
+                </h2>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground max-w-xl">
                   {searches.length === 0
                     ? "Erstelle deinen ersten Suchauftrag und lass uns automatisch nach Schnäppchen auf Kleinanzeigen suchen."
                     : "Deine Suchaufträge sind eingerichtet. Die ersten Ergebnisse werden in Kürze erscheinen."}
                 </p>
-                <div className="flex flex-wrap gap-2 mt-4">
+                <div className="mt-4 flex flex-wrap items-center gap-3">
                   {searches.length === 0 && (
                     <Link href="/searches/">
-                      <Button className="cursor-pointer bg-primary hover:bg-primary/90">
-                        <Search className="size-4 mr-2" />
+                      <Button size="default" className="cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
+                        <Search className="size-4 mr-2" aria-hidden />
                         Suchauftrag erstellen
                       </Button>
                     </Link>
                   )}
-                  {totalAds === 0 && (
-                    <Link href="/ads/">
-                      <Button variant="outline" className="cursor-pointer">
-                        <TrendingUp className="size-4 mr-2" />
-                        Schnäppchen durchsuchen
-                      </Button>
-                    </Link>
-                  )}
+                  <Link
+                    href="/settings/"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline cursor-pointer"
+                  >
+                    <Settings className="size-4 shrink-0" aria-hidden />
+                    Einstellungen — z. B. Telegram-Benachrichtigungen
+                  </Link>
                 </div>
               </div>
             </div>
