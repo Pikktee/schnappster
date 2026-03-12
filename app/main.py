@@ -1,4 +1,4 @@
-"""Schnappster FastAPI application entry point."""
+"""Schnappster entry point."""
 
 from app.core.bootstrap import create_app
 
