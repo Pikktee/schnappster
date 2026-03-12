@@ -260,6 +260,46 @@ class AIService:
         ]
 
     @staticmethod
+    def _sanitize_json_control_chars(s: str) -> str:
+        """Ersetzt rohe Steuerzeichen (z. B. Zeilenumbruch) in JSON-Strings durch \\n/\\r/\\t,
+        damit json.loads() nicht mit „Invalid control character“ abbricht."""
+        result: list[str] = []
+        in_string = False
+        escape = False
+        i = 0
+        while i < len(s):
+            c = s[i]
+            if escape:
+                result.append(c)
+                escape = False
+                i += 1
+                continue
+            if c == "\\" and in_string:
+                result.append(c)
+                escape = True
+                i += 1
+                continue
+            if c == '"':
+                in_string = not in_string
+                result.append(c)
+                i += 1
+                continue
+            if in_string and ord(c) < 32 and c != " ":
+                if c == "\n":
+                    result.append("\\n")
+                elif c == "\r":
+                    result.append("\\r")
+                elif c == "\t":
+                    result.append("\\t")
+                else:
+                    result.append(" ")
+                i += 1
+                continue
+            result.append(c)
+            i += 1
+        return "".join(result)
+
+    @staticmethod
     def _parse_response(content: str | None) -> dict:
         """Parse JSON from model; return dict with score, summary, reasoning; raise on invalid."""
         if not content:
@@ -269,6 +309,10 @@ class AIService:
         if text.startswith("```"):
             text = text.split("\n", 1)[1] if "\n" in text else text[3:]
             text = text.rsplit("```", 1)[0]
+
+        # Einige APIs (z. B. Dashscope) liefern JSON mit echten Zeilenumbrüchen in Strings;
+        # json.loads erlaubt nur escaped \n. Vor dem Parsen innerhalb von Strings escapen.
+        text = AIService._sanitize_json_control_chars(text)
 
         result = json.loads(text)
 
