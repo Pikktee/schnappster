@@ -1,5 +1,6 @@
 """Load and render ad-analyzer prompts from Jinja2 template."""
 
+import re
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
@@ -17,6 +18,11 @@ _SPLIT_DELIMITER = "\n\n" + _USER_DELIMITER + "\n\n"
 def _strip_leading_whitespace(text: str) -> str:
     """Remove leading whitespace from each line so prompt output is clean."""
     return "\n".join(line.lstrip() for line in text.split("\n"))
+
+
+def _collapse_blank_lines(text: str) -> str:
+    """Replace 3+ consecutive newlines with 2 (höchstens eine Leerzeile zwischen Blöcken)."""
+    return re.sub(r"\n{3,}", "\n\n", text)
 
 
 def _get_env() -> Environment:
@@ -67,7 +73,14 @@ def render_user_content(context: dict) -> str:
     full_context = {**_minimal_user_context(), **context}
     full = _render_full(full_context)
     _part1, _sep, part2 = full.partition(_SPLIT_DELIMITER)
-    return _strip_leading_whitespace(part2).strip() if part2 else ""
+    if not part2:
+        return ""
+    text = _strip_leading_whitespace(part2).strip()
+    return _collapse_blank_lines(text)
 
 
-__all__ = ["ADANALYZER_PROMPT", "render_user_content"]
+# Für Logs: gleicher Delimiter wie im Template, damit die Grenze System/User sichtbar ist
+USER_CONTENT_DELIMITER = _SPLIT_DELIMITER
+
+
+__all__ = ["ADANALYZER_PROMPT", "render_user_content", "USER_CONTENT_DELIMITER"]
