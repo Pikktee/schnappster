@@ -485,13 +485,15 @@ function AdsPageContent() {
               {ads.map((ad) => (
                 <TableRow
                   key={ad.id}
-                  className="cursor-pointer"
+                  className="cursor-pointer hover:bg-accent/50"
                   onClick={() => router.push(`/ads/${ad.id}`)}
                 >
-                  <TableCell className="font-medium max-w-[300px] truncate" title={ad.title}>
+                  <TableCell className="max-w-[300px] truncate text-muted-foreground" title={ad.title}>
                     {ad.title}
                   </TableCell>
-                  <TableCell>{formatPrice(ad.price)}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatPrice(ad.price)}
+                  </TableCell>
                   <TableCell>
                     <ScoreBadge score={ad.bargain_score} size="sm" />
                   </TableCell>
