@@ -46,7 +46,7 @@ export function ScoreBadge({ score, size = "md" }: ScoreBadgeProps) {
         <TooltipTrigger asChild>{badge}</TooltipTrigger>
         <TooltipContent side="top" className="text-xs">
           <p className="font-medium">{getScoreLabel(score)}</p>
-          <p className="text-muted-foreground">Score: {formatScore(score)} / 10</p>
+          <p>Score: {formatScore(score)} / 10</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
