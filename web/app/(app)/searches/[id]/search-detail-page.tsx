@@ -335,7 +335,7 @@ export function SearchDetailPage() {
               message={
                 search.last_scraped_at
                   ? "Noch keine Angebote für diese Suche."
-                  : "Deine Suche laeuft — erste Ergebnisse erscheinen in wenigen Minuten."
+                  : "Deine Suche läuft — erste Ergebnisse erscheinen in wenigen Minuten."
               }
             />
           ) : (

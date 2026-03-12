@@ -212,14 +212,19 @@ def _parse_detail_location(soup: BeautifulSoup) -> tuple[str | None, str | None]
     return _split_locality(locality_tag.get_text(strip=True))
 
 
+# Placeholder so get_text(strip=True) does not remove line breaks (strip strips newlines)
+_BR_PLACEHOLDER = "\x01"
+
+
 def _parse_detail_description(soup: BeautifulSoup) -> str | None:
     """Extract description text; convert <br> to newlines."""
     desc_tag = soup.select_one("#viewad-description-text")
     if not desc_tag:
         return None
     for br in desc_tag.find_all("br"):
-        br.replace_with("\n")
-    return desc_tag.get_text(strip=True)
+        br.replace_with(_BR_PLACEHOLDER)
+    text = desc_tag.get_text(strip=True)
+    return text.replace(_BR_PLACEHOLDER, "\n") if text else None
 
 
 def _parse_detail_condition(soup: BeautifulSoup) -> str | None:

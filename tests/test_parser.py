@@ -35,6 +35,11 @@ def test_parse_ad_detail():
     assert ad.seller_active_since == "03.10.2025"
     assert ad.seller_url is not None
     assert "155221098" in ad.seller_url
+    # Description preserves line breaks from <br> (from fixture)
+    assert ad.description is not None
+    assert "\n" in ad.description
+    assert "Enthalten sind:" in ad.description
+    assert "Rode PodMic" in ad.description
 
 
 def test_parse_ad_detail_returns_none_for_empty_html():

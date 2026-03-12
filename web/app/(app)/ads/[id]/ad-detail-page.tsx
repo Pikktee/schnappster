@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Image from "next/image"
+import Link from "next/link"
 import {
   ArrowLeft,
   ExternalLink as ExternalLinkIcon,
@@ -335,9 +336,15 @@ export function AdDetailPage() {
               <div className="flex items-center justify-between mb-4">
                 <span className="text-3xl font-bold text-foreground">{formatPrice(ad.price)}</span>
                 {search && (
-                  <Badge variant="secondary" className="text-xs cursor-default">
-                    {search.name}
-                  </Badge>
+                  <Link
+                    href={`/searches/${search.id}`}
+                    className="cursor-pointer"
+                    title={`Zum Suchauftrag „${search.name}" wechseln`}
+                  >
+                    <Badge variant="secondary" className="text-xs hover:bg-secondary/80 transition-colors cursor-pointer">
+                      {search.name}
+                    </Badge>
+                  </Link>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-4 pt-4 border-t">
@@ -355,20 +362,20 @@ export function AdDetailPage() {
                 )}
                 <div>
                   <span className="text-xs text-muted-foreground uppercase tracking-wider">Standort</span>
-                  <p className="mt-1 text-foreground font-medium">
+                  <p className="mt-1 text-foreground font-medium min-w-0">
                     <a
                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ad.postal_code + " " + ad.city)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 flex-wrap text-link hover:underline cursor-pointer"
+                      className="inline-flex items-center gap-1.5 max-w-full min-w-0 flex-nowrap text-link hover:underline cursor-pointer"
                       title={`Auf Google Maps öffnen: ${ad.postal_code} ${ad.city}`}
                       aria-label={`${ad.postal_code} ${ad.city} (öffnet neues Fenster)`}
                     >
-                      <MapPin className="size-3.5 shrink-0" />
-                      <span className="inline-flex items-center gap-1">
+                      <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
+                      <span className="min-w-0 truncate">
                         {ad.postal_code} {ad.city}
-                        <ExternalLinkIcon className="size-3 shrink-0" aria-hidden="true" />
                       </span>
+                      <ExternalLinkIcon className="size-3 shrink-0 flex-shrink-0" aria-hidden="true" />
                     </a>
                   </p>
                 </div>
@@ -386,10 +393,27 @@ export function AdDetailPage() {
               <CardHeader>
                 <CardTitle>Beschreibung</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                  {ad.description}
-                </p>
+              <CardContent className="space-y-2">
+                {ad.description
+                  .split(/\n\n+/)
+                  .map((p) => p.trim())
+                  .filter(Boolean)
+                  .map((paragraph, i) => {
+                    const lines = paragraph.split("\n");
+                    return (
+                      <p
+                        key={i}
+                        className="text-sm text-foreground leading-relaxed"
+                      >
+                        {lines.map((line, j) => (
+                          <span key={j}>
+                            {line}
+                            {j < lines.length - 1 && <br />}
+                          </span>
+                        ))}
+                      </p>
+                    );
+                  })}
               </CardContent>
             </Card>
           )}
@@ -484,9 +508,25 @@ export function AdDetailPage() {
                           Begründung {showReasoning ? "ausblenden" : "anzeigen"}
                         </button>
                         {showReasoning && (
-                          <p className="text-sm text-foreground leading-relaxed pt-0.5">
-                            {ad.ai_reasoning}
-                          </p>
+                          <div className="text-sm text-foreground leading-relaxed pt-0.5 space-y-2">
+                            {ad.ai_reasoning
+                              .split(/\n\n+/)
+                              .map((p) => p.trim())
+                              .filter(Boolean)
+                              .map((paragraph, i) => {
+                                const lines = paragraph.split("\n");
+                                return (
+                                  <p key={i}>
+                                    {lines.map((line, j) => (
+                                      <span key={j}>
+                                        {line}
+                                        {j < lines.length - 1 && <br />}
+                                      </span>
+                                    ))}
+                                  </p>
+                                );
+                              })}
+                          </div>
                         )}
                       </div>
                     )}
