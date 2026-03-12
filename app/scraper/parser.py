@@ -98,9 +98,20 @@ _TITLE_SUFFIX_RE = re.compile(
 
 def parse_search_results(html: str) -> list[ScrapedAdPreview]:
     """Parse ad previews from a search results page HTML."""
-    soup = BeautifulSoup(html, "lxml")
+
+    # Kleinanzeigen blendet unterhalb der eigentlichen Suchtreffer häufig einen separaten
+    # Block "Alternative Anzeigen in der Umgebung" ein. Diese Alternativen sollen NICHT
+    # als reguläre Suchergebnisse behandelt werden. Um sie zuverlässig auszuschließen,
+    # schneiden wir den HTML-Input vor dieser Überschrift ab, sodass nur der Teil mit
+    # den echten Suchtreffern geparst wird.
+    cutoff_marker = "Alternative Anzeigen in der Umgebung"
+    html_to_parse = html.split(cutoff_marker, 1)[0] if cutoff_marker in html else html
+
+    soup = BeautifulSoup(html_to_parse, "lxml")
     ads: list[ScrapedAdPreview] = []
-    for item in soup.select("li.ad-listitem"):
+    items = soup.select("li.ad-listitem")
+
+    for item in items:
         ad = _parse_search_item(item)
         if ad:
             ads.append(ad)

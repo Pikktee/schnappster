@@ -2,7 +2,12 @@
 
 from pathlib import Path
 
-from app.scraper.parser import _parse_price, _split_locality, parse_ad_detail
+from app.scraper.parser import (
+    _parse_price,
+    _split_locality,
+    parse_ad_detail,
+    parse_search_results,
+)
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -169,3 +174,67 @@ def test_split_locality_without_postal_code():
 
 def test_split_locality_empty():
     assert _split_locality("") == (None, None)
+
+
+# --- Search results parsing ---
+
+
+def test_parse_search_results_ignores_alternative_ads_only_page():
+    """Eine Seite mit nur 'Alternativen in der Umgebung' liefert keine Treffer."""
+    html = (FIXTURES_DIR / "ad-with-no-results.html").read_text()
+    previews = parse_search_results(html)
+
+    assert previews == []
+
+
+def test_parse_search_results_ignores_alternative_ads_below_real_results():
+    """Treffer unterhalb von 'Alternativen in der Umgebung' werden ignoriert."""
+    html = """
+    <html><body>
+        <ul>
+            <li class="ad-listitem">
+                <a href="/s-anzeige/echte-anzeige/123456789-123-456">
+                    Echte Anzeige vor Alternativen
+                </a>
+            </li>
+        </ul>
+        <h2>Alternative Anzeigen in der Umgebung</h2>
+        <ul>
+            <li class="ad-listitem">
+                <a href="/s-anzeige/alternative-anzeige/987654321-123-456">
+                    Alternative Anzeige
+                </a>
+            </li>
+        </ul>
+    </body></html>
+    """
+
+    previews = parse_search_results(html)
+
+    assert len(previews) == 1
+    assert previews[0].external_id == "123456789"
+
+
+def test_parse_search_results_parses_all_items_without_alternative_block():
+    """Ohne Alternativ-Block werden alle Listeneinträge geparst."""
+    html = """
+    <html><body>
+        <ul>
+            <li class="ad-listitem">
+                <a href="/s-anzeige/erste-anzeige/111111111-123-456">
+                    Erste Anzeige
+                </a>
+            </li>
+            <li class="ad-listitem">
+                <a href="/s-anzeige/zweite-anzeige/222222222-123-456">
+                    Zweite Anzeige
+                </a>
+            </li>
+        </ul>
+    </body></html>
+    """
+
+    previews = parse_search_results(html)
+
+    assert len(previews) == 2
+    assert {p.external_id for p in previews} == {"111111111", "222222222"}
