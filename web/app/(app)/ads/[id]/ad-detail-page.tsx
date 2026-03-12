@@ -48,6 +48,7 @@ import {
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ContentReveal } from "@/components/content-reveal"
+import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
 
 export function AdDetailPage() {
   const router = useRouter()
@@ -68,32 +69,35 @@ export function AdDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [imgErrors, setImgErrors] = useState<Set<number>>(new Set())
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (Number.isNaN(id)) return
-    async function load() {
-      setLoading(true)
-      setError(null)
+    setLoading(true)
+    setError(null)
+    try {
+      const adData = await fetchAd(id)
+      setAd(adData)
       try {
-        const adData = await fetchAd(id)
-        setAd(adData)
-        try {
-          const searchData = await fetchSearch(adData.adsearch_id)
-          setSearch(searchData)
-        } catch {
-          setSearch(null)
-        }
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Anzeige konnte nicht geladen werden."
-        setError(msg)
-        toast.error(msg)
-        setAd(null)
+        const searchData = await fetchSearch(adData.adsearch_id)
+        setSearch(searchData)
+      } catch {
         setSearch(null)
-      } finally {
-        setLoading(false)
       }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Anzeige konnte nicht geladen werden."
+      setError(msg)
+      toast.error(msg)
+      setAd(null)
+      setSearch(null)
+    } finally {
+      setLoading(false)
     }
-    load()
   }, [id])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  useRefetchOnFocus(load)
 
   const images = useMemo(() => (ad ? getAdImageUrls(ad) : []), [ad])
 

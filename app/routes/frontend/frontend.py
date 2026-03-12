@@ -10,13 +10,19 @@ FRONTEND_OUT_DIR = get_app_root() / "web" / "out"
 INDEX_HTML = FRONTEND_OUT_DIR / "index.html"
 
 
+NO_CACHE_HEADERS = {"Cache-Control": "no-cache"}
+
+
 def _serve_detail_page(section: str, id: int) -> FileResponse:
     """Serve pre-rendered detail page for section/id, or id=0 shell if missing."""
     candidate = FRONTEND_OUT_DIR / section / str(id) / "index.html"
     if candidate.is_file():
-        return FileResponse(candidate)
+        return FileResponse(candidate, headers=NO_CACHE_HEADERS)
     fallback = FRONTEND_OUT_DIR / section / "0" / "index.html"
-    return FileResponse(fallback if fallback.is_file() else INDEX_HTML)
+    return FileResponse(
+        fallback if fallback.is_file() else INDEX_HTML,
+        headers=NO_CACHE_HEADERS,
+    )
 
 
 router = APIRouter(include_in_schema=False)

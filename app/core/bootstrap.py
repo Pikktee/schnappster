@@ -5,6 +5,8 @@ from importlib.metadata import version
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 from app.core import init_db, setup_logging
 from app.core.background_jobs import get_background_jobs
@@ -47,6 +49,16 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Prevent browsers from caching API responses so the frontend always gets fresh data.
+    class NoStoreApiMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            response = await call_next(request)
+            if request.url.path.startswith("/api/"):
+                response.headers["Cache-Control"] = "no-store"
+            return response
+
+    app.add_middleware(NoStoreApiMiddleware)
 
     # Include the API and frontend routers
     app.include_router(api_router)

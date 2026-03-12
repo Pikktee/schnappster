@@ -45,6 +45,7 @@ import type { Ad, AdSearch } from "@/lib/types"
 import { formatPrice, timeAgo } from "@/lib/format"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
 
 type SortOption = "date" | "price-asc" | "price-desc" | "score-desc"
 type ViewMode = "cards" | "table"
@@ -125,6 +126,8 @@ function AdsPageContent() {
   }, [])
 
   useEffect(() => { loadAds(page, minScore, searchId, sortBy) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useRefetchOnFocus(() => loadAds(page, minScore, searchId, sortBy))
 
   function reload(newPage: number, newScore?: string, newSearch?: string, newSort?: string) {
     const s = newScore ?? minScore

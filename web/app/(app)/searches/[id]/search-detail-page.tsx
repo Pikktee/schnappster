@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import {
   ArrowLeft,
@@ -62,6 +62,7 @@ import { formatPrice, timeAgo, truncateUrl } from "@/lib/format"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ContentReveal } from "@/components/content-reveal"
+import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
 
 export function SearchDetailPage() {
   const router = useRouter()
@@ -82,30 +83,33 @@ export function SearchDetailPage() {
   const [isToggling, setIsToggling] = useState(false)
   const [formDirty, setFormDirty] = useState(false)
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (Number.isNaN(id)) return
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const [s, a] = await Promise.all([
-          fetchSearch(id),
-          fetchAds({ adsearch_id: id }),
-        ])
-        setSearch(s)
-        setAds(a.sort((x, y) => new Date(y.first_seen_at).getTime() - new Date(x.first_seen_at).getTime()))
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Daten konnten nicht geladen werden."
-        setError(msg)
-        toast.error(msg)
-        setSearch(null)
-        setAds([])
-      } finally {
-        setLoading(false)
-      }
+    setLoading(true)
+    setError(null)
+    try {
+      const [s, a] = await Promise.all([
+        fetchSearch(id),
+        fetchAds({ adsearch_id: id }),
+      ])
+      setSearch(s)
+      setAds(a.sort((x, y) => new Date(y.first_seen_at).getTime() - new Date(x.first_seen_at).getTime()))
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Daten konnten nicht geladen werden."
+      setError(msg)
+      toast.error(msg)
+      setSearch(null)
+      setAds([])
+    } finally {
+      setLoading(false)
     }
-    load()
   }, [id])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  useRefetchOnFocus(load)
 
   async function handleUpdate(data: Partial<AdSearch>) {
     if (!search) return

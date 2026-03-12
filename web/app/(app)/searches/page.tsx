@@ -26,6 +26,7 @@ import { fetchSearches, createSearch, deleteSearch, triggerScrape } from "@/lib/
 import type { AdSearch } from "@/lib/types"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
 
 export default function SearchesPage() {
   const [searches, setSearches] = useState<AdSearch[]>([])
@@ -54,6 +55,8 @@ export default function SearchesPage() {
   useEffect(() => {
     loadSearches()
   }, [])
+
+  useRefetchOnFocus(loadSearches)
 
   async function handleCreate(data: Partial<AdSearch>) {
     setIsCreating(true)

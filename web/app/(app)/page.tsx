@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { Search, Package, Clock, Sparkles, TrendingUp, Zap } from "lucide-react"
 import {
   Breadcrumb,
@@ -20,6 +20,7 @@ import type { Ad, AdSearch, ScrapeRun } from "@/lib/types"
 import { timeAgo } from "@/lib/format"
 import { toast } from "sonner"
 import Link from "next/link"
+import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
 
 export default function DashboardPage() {
   const [searches, setSearches] = useState<AdSearch[]>([])
@@ -29,31 +30,34 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const [s, countRes, dealsRes, r] = await Promise.all([
-          fetchSearches(),
-          fetchAdsPaginated({ limit: 1 }),
-          fetchAdsPaginated({ min_score: 8, sort: "date", limit: 5 }),
-          fetchScrapeRuns({ limit: 100 }),
-        ])
-        setSearches(s)
-        setTotalAds(countRes.total)
-        setLatestDeals(dealsRes.items)
-        setScraperuns(r)
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Daten konnten nicht geladen werden."
-        setError(msg)
-        toast.error(msg)
-      } finally {
-        setLoading(false)
-      }
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [s, countRes, dealsRes, r] = await Promise.all([
+        fetchSearches(),
+        fetchAdsPaginated({ limit: 1 }),
+        fetchAdsPaginated({ min_score: 8, sort: "date", limit: 5 }),
+        fetchScrapeRuns({ limit: 100 }),
+      ])
+      setSearches(s)
+      setTotalAds(countRes.total)
+      setLatestDeals(dealsRes.items)
+      setScraperuns(r)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Daten konnten nicht geladen werden."
+      setError(msg)
+      toast.error(msg)
+    } finally {
+      setLoading(false)
     }
-    load()
   }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  useRefetchOnFocus(load)
 
   const activeSearches = useMemo(
     () => searches.filter((s) => s.is_active).length,
