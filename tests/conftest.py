@@ -8,6 +8,7 @@ from sqlmodel import Session, SQLModel, StaticPool, create_engine
 from app.core.db import get_db_session
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch
+from app.models.logs_aianalysis import AIAnalysisLog
 from app.routes import api_router
 
 
@@ -114,3 +115,20 @@ def sample_ads(session, sample_adsearch):
     for ad in ads:
         session.refresh(ad)
     return ads
+
+
+@pytest.fixture
+def sample_ai_analysis_log(session, sample_ads, sample_adsearch):
+    """Create one AI analysis log for the first sample ad (and its adsearch)."""
+    ad = sample_ads[0]
+    log = AIAnalysisLog(
+        ad_id=ad.id,
+        adsearch_id=sample_adsearch.id,
+        ad_title=ad.title,
+        score=7.0,
+        ai_summary="Test summary",
+    )
+    session.add(log)
+    session.commit()
+    session.refresh(log)
+    return log

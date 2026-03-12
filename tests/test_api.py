@@ -140,6 +140,22 @@ def test_delete_adsearch_deletes_ads(client, sample_ads):
     assert response.status_code == 404
 
 
+def test_delete_adsearch_deletes_ai_analysis_logs(client, sample_ads, sample_ai_analysis_log):
+    """Deleting an adsearch also deletes related AI analysis logs."""
+    adsearch_id = sample_ads[0].adsearch_id
+
+    response = client.get("/api/aianalysislogs/")
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+    response = client.delete(f"/api/adsearches/{adsearch_id}")
+    assert response.status_code == 204
+
+    response = client.get("/api/aianalysislogs/")
+    assert response.status_code == 200
+    assert len(response.json()) == 0
+
+
 # --- Ad endpoints ---
 
 

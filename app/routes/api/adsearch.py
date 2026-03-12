@@ -11,6 +11,7 @@ from app.core.background_jobs import BackgroundJobs, get_background_jobs
 from app.core.db import DbSession, db_engine
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearchUpdate
+from app.models.logs_aianalysis import AIAnalysisLog
 from app.models.logs_error import ErrorLog
 from app.models.logs_scraperun import ScrapeRun
 from app.scraper.httpclient import fetch_page_with_status
@@ -132,6 +133,12 @@ def delete_adsearch(adsearch_id: int, session: DbSession):
     # Delete related scrape runs
     for run in session.exec(select(ScrapeRun).where(ScrapeRun.adsearch_id == adsearch_id)).all():
         session.delete(run)
+
+    # Delete related AI analysis logs (reference adsearch_id and ad_id)
+    for log in session.exec(
+        select(AIAnalysisLog).where(AIAnalysisLog.adsearch_id == adsearch_id)
+    ).all():
+        session.delete(log)
 
     # Delete related ads
     for ad in session.exec(select(Ad).where(Ad.adsearch_id == adsearch_id)).all():
