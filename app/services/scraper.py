@@ -159,14 +159,14 @@ class ScraperService:
         min_rating: int,
     ) -> str | None:
         """Return a short reason string if ad should be filtered out, else None."""
-        # Preisfilter (pro Suche)
+        # Preisfilter (per search)
         if detail.price is not None:
             if adsearch.min_price is not None and detail.price < adsearch.min_price:
                 return f"Preis {detail.price}€ unter Minimum {adsearch.min_price}€"
             if adsearch.max_price is not None and detail.price > adsearch.max_price:
                 return f"Preis {detail.price}€ über Maximum {adsearch.max_price}€"
 
-        # Blacklist (pro Suche)
+        # Blacklist (per search)
         if adsearch.blacklist_keywords:
             keywords = [k.strip().lower() for k in adsearch.blacklist_keywords.split(",")]
             title_lower = detail.title.lower()
