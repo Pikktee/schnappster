@@ -18,28 +18,6 @@ class TelegramService:
         self.chat_id = chat_id.strip() if chat_id else ""
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
 
-    @property
-    def is_configured(self) -> bool:
-        """Return True if bot token and chat id are non-empty."""
-        return bool(self.bot_token and self.chat_id)
-
-    def _format_message(self, ad: Ad) -> str:
-        """Format ad as Markdown for Telegram (title, url, price, score, summary, reasoning)."""
-        price_str = f"{ad.price:.0f} €" if ad.price is not None else "VB"
-        score_str = f"{ad.bargain_score:.1f}" if ad.bargain_score is not None else "–"
-
-        summary = ad.ai_summary or ""
-        reasoning = ad.ai_reasoning or ""
-        ki_text = f"{summary}\n\n{reasoning}".strip() if reasoning else summary
-
-        return (
-            f"**{ad.title}**\n\n"
-            f"🔗 {ad.url}\n\n"
-            f"Preis: {price_str}\n"
-            f"Bargain-Score: {score_str}/10\n\n"
-            f"{ki_text}"
-        )
-
     def send_bargain_notification(self, ad: Ad) -> None:
         """Send formatted ad message to configured Telegram chat; no-op if not configured."""
         if not self.is_configured:
@@ -64,3 +42,25 @@ class TelegramService:
                     logger.info("Telegram notification sent for ad %s", ad.id)
         except Exception as e:
             logger.warning("Failed to send Telegram notification: %s", e)
+
+    @property
+    def is_configured(self) -> bool:
+        """Return True if bot token and chat id are non-empty."""
+        return bool(self.bot_token and self.chat_id)
+
+    def _format_message(self, ad: Ad) -> str:
+        """Format ad as Markdown for Telegram (title, url, price, score, summary, reasoning)."""
+        price_str = f"{ad.price:.0f} €" if ad.price is not None else "VB"
+        score_str = f"{ad.bargain_score:.1f}" if ad.bargain_score is not None else "–"
+
+        summary = ad.ai_summary or ""
+        reasoning = ad.ai_reasoning or ""
+        ki_text = f"{summary}\n\n{reasoning}".strip() if reasoning else summary
+
+        return (
+            f"**{ad.title}**\n\n"
+            f"🔗 {ad.url}\n\n"
+            f"Preis: {price_str}\n"
+            f"Bargain-Score: {score_str}/10\n\n"
+            f"{ki_text}"
+        )
