@@ -150,6 +150,34 @@
     top: 1.5rem;
   }
 
+  /* Main content scroll: reserve scrollbar space (no layout shift) + scrollbar on left, always visible */
+  .main-scroll {
+    scrollbar-gutter: stable;
+    direction: rtl;
+    /* Firefox: dauerhaft sichtbare Scrollleiste */
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .main-scroll > * {
+    direction: ltr;
+  }
+  /* WebKit (Chrome, Safari, Edge): erzwingt klassische, immer sichtbare Scrollleiste (kein Overlay) */
+  .main-scroll::-webkit-scrollbar {
+    width: 11px;
+  }
+  .main-scroll::-webkit-scrollbar-track {
+    background: var(--muted);
+    border-radius: 4px;
+  }
+  .main-scroll::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+    border: 2px solid var(--muted);
+  }
+  .main-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+  }
+
   /* Skeleton shimmer animation */
   @keyframes skeleton-shimmer {
     0% {
