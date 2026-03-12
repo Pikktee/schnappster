@@ -70,11 +70,12 @@ def test_filter_passes_when_no_price_limits():
 
 
 def test_filter_passes_when_price_is_none():
-    """Ad with no price passes when within optional limits (VB case)."""
+    """Ad with no price (nicht Zu-verschenken) wird gefiltert."""
     detail = _make_detail(price=None)
     adsearch = _make_adsearch(min_price=20.0, max_price=200.0)
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 0)
-    assert reason is None
+    assert reason is not None
+    assert "Kein Preis" in reason
 
 
 # --- Blacklist filter ---

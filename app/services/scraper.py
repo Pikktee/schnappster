@@ -70,6 +70,7 @@ class ScraperService:
         assert adsearch.id is not None, "AdSearch muss eine ID haben, um gescrapt zu werden"
         started_at = datetime.now(UTC)
         ads_found_result = 0
+        ads_filtered_result = 0
         ads_new_result = 0
 
         try:
@@ -85,6 +86,7 @@ class ScraperService:
             ads = self._save_ads(filtered, adsearch.id)
 
             ads_found_result = len(previews)
+            ads_filtered_result = len(details) - len(filtered)
             ads_new_result = len(ads)
 
         except Exception as e:
@@ -104,6 +106,7 @@ class ScraperService:
                 started_at=started_at,
                 finished_at=finished_at,
                 ads_found=ads_found_result,
+                 ads_filtered=ads_filtered_result,
                 ads_new=ads_new_result,
             )
             self.session.add(scrape_run)
@@ -159,7 +162,26 @@ class ScraperService:
         min_rating: int,
     ) -> str | None:
         """Return a short reason string if ad should be filtered out, else None."""
-        # Preisfilter (per search)
+        # Nur Anzeigen mit ausschließlich VB (ohne angegebenen Preis) aussortieren.
+        # "VB + Preis" (z.B. "1.999 € VB") soll gespeichert werden; nur reines VB nicht.
+        is_vb = (detail.price_type == "NEGOTIABLE") or (
+            "vb" in (detail.price_raw or "").lower()
+        )
+        if is_vb and detail.price is None:
+            return "VB-Anzeige (Preis Verhandlungsbasis) ohne angegebenen Preis"
+
+        # Zu-verschenken-Kategorie: Anzeigen aus "Verschenken & Tauschen" immer behalten,
+        # auch ohne numerischen Preis.
+        is_giveaway_category = any(
+            name and name.lower().startswith("zu_verschenken")
+            for name in (detail.category_l1, detail.category_l2)
+        )
+        if detail.price is None and is_giveaway_category:
+            pass  # nicht filtern
+        elif detail.price is None:
+            return "Kein Preis angegeben (weder Betrag noch 'Zu verschenken'-Kategorie)"
+
+        # Preisfilter pro Suchauftrag (nur bei numerischem Preis)
         if detail.price is not None:
             if adsearch.min_price is not None and detail.price < adsearch.min_price:
                 return f"Preis {detail.price}€ unter Minimum {adsearch.min_price}€"

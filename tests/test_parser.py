@@ -45,6 +45,48 @@ def test_parse_ad_detail():
     assert "\n" in ad.description
     assert "Enthalten sind:" in ad.description
     assert "Rode PodMic" in ad.description
+    # Kategorie und Preis-Typ aus JS-Block (VB-Anzeige)
+    assert ad.category_l1 == "Multimedia_Elektronik"
+    assert ad.category_l2 == "Audio_Hifi"
+    assert ad.price_type == "NEGOTIABLE"
+    assert ad.price_raw is not None
+    assert "110" in ad.price_raw
+
+
+def test_parse_ad_detail_for_free_ad():
+    """Zu-verschenken-Fixture: price None, Kategorie Verschenken & Tauschen."""
+    html = (FIXTURES_DIR / "ad-for-free.html").read_text()
+    ad = parse_ad_detail(
+        html,
+        url="https://www.kleinanzeigen.de/s-anzeige/schneeanzug-winteranzug-116/3350443162-192-156",
+        external_id="3350443162",
+    )
+
+    assert ad is not None
+    assert "Schneeanzug" in ad.title
+    assert ad.price is None
+    assert ad.category_l1 == "Zu_verschenken_Tauschen"
+    assert ad.category_l2 == "Zu_verschenken"
+    assert ad.price_type is None or ad.price_type == ""
+
+
+def test_parse_ad_detail_for_vb_with_price():
+    """Anzeige mit VB und angegebenem Preis (z.B. 1.999 € VB): Preis und Kategorie werden geparst."""
+    html = (FIXTURES_DIR / "ad-with-vb-and-price.html").read_text()
+    ad = parse_ad_detail(
+        html,
+        url="https://www.kleinanzeigen.de/s-anzeige/davinci-brautkleid-gr-38-40-mit-ueberrock-schleier/3305703921-154-9293",
+        external_id="3305703921",
+    )
+
+    assert ad is not None
+    assert "Davinci" in ad.title
+    assert ad.price == 1999.0
+    assert ad.category_l1 == "Mode_Beauty"
+    assert ad.category_l2 == "Kleidung_Damen"
+    assert ad.price_type == "NEGOTIABLE"
+    assert ad.price_raw is not None
+    assert "VB" in ad.price_raw
 
 
 def test_parse_ad_detail_returns_none_for_empty_html():

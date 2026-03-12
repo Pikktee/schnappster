@@ -43,6 +43,13 @@ class ScrapedAdDetail:
     url: str
     description: str | None = None
     price: float | None = None
+    # Rohtext der Preisangabe (z.B. "110 € VB"). Für VB vs. Zu-verschenken-Erkennung.
+    price_raw: str | None = None
+    # Kategorie aus JS-Block: L1/L2 (z.B. Zu_verschenken_Tauschen / Zu_verschenken).
+    category_l1: str | None = None
+    category_l2: str | None = None
+    # Preis-Typ aus JS-Block: "NEGOTIABLE" = VB, leer bei Zu-verschenken/Normal.
+    price_type: str | None = None
     postal_code: str | None = None
     city: str | None = None
     condition: str | None = None
@@ -194,6 +201,25 @@ def parse_next_page_urls(html: str) -> list[str]:
 # ----------------------------
 # --- Detail page parsing ---
 # ----------------------------
+
+# Regexes zum Auslesen der Kategorie- und Preis-Typ-Felder aus dem eingebetteten JS-Block
+# (adL1CategoryName, adL2CategoryName, adPriceType). Werte sind single-quoted, können leer sein.
+_RE_AD_L1_CATEGORY = re.compile(r"adL1CategoryName:\s*'([^']*)'")
+_RE_AD_L2_CATEGORY = re.compile(r"adL2CategoryName:\s*'([^']*)'")
+_RE_AD_PRICE_TYPE = re.compile(r"adPriceType:\s*'([^']*)'")
+
+
+def _parse_detail_js_meta(html: str) -> tuple[str | None, str | None, str | None]:
+    """Extract category_l1, category_l2, price_type from the detail page's embedded JS config."""
+    l1 = _RE_AD_L1_CATEGORY.search(html)
+    l2 = _RE_AD_L2_CATEGORY.search(html)
+    pt = _RE_AD_PRICE_TYPE.search(html)
+    cat_l1 = l1.group(1).strip() or None if l1 else None
+    cat_l2 = l2.group(1).strip() or None if l2 else None
+    price_type = pt.group(1).strip() or None if pt else None
+    return cat_l1, cat_l2, price_type
+
+
 def _parse_detail_title(soup: BeautifulSoup) -> str | None:
     """Extract title from detail page; None if missing (invalid page)."""
     title_tag = soup.select_one("#viewad-title")
@@ -349,6 +375,10 @@ def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | 
         return None
 
     price = _parse_detail_price(soup)
+    price_tag = soup.select_one("#viewad-price")
+    price_raw = price_tag.get_text(strip=True) if price_tag and isinstance(price_tag, Tag) else None
+    category_l1, category_l2, price_type = _parse_detail_js_meta(html)
+
     postal_code, city = _parse_detail_location(soup)
     description = _parse_detail_description(soup)
     condition = _parse_detail_condition(soup)
@@ -370,6 +400,10 @@ def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | 
         url=url,
         description=description,
         price=price,
+        price_raw=price_raw,
+        category_l1=category_l1,
+        category_l2=category_l2,
+        price_type=price_type,
         postal_code=postal_code,
         city=city,
         condition=condition,

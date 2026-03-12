@@ -48,6 +48,7 @@ export interface ScrapeRun {
   started_at: string
   finished_at: string | null
   ads_found: number
+  ads_filtered: number
   ads_new: number
 }
 

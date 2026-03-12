@@ -21,6 +21,9 @@ class ScrapeRun(SQLModel, table=True):
     started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     finished_at: datetime | None = None
     ads_found: int = 0
+    # Anzahl der Anzeigen, die durch Filter (Preis, VB, Blacklist, Verkäufer, Rating, etc.)
+    # verworfen wurden. Hilft in den Logs, die Effektivität der Filter zu sehen.
+    ads_filtered: int = 0
     ads_new: int = 0
 
     adsearch: "AdSearch" = Relationship(back_populates="scrape_runs")
@@ -37,4 +40,5 @@ class ScrapeRunRead(SQLModel):
     started_at: datetime
     finished_at: datetime | None
     ads_found: int
+    ads_filtered: int
     ads_new: int

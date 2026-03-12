@@ -240,6 +240,12 @@ export default function LogsPage() {
                       </th>
                       <th className="text-left font-medium text-muted-foreground py-3 px-3 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5">
+                          <Tag className="size-3.5" />
+                          Gefiltert
+                        </span>
+                      </th>
+                      <th className="text-left font-medium text-muted-foreground py-3 px-3 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5">
                           <PlusCircle className="size-3.5" />
                           Neu
                         </span>
@@ -270,6 +276,7 @@ export default function LogsPage() {
                             )}
                           </td>
                           <td className="py-3 px-3">{run.ads_found}</td>
+                          <td className="py-3 px-3">{run.ads_filtered}</td>
                           <td className="py-3 px-3">
                             {run.ads_new > 0 ? (
                               <span className="text-emerald-600 font-semibold">+{run.ads_new}</span>
