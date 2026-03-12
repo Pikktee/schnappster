@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from app.models.ad import Ad
+from app.prompts import render_user_content
 from app.services.ai import AIService
 
 # --- Response parsing ---
@@ -83,22 +84,25 @@ def test_detect_unknown():
 
 
 def test_build_price_context(session, sample_adsearch, sample_ads):
-    """Price context includes comparison prices, average and median from same AdSearch."""
+    """Price context returns dict with comparison prices, average and median from same AdSearch."""
     ai_service = AIService.__new__(AIService)
     ai_service.session = session
 
     ad = sample_ads[0]  # price=55.0
     context = ai_service._build_price_context(ad)
 
-    assert "Vergleichspreise" in context
-    assert "80€" in context  # price of sample_ads[1]
-    assert "15€" in context  # price of sample_ads[2]
-    assert "Durchschnitt" in context
-    assert "Median" in context
+    assert context is not None
+    assert "prices" in context
+    assert "price_list" in context
+    assert "average" in context
+    assert "median" in context
+    assert context["count"] == 2  # sample_ads[1] and [2]
+    assert "80" in context["price_list"]
+    assert "15" in context["price_list"]
 
 
 def test_build_price_context_no_other_ads(session, sample_adsearch):
-    """Price context is empty when no other ads in same AdSearch."""
+    """Price context is None when no other ads in same AdSearch."""
     ai_service = AIService.__new__(AIService)
     ai_service.session = session
 
@@ -113,37 +117,51 @@ def test_build_price_context_no_other_ads(session, sample_adsearch):
     session.commit()
 
     context = ai_service._build_price_context(ad)
-    assert context == ""
+    assert context is None
 
 
-# --- Ad text building ---
+# --- User context and rendered text ---
 
 
-def test_build_ad_text(session, sample_adsearch, sample_ads):
-    """Ad text for AI includes title, price, seller rating label, and comparison context."""
+def test_build_user_context_and_render(session, sample_adsearch, sample_ads):
+    """User context + render produces text with title, price, seller rating, comparison."""
     ai_service = AIService.__new__(AIService)
     ai_service.session = session
 
     ad = sample_ads[0]
-    text = ai_service._build_ad_text(ad, sample_adsearch)
+    context = ai_service._build_user_context(ad, sample_adsearch)
+    text = render_user_content(context)
 
     assert "Rode PodMic" in text
     assert "55€" in text
     assert "Bewertung: TOP" in text
 
 
-def test_build_ad_text_with_seller_rating_labels(session, sample_adsearch, sample_ads):
-    """Seller rating 1 and 0 are converted to OK and Na ja labels."""
+def test_build_user_context_seller_rating_labels(session, sample_adsearch, sample_ads):
+    """Seller rating 1 and 0 appear as OK and Na ja in rendered content."""
     ai_service = AIService.__new__(AIService)
     ai_service.session = session
 
     ad = sample_ads[1]  # seller_rating=1
-    text = ai_service._build_ad_text(ad, sample_adsearch)
+    context = ai_service._build_user_context(ad, sample_adsearch)
+    text = render_user_content(context)
     assert "Bewertung: OK" in text
 
     ad = sample_ads[2]  # seller_rating=0
-    text = ai_service._build_ad_text(ad, sample_adsearch)
+    context = ai_service._build_user_context(ad, sample_adsearch)
+    text = render_user_content(context)
     assert "Bewertung: Na ja" in text
+
+
+def test_build_user_context_without_prompt_addition(session, sample_adsearch, sample_ads):
+    """Rendered user content has no instructions block when prompt_addition is not set."""
+    ai_service = AIService.__new__(AIService)
+    ai_service.session = session
+    ad = sample_ads[0]
+    context = ai_service._build_user_context(ad, sample_adsearch)
+    assert context.get("user_instructions") is None
+    text = render_user_content(context)
+    assert "[Zusätzliche Bewertungshinweise]" not in text
 
 
 # --- Analyze with mocked API ---

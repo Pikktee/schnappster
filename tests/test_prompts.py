@@ -1,0 +1,84 @@
+"""Tests for prompt template rendering."""
+
+from app.prompts import ADANALYZER_PROMPT, render_user_content
+
+
+def test_system_prompt_contains_rating_scale():
+    """Rendered system prompt includes the static rating scale (0-10 with labels)."""
+    assert "Bewertungsskala (0-10)" in ADANALYZER_PROMPT
+    assert "0-2:" in ADANALYZER_PROMPT and "Überteuert" in ADANALYZER_PROMPT
+    assert "5:" in ADANALYZER_PROMPT and "Normaler Gebrauchtpreis" in ADANALYZER_PROMPT
+    assert "8-9:" in ADANALYZER_PROMPT and "Echtes Schnäppchen" in ADANALYZER_PROMPT
+    assert "10:" in ADANALYZER_PROMPT and "Unglaublich günstig" in ADANALYZER_PROMPT
+
+
+def test_system_prompt_contains_json_instruction():
+    """Rendered system prompt requires JSON output format."""
+    assert "Antworte AUSSCHLIESSLICH im folgenden JSON-Format" in ADANALYZER_PROMPT
+    assert '"score"' in ADANALYZER_PROMPT
+    assert '"summary"' in ADANALYZER_PROMPT
+    assert '"reasoning"' in ADANALYZER_PROMPT
+
+
+def test_system_prompt_contains_injection_guard():
+    """Rendered system prompt includes instruction that user context must not override format."""
+    assert "Zusätzliche Bewertungshinweise" in ADANALYZER_PROMPT
+    assert "verbindlich" in ADANALYZER_PROMPT
+    assert "---SCHNAPPSTER-USER-CONTENT---" in ADANALYZER_PROMPT  # delimiter from loader
+
+
+def test_system_prompt_starts_with_role():
+    """Rendered system prompt defines the analyst role."""
+    assert "Schnäppchen-Analyst" in ADANALYZER_PROMPT
+    assert "Kleinanzeigen" in ADANALYZER_PROMPT
+
+
+def test_render_user_content_minimal():
+    """User content with only title and price_display shows labels."""
+    out = render_user_content({"title": "Testartikel", "price_display": "50€"})
+    assert "Titel: Testartikel" in out
+    assert "Preis: 50€" in out
+
+
+def test_render_user_content_with_comparison():
+    """User content with comparison shows Vergleichspreise block."""
+    out = render_user_content({
+        "title": "X",
+        "price_display": "VB",
+        "comparison": {
+            "prices": [10.0, 20.0],
+            "count": 2,
+            "price_list": "10€, 20€",
+            "average": 15,
+            "median": 15,
+        },
+    })
+    assert "Vergleichspreise" in out
+    assert "10€, 20€" in out
+    assert "Durchschnitt" in out
+    assert "Median" in out
+
+
+def test_render_user_content_with_user_instructions():
+    """User content with user_instructions ends with marked block."""
+    out = render_user_content({
+        "title": "X",
+        "price_display": "1€",
+        "user_instructions": "Bevorzuge unbenutzte Artikel",
+    })
+    assert "[Zusätzliche Bewertungshinweise]" in out
+    assert "Bevorzuge unbenutzte Artikel" in out
+    assert "[Ende der Bewertungshinweise]" in out
+
+
+def test_render_user_content_seller_rating():
+    """User content with seller_name and seller_rating 2 shows Verkäufer block with TOP."""
+    out = render_user_content({
+        "title": "X",
+        "price_display": "5€",
+        "seller_name": "Testverkäufer",
+        "seller_rating": 2,
+    })
+    assert "Verkäufer" in out
+    assert "Testverkäufer" in out
+    assert "TOP" in out

@@ -14,7 +14,7 @@ from app.models.ad import Ad
 from app.models.adsearch import AdSearch
 from app.models.logs_aianalysis import AIAnalysisLog
 from app.models.logs_error import ErrorLog
-from app.prompts import ADANALYZER_PROMPT
+from app.prompts import ADANALYZER_PROMPT, render_user_content
 from app.scraper.httpclient import fetch_binary
 from app.services.settings import SettingsService
 from app.services.telegram import TelegramService
@@ -105,10 +105,9 @@ class AIService:
         return analyzed
 
     def _build_prompt_text_for_log(self, ad: Ad) -> str:
-        """Build full prompt text (no images) for logging to ErrorLog"""
-        adsearch = self.session.get(AdSearch, ad.adsearch_id)
-        ad_text = self._build_ad_text(ad, adsearch)
-        return ADANALYZER_PROMPT + "\n\n---\n\n" + ad_text
+        """Build full prompt text (no images) for logging to ErrorLog."""
+        context = self._build_user_context(ad, self.session.get(AdSearch, ad.adsearch_id))
+        return ADANALYZER_PROMPT + "\n\n---\n\n" + render_user_content(context)
 
     def _log_analysis_error(
         self, ad: Ad, error_type: str, message: str, prompt_text: str | None = None
@@ -132,10 +131,11 @@ class AIService:
     def _analyze_ad(self, ad: Ad, prompt_text_for_log: str) -> None:
         """Run AI analysis on one ad; update score/summary/reasoning; Telegram if score >= 8."""
         adsearch = self.session.get(AdSearch, ad.adsearch_id)
-        ad_text = self._build_ad_text(ad, adsearch)
+        context = self._build_user_context(ad, adsearch)
+        user_content = render_user_content(context)
         images = self._download_images(ad)
 
-        messages = self._build_messages(ad_text, images, adsearch)
+        messages = self._build_messages(user_content, images)
 
         response = self.client.chat.completions.create(
             model=self.model,
@@ -177,49 +177,34 @@ class AIService:
 
             tg.send_bargain_notification(ad)
 
-    def _build_ad_text(self, ad: Ad, adsearch: AdSearch | None) -> str:
-        """Build plain-text representation of ad (and price context) for the AI prompt."""
-        parts = [
-            f"Titel: {ad.title}",
-            f"Preis: {ad.price:.0f}€" if ad.price else "Preis: VB",
-        ]
-
-        if ad.description:
-            parts.append(f"Beschreibung: {ad.description}")
-        if ad.condition:
-            parts.append(f"Zustand: {ad.condition}")
-        if ad.shipping_cost:
-            parts.append(f"Versand: {ad.shipping_cost}")
+    def _build_user_context(self, ad: Ad, adsearch: AdSearch | None) -> dict:
+        """Build context dict for the user-message template (no string labels, only values)."""
+        price_display = f"{ad.price:.0f}€" if ad.price else "VB"
+        location = ""
         if ad.postal_code or ad.city:
-            parts.append(f"Standort: {ad.postal_code or ''} {ad.city or ''}".strip())
+            location = f"{ad.postal_code or ''} {ad.city or ''}".strip()
 
-        seller_parts = []
-        if ad.seller_name:
-            seller_parts.append(f"Name: {ad.seller_name}")
-        if ad.seller_type:
-            seller_parts.append(f"Typ: {ad.seller_type}")
-        if ad.seller_rating is not None:
-            rating_labels = {2: "TOP", 1: "OK", 0: "Na ja"}
-            seller_parts.append(f"Bewertung: {rating_labels.get(ad.seller_rating, 'Unbekannt')}")
-        if ad.seller_is_friendly:
-            seller_parts.append("Freundlich")
-        if ad.seller_is_reliable:
-            seller_parts.append("Zuverlässig")
-        if ad.seller_active_since:
-            seller_parts.append(f"Aktiv seit: {ad.seller_active_since}")
+        comparison = self._build_price_context(ad)
+        user_instructions = None
+        if adsearch and adsearch.prompt_addition and (adsearch.prompt_addition or "").strip():
+            user_instructions = (adsearch.prompt_addition or "").strip()
 
-        if seller_parts:
-            parts.append(f"Verkäufer: {', '.join(seller_parts)}")
-
-        # Vergleichspreise hinzufügen
-        price_context = self._build_price_context(ad)
-        if price_context:
-            parts.append(price_context)
-
-        if adsearch and adsearch.prompt_addition:
-            parts.append(f"Zusätzlicher Kontext: {adsearch.prompt_addition}")
-
-        return "\n".join(parts)
+        return {
+            "title": ad.title or "",
+            "price_display": price_display,
+            "description": ad.description or None,
+            "condition": ad.condition or None,
+            "shipping_cost": ad.shipping_cost or None,
+            "location": location or None,
+            "seller_name": ad.seller_name or None,
+            "seller_type": ad.seller_type or None,
+            "seller_rating": ad.seller_rating,
+            "seller_friendly": bool(ad.seller_is_friendly),
+            "seller_reliable": bool(ad.seller_is_reliable),
+            "seller_active_since": ad.seller_active_since or None,
+            "comparison": comparison,
+            "user_instructions": user_instructions,
+        }
 
     def _download_images(self, ad: Ad, max_images: int = 1) -> list[dict]:
         """Download up to max_images from ad; return list of image_url dicts (base64 data URLs)."""
@@ -261,11 +246,9 @@ class AIService:
             return "image/gif"
         return None
 
-    def _build_messages(
-        self, ad_text: str, images: list[dict], adsearch: AdSearch | None
-    ) -> list[dict]:
+    def _build_messages(self, user_content: str, images: list[dict]) -> list[dict]:
         """Build messages list for chat completion: system prompt + user content (text + images)."""
-        content: list[dict] = [{"type": "text", "text": ad_text}]
+        content: list[dict] = [{"type": "text", "text": user_content}]
         content.extend(images)
 
         return [
@@ -296,8 +279,8 @@ class AIService:
             "reasoning": str(result["reasoning"]),
         }
 
-    def _build_price_context(self, ad: Ad) -> str:
-        """Build comparison text from other ads in same AdSearch (prices, average, median)."""
+    def _build_price_context(self, ad: Ad) -> dict | None:
+        """Return comparison data from other ads in same AdSearch, or None."""
         other_ads = self.session.exec(
             select(Ad)
             .where(Ad.adsearch_id == ad.adsearch_id)
@@ -306,16 +289,17 @@ class AIService:
         ).all()
 
         if not other_ads:
-            return ""
+            return None
 
         prices = sorted([a.price for a in other_ads])  # pyright: ignore[reportArgumentType]
         avg_price = sum(prices) / len(prices)
         median_price = prices[len(prices) // 2]
-
         price_list = ", ".join(f"{p:.0f}€" for p in prices)
 
-        return (
-            f"\nVergleichspreise aus derselben Suche ({len(prices)} Angebote):\n"
-            f"{price_list}\n"
-            f"Durchschnitt: {avg_price:.0f}€, Median: {median_price:.0f}€"
-        )
+        return {
+            "prices": prices,
+            "count": len(prices),
+            "price_list": price_list,
+            "average": int(round(avg_price)),
+            "median": int(round(median_price)),
+        }
