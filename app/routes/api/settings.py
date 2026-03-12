@@ -1,4 +1,4 @@
-"""Settings API routes."""
+"""API-Routen für Einstellungen."""
 
 from fastapi import APIRouter, HTTPException
 
@@ -11,18 +11,18 @@ router = APIRouter(prefix="/settings", tags=["Settings"])
 
 
 # --------------
-# --- Routes ---
+# --- Routen ---
 # --------------
 @router.get("/", response_model=list[dict])
 def list_settings(session: DbSession):
-    """Return all supported settings with current values and metadata."""
+    """Gibt alle unterstützten Einstellungen mit aktuellem Wert und Metadaten zurück."""
     service = SettingsService(session)
     return service.get_all()
 
 
 @router.get("/telegram-configured")
 def get_telegram_configured(session: DbSession):
-    """Return whether Telegram is configured in .env (bot token and chat id present)."""
+    """Gibt an, ob Telegram in .env konfiguriert ist (Bot-Token und Chat-ID vorhanden)."""
     configured = bool(app_config.telegram_bot_token.strip() and app_config.telegram_chat_id.strip())
 
     return {"configured": configured}
@@ -30,7 +30,7 @@ def get_telegram_configured(session: DbSession):
 
 @router.get("/{key}", response_model=AppSettingsRead)
 def read_setting(key: str, session: DbSession):
-    """Return the value for a setting key; raise 404 if key is not supported."""
+    """Gibt den Wert für einen Einstellungsschlüssel zurück; 404 wenn Schlüssel nicht unterstützt."""
     service = SettingsService(session)
     try:
         value = service.get(key)
@@ -43,7 +43,7 @@ def read_setting(key: str, session: DbSession):
 
 @router.put("/{key}", response_model=AppSettingsRead)
 def update_setting(key: str, data: AppSettingsUpdate, session: DbSession):
-    """Update setting; validate against rules (e.g. allowed); raise 422 on invalid value."""
+    """Aktualisiert eine Einstellung; validiert gegen Regeln (z. B. erlaubte Werte); 422 bei ungültigem Wert."""
     service = SettingsService(session)
     try:
         service.set(key, data.value)

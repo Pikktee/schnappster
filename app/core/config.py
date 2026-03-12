@@ -1,4 +1,4 @@
-"""Application configuration and project root path."""
+"""Anwendungskonfiguration und Projekt-Root-Pfad."""
 
 from pathlib import Path
 
@@ -6,12 +6,12 @@ from pydantic_settings import BaseSettings
 
 
 def get_app_root() -> Path:
-    """Return the project root directory."""
+    """Gibt das Projekt-Root-Verzeichnis zurück."""
     return Path(__file__).resolve().parent.parent.parent
 
 
 class Config(BaseSettings):
-    """Application configuration loaded from environment and .env."""
+    """Anwendungskonfiguration aus Umgebung und .env."""
 
     database_url: str = f"sqlite:///{get_app_root() / 'data' / 'schnappster.db'}"
     openai_api_key: str = ""
@@ -20,7 +20,7 @@ class Config(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 
-    # Pydantic settings config
+    # Pydantic-Einstellungen
     model_config = {
         "env_file": get_app_root() / ".env",
         "env_file_encoding": "utf-8",

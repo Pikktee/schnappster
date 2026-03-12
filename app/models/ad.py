@@ -1,4 +1,4 @@
-"""Ad (Kleinanzeige) database model and API read schema."""
+"""Datenbankmodell und API-Lese-Schema für Anzeigen (Kleinanzeigen)."""
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -6,16 +6,16 @@ from typing import TYPE_CHECKING
 from pydantic import computed_field
 from sqlmodel import Field, Relationship, SQLModel
 
-if TYPE_CHECKING:  # Avoid linter error
+if TYPE_CHECKING:  # Linter-Fehler vermeiden
     from app.models.adsearch import AdSearch
     from app.models.logs_aianalysis import AIAnalysisLog
 
 
 # ----------------------
-# --- Database Table ---
+# --- Datenbanktabelle ---
 # ----------------------
 class Ad(SQLModel, table=True):
-    """Ad (Kleinanzeige) database table."""
+    """Datenbanktabelle für Anzeigen (Kleinanzeigen)."""
 
     __tablename__ = "ads"  # type: ignore
 
@@ -49,10 +49,10 @@ class Ad(SQLModel, table=True):
 
 
 # -------------------
-# --- API Schemas ---
+# --- API-Schemas ---
 # -------------------
 class AdRead(SQLModel):
-    """Ad read schema for API responses."""
+    """Lese-Schema für Anzeigen in API-Antworten."""
 
     id: int
     adsearch_id: int | None

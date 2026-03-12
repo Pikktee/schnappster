@@ -1,13 +1,13 @@
-"""Application settings database table and API schemas."""
+"""Datenbanktabelle und API-Schemas für Anwendungseinstellungen."""
 
 from sqlmodel import Field, SQLModel
 
 
 # ----------------------
-# --- Database Table ---
+# --- Datenbanktabelle ---
 # ----------------------
 class AppSettings(SQLModel, table=True):
-    """Key-value settings table (e.g. exclude_commercial_sellers, min_seller_rating)."""
+    """Schlüssel-Wert-Tabelle für Einstellungen (z. B. exclude_commercial_sellers, min_seller_rating)."""
     __tablename__ = "app_settings"  # type: ignore
 
     key: str = Field(primary_key=True)
@@ -15,14 +15,14 @@ class AppSettings(SQLModel, table=True):
 
 
 # -------------------
-# --- API Schemas ---
+# --- API-Schemas ---
 # -------------------
 class AppSettingsRead(SQLModel):
-    """API output schema for a single setting."""
+    """API-Ausgabe-Schema für eine einzelne Einstellung."""
     key: str
     value: str
 
 
 class AppSettingsUpdate(SQLModel):
-    """API input schema for updating a setting value."""
+    """API-Eingabe-Schema zum Aktualisieren eines Einstellungswerts."""
     value: str

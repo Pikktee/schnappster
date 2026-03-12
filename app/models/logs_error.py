@@ -1,19 +1,19 @@
-"""Error log database model and API schema."""
+"""Datenbankmodell und API-Schema für Fehlerlogs."""
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
-if TYPE_CHECKING:  # Avoid linter error
+if TYPE_CHECKING:  # Linter-Fehler vermeiden
     from app.models.adsearch import AdSearch
 
 
 # ----------------------
-# --- Database Table ---
+# --- Datenbanktabelle ---
 # ----------------------
 class ErrorLog(SQLModel, table=True):
-    """Error log database table (scrape/AI errors for display in frontend)."""
+    """Fehlerlog-Tabelle (Scrape-/KI-Fehler für die Anzeige im Frontend)."""
     __tablename__ = "error_logs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
@@ -27,10 +27,10 @@ class ErrorLog(SQLModel, table=True):
 
 
 # -------------------
-# --- API Schemas ---
+# --- API-Schemas ---
 # -------------------
 class ErrorLogRead(SQLModel):
-    """API output schema for an error log entry."""
+    """API-Ausgabe-Schema für einen Fehlerlog-Eintrag."""
 
     id: int
     adsearch_id: int | None

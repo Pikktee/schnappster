@@ -1,51 +1,51 @@
-"""HTTP client: fetch HTML and binary content with concurrency limits and delays (curl_cffi)."""
+"""HTTP-Client: HTML und Binärdaten mit Begrenzung der Parallelität und Verzögerungen (curl_cffi)."""
 
 import asyncio
 import random
 
 from curl_cffi.requests import AsyncSession as CffiAsyncSession
 
-# Maximum concurrent requests
+# Maximale gleichzeitige Anfragen
 MAX_CONCURRENT = 3
 
-# Minimum and maximum delay between requests (seconds)
+# Minimale und maximale Pause zwischen Anfragen (Sekunden)
 DELAY_MIN = 0.5
 DELAY_MAX = 2.0
 
 
 # ---------------------------------------------------------------------------
-# Public API
+# Öffentliche API
 # ---------------------------------------------------------------------------
 
 
 def fetch_pages(urls: list[str]) -> list[str]:
-    """Synchronous wrapper around async _fetch_pages."""
+    """Synchrone Hülle um asynchrone _fetch_pages."""
     return asyncio.run(_fetch_pages(urls))
 
 
 def fetch_page(url: str) -> str:
-    """Fetch a single URL; return body or empty string; ignore HTTP status."""
+    """Lädt eine URL; gibt den Response-Body oder leeren String zurück; HTTP-Status wird ignoriert."""
     results = fetch_pages([url])
     return results[0] if results else ""
 
 
 def fetch_page_with_status(url: str) -> tuple[int, str]:
-    """Fetch one URL; return (status_code, html); (0, '') on network/connection error."""
+    """Lädt eine URL; gibt (status_code, html) zurück; (0, '') bei Netz-/Verbindungsfehler."""
     return asyncio.run(_fetch_page_with_status(url))
 
 
 def fetch_binary(urls: list[str]) -> list[bytes]:
-    """Synchronous wrapper around async _fetch_binary."""
+    """Synchrone Hülle um asynchrone _fetch_binary."""
     return asyncio.run(_fetch_binary(urls))
 
 
 # ---------------------------------------------------------------------------
-# Private
+# Intern
 # ---------------------------------------------------------------------------
 
 
 async def _fetch_pages(urls: list[str]) -> list[str]:
-    """Fetch multiple URLs with limited concurrency and random delay between requests."""
+    """Lädt mehrere URLs mit begrenzter Parallelität und zufälliger Pause zwischen den Anfragen."""
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
     results: list[str] = [""] * len(urls)
 
@@ -70,7 +70,7 @@ async def _fetch_pages(urls: list[str]) -> list[str]:
 
 
 async def _fetch_page_with_status(url: str) -> tuple[int, str]:
-    """Fetch one URL; return (status_code, body); (0, '') on connection error."""
+    """Lädt eine URL; gibt (status_code, body) zurück; (0, '') bei Verbindungsfehler."""
     async with CffiAsyncSession(impersonate="chrome") as session:
         try:
             response = await session.get(url)
@@ -80,7 +80,7 @@ async def _fetch_page_with_status(url: str) -> tuple[int, str]:
 
 
 async def _fetch_binary(urls: list[str]) -> list[bytes]:
-    """Fetch binary content (e.g. images) with limited concurrency and delays."""
+    """Lädt Binärdaten (z. B. Bilder) mit begrenzter Parallelität und Verzögerungen."""
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
     results: list[bytes] = [b""] * len(urls)
 

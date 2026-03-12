@@ -1,4 +1,4 @@
-"""Tests for the HTML parser."""
+"""Tests für den HTML-Parser."""
 
 from pathlib import Path
 
@@ -12,11 +12,11 @@ from app.scraper.parser import (
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
-# --- Detail page parsing ---
+# --- Detailseiten parsen ---
 
 
 def test_parse_ad_detail():
-    """Parse full ad detail page fixture and assert all fields."""
+    """Parst die vollständige Anzeigen-Detailseiten-Fixture und prüft alle Felder."""
     html = (FIXTURES_DIR / "ad.html").read_text()
     ad = parse_ad_detail(
         html,
@@ -40,7 +40,7 @@ def test_parse_ad_detail():
     assert ad.seller_active_since == "03.10.2025"
     assert ad.seller_url is not None
     assert "155221098" in ad.seller_url
-    # Description preserves line breaks from <br> (from fixture)
+    # Beschreibung behält Zeilenumbrüche von <br> (laut Fixture)
     assert ad.description is not None
     assert "\n" in ad.description
     assert "Enthalten sind:" in ad.description
@@ -90,23 +90,23 @@ def test_parse_ad_detail_for_vb_with_price():
 
 
 def test_parse_ad_detail_returns_none_for_empty_html():
-    """parse_ad_detail returns None for empty HTML."""
+    """parse_ad_detail gibt None bei leerem HTML zurück."""
     ad = parse_ad_detail("", url="https://example.com", external_id="123")
     assert ad is None
 
 
 def test_parse_ad_detail_returns_none_for_missing_title():
-    """parse_ad_detail returns None when title element is missing."""
+    """parse_ad_detail gibt None zurück, wenn das Titel-Element fehlt."""
     html = "<html><body><div>No title here</div></body></html>"
     ad = parse_ad_detail(html, url="https://example.com", external_id="123")
     assert ad is None
 
 
-# --- Rating parsing ---
+# --- Rating parsen ---
 
 
 def test_parse_rating_top():
-    """Test parsing TOP rating from fixture."""
+    """Testet das Parsen des TOP-Ratings aus der Fixture."""
     html = (FIXTURES_DIR / "ad.html").read_text()
     ad = parse_ad_detail(
         html,
@@ -118,7 +118,7 @@ def test_parse_rating_top():
 
 
 def test_parse_rating_ok():
-    """Test parsing OK rating (icon-rating-tag-1)."""
+    """Testet das Parsen des OK-Ratings (icon-rating-tag-1)."""
     html = """
     <html><body>
         <h1 id="viewad-title">Test Ad</h1>
@@ -137,7 +137,7 @@ def test_parse_rating_ok():
 
 
 def test_parse_rating_naja():
-    """Test parsing 'Na ja' rating (icon-rating-tag-0)."""
+    """Testet das Parsen des 'Na ja'-Ratings (icon-rating-tag-0)."""
     html = """
     <html><body>
         <h1 id="viewad-title">Test Ad</h1>
@@ -156,7 +156,7 @@ def test_parse_rating_naja():
 
 
 def test_parse_rating_none_when_missing():
-    """Test that rating is None when no rating badge exists."""
+    """Testet, dass rating None ist, wenn kein Rating-Badge existiert."""
     html = """
     <html><body>
         <h1 id="viewad-title">Test Ad</h1>
@@ -172,7 +172,7 @@ def test_parse_rating_none_when_missing():
     assert ad.seller_rating is None
 
 
-# --- Price parsing ---
+# --- Preis parsen ---
 
 
 def test_parse_price_simple():
@@ -203,7 +203,7 @@ def test_parse_price_zu_verschenken():
     assert _parse_price("Zu verschenken") is None
 
 
-# --- Locality splitting ---
+# --- Ortsaufteilung ---
 
 
 def test_split_locality_with_postal_code():
@@ -218,7 +218,7 @@ def test_split_locality_empty():
     assert _split_locality("") == (None, None)
 
 
-# --- Search results parsing ---
+# --- Suchergebnisse parsen ---
 
 
 def test_parse_search_results_ignores_alternative_ads_only_page():

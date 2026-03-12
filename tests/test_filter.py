@@ -1,4 +1,4 @@
-"""Tests for the ad filter logic in ScraperService."""
+"""Tests für die Anzeigen-Filterlogik im ScraperService."""
 
 from app.models.adsearch import AdSearch
 from app.scraper.parser import ScrapedAdDetail
@@ -6,7 +6,7 @@ from app.services.scraper import ScraperService
 
 
 def _make_detail(**kwargs) -> ScrapedAdDetail:
-    """Create a ScrapedAdDetail with optional overrides and defaults."""
+    """Erstellt ein ScrapedAdDetail mit optionalen Overrides und Defaults."""
     defaults = {
         "external_id": "123",
         "title": "Test Ad",
@@ -20,7 +20,7 @@ def _make_detail(**kwargs) -> ScrapedAdDetail:
 
 
 def _make_adsearch(**kwargs) -> AdSearch:
-    """Create an AdSearch with optional overrides and defaults."""
+    """Erstellt einen AdSearch mit optionalen Overrides und Defaults."""
     defaults = {
         "name": "Test",
         "url": "https://example.com",
@@ -36,7 +36,7 @@ def _make_adsearch(**kwargs) -> AdSearch:
 
 
 def test_filter_passes_when_price_in_range():
-    """Ad passes when price is within min/max."""
+    """Anzeige bleibt, wenn Preis zwischen min und max liegt."""
     detail = _make_detail(price=50.0)
     adsearch = _make_adsearch(min_price=20.0, max_price=100.0)
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 0)
@@ -44,7 +44,7 @@ def test_filter_passes_when_price_in_range():
 
 
 def test_filter_rejects_price_below_minimum():
-    """Ad is filtered out when price below min_price."""
+    """Anzeige wird gefiltert, wenn Preis unter min_price liegt."""
     detail = _make_detail(price=10.0)
     adsearch = _make_adsearch(min_price=20.0)
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 0)
@@ -53,7 +53,7 @@ def test_filter_rejects_price_below_minimum():
 
 
 def test_filter_rejects_price_above_maximum():
-    """Ad is filtered out when price above max_price."""
+    """Anzeige wird gefiltert, wenn Preis über max_price liegt."""
     detail = _make_detail(price=300.0)
     adsearch = _make_adsearch(max_price=200.0)
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 0)
@@ -62,7 +62,7 @@ def test_filter_rejects_price_above_maximum():
 
 
 def test_filter_passes_when_no_price_limits():
-    """Ad passes when AdSearch has no min/max price."""
+    """Anzeige bleibt, wenn der Suchauftrag keine Preisgrenzen hat."""
     detail = _make_detail(price=9999.0)
     adsearch = _make_adsearch()
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 0)
@@ -82,7 +82,7 @@ def test_filter_passes_when_price_is_none():
 
 
 def test_filter_rejects_blacklisted_title():
-    """Ad is filtered when blacklist keyword appears in title."""
+    """Anzeige wird gefiltert, wenn Blacklist-Keyword im Titel vorkommt."""
     detail = _make_detail(title="Rode PodMic defekt")
     adsearch = _make_adsearch(blacklist_keywords="defekt,bastler")
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 0)
@@ -91,7 +91,7 @@ def test_filter_rejects_blacklisted_title():
 
 
 def test_filter_rejects_blacklisted_description():
-    """Ad is filtered when blacklist keyword appears in description."""
+    """Anzeige wird gefiltert, wenn Blacklist-Keyword in der Beschreibung vorkommt."""
     detail = _make_detail(description="Für Bastler, nicht funktionsfähig")
     adsearch = _make_adsearch(blacklist_keywords="defekt,bastler")
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 0)
@@ -100,7 +100,7 @@ def test_filter_rejects_blacklisted_description():
 
 
 def test_filter_passes_when_no_blacklist_match():
-    """Ad passes when no blacklist keyword in title or description."""
+    """Anzeige bleibt, wenn kein Blacklist-Keyword in Titel oder Beschreibung."""
     detail = _make_detail(title="Rode PodMic neuwertig")
     adsearch = _make_adsearch(blacklist_keywords="defekt,bastler")
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 0)
@@ -108,7 +108,7 @@ def test_filter_passes_when_no_blacklist_match():
 
 
 def test_filter_passes_when_no_blacklist():
-    """Ad with keyword in title passes when AdSearch has no blacklist."""
+    """Anzeige mit Keyword im Titel bleibt, wenn der Suchauftrag keine Blacklist hat."""
     detail = _make_detail(title="Rode PodMic defekt")
     adsearch = _make_adsearch(blacklist_keywords=None)
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 0)
@@ -116,7 +116,7 @@ def test_filter_passes_when_no_blacklist():
 
 
 def test_filter_blacklist_case_insensitive():
-    """Blacklist matching is case-insensitive."""
+    """Blacklist-Abgleich ist case-insensitiv."""
     detail = _make_detail(title="DEFEKTES Mikrofon")
     adsearch = _make_adsearch(blacklist_keywords="defekt")
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 0)
@@ -127,7 +127,7 @@ def test_filter_blacklist_case_insensitive():
 
 
 def test_filter_rejects_commercial_seller():
-    """Ad is filtered when seller is commercial and global setting excludes commercial."""
+    """Anzeige wird gefiltert, wenn Verkäufer gewerblich ist und die globale Einstellung Gewerbe ausschließt."""
     detail = _make_detail(seller_type="Gewerblich")
     adsearch = _make_adsearch()
     reason = ScraperService._get_filter_reason(detail, adsearch, True, 0)
@@ -136,7 +136,7 @@ def test_filter_rejects_commercial_seller():
 
 
 def test_filter_passes_private_seller_when_excluding_commercial():
-    """Private seller passes when commercial sellers are excluded."""
+    """Privatverkäufer bleibt, wenn gewerbliche Verkäufer ausgeschlossen sind."""
     detail = _make_detail(seller_type="Privat")
     adsearch = _make_adsearch()
     reason = ScraperService._get_filter_reason(detail, adsearch, True, 0)
@@ -144,7 +144,7 @@ def test_filter_passes_private_seller_when_excluding_commercial():
 
 
 def test_filter_passes_commercial_when_not_excluding():
-    """Commercial seller passes when exclusion setting is false."""
+    """Gewerblicher Verkäufer bleibt, wenn die Ausschluss-Einstellung false ist."""
     detail = _make_detail(seller_type="Gewerblich")
     adsearch = _make_adsearch()
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 0)
@@ -155,7 +155,7 @@ def test_filter_passes_commercial_when_not_excluding():
 
 
 def test_filter_rejects_low_rating():
-    """Ad is filtered when seller rating below global minimum."""
+    """Anzeige wird gefiltert, wenn Verkäufer-Rating unter dem globalen Minimum liegt."""
     detail = _make_detail(seller_rating=0)  # Na ja
     adsearch = _make_adsearch()
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 2)  # min=TOP
@@ -164,7 +164,7 @@ def test_filter_rejects_low_rating():
 
 
 def test_filter_passes_matching_rating():
-    """Ad passes when seller rating meets minimum."""
+    """Anzeige bleibt, wenn das Verkäufer-Rating dem Minimum entspricht."""
     detail = _make_detail(seller_rating=2)  # TOP
     adsearch = _make_adsearch()
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 2)  # min=TOP
@@ -172,7 +172,7 @@ def test_filter_passes_matching_rating():
 
 
 def test_filter_passes_higher_rating():
-    """Ad passes when seller rating above minimum."""
+    """Anzeige bleibt, wenn das Verkäufer-Rating über dem Minimum liegt."""
     detail = _make_detail(seller_rating=2)  # TOP
     adsearch = _make_adsearch()
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 1)  # min=OK
@@ -180,7 +180,7 @@ def test_filter_passes_higher_rating():
 
 
 def test_filter_passes_when_no_rating():
-    """Ad with no seller rating passes (no rating filter applied)."""
+    """Anzeige ohne Verkäufer-Rating bleibt (kein Rating-Filter angewendet)."""
     detail = _make_detail(seller_rating=None)
     adsearch = _make_adsearch()
     reason = ScraperService._get_filter_reason(detail, adsearch, False, 2)
@@ -191,10 +191,10 @@ def test_filter_passes_when_no_rating():
 
 
 def test_filter_rejects_on_first_matching_rule():
-    """When multiple rules match, the first reason (e.g. price) is returned."""
+    """Bei mehreren zutreffenden Regeln wird der erste Grund (z. B. Preis) zurückgegeben."""
     detail = _make_detail(price=5.0, title="Defektes Mikrofon", seller_type="Gewerblich")
     adsearch = _make_adsearch(min_price=20.0, blacklist_keywords="defekt")
     reason = ScraperService._get_filter_reason(detail, adsearch, True, 2)
     assert reason is not None
-    # Price filter runs first
+    # Preisfilter läuft zuerst
     assert "Minimum" in reason

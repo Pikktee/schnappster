@@ -1,4 +1,4 @@
-"""AI analysis log API routes."""
+"""API-Routen für KI-Analyse-Logs."""
 
 from fastapi import APIRouter
 from sqlmodel import col, select
@@ -10,11 +10,11 @@ router = APIRouter(prefix="/aianalysislogs", tags=["AIAnalysisLogs"])
 
 
 # --------------
-# --- Routes ---
+# --- Routen ---
 # --------------
 @router.get("/", response_model=list[AIAnalysisLogRead])
 def list_aianalysislogs(session: DbSession, adsearch_id: int | None = None, limit: int = 100):
-    """Return AI analysis logs (successful analyses only), newest first."""
+    """Gibt KI-Analyse-Logs zurück (nur erfolgreiche Analysen), neueste zuerst."""
     query = select(AIAnalysisLog).order_by(col(AIAnalysisLog.created_at).desc()).limit(limit)
 
     if adsearch_id is not None:
@@ -25,7 +25,7 @@ def list_aianalysislogs(session: DbSession, adsearch_id: int | None = None, limi
 
 @router.delete("/", status_code=204)
 def clear_aianalysislogs(session: DbSession):
-    """Delete all AI analysis logs."""
+    """Löscht alle KI-Analyse-Logs."""
     for log in session.exec(select(AIAnalysisLog)).all():
         session.delete(log)
     session.commit()

@@ -1,4 +1,4 @@
-"""Scrape run API routes."""
+"""API-Routen für Scrape-Läufe."""
 
 from fastapi import APIRouter
 from sqlmodel import col, select
@@ -10,11 +10,11 @@ router = APIRouter(prefix="/scraperuns", tags=["ScrapeRuns"])
 
 
 # --------------
-# --- Routes ---
+# --- Routen ---
 # --------------
 @router.get("/", response_model=list[ScrapeRunRead])
 def list_scraperuns(session: DbSession, adsearch_id: int | None = None, limit: int = 50):
-    """Return scrape runs, optionally filtered by adsearch_id, ordered by started_at desc."""
+    """Gibt Scrape-Läufe zurück, optional nach adsearch_id gefiltert, nach started_at absteigend."""
     query = select(ScrapeRun).order_by(col(ScrapeRun.started_at).desc()).limit(limit)
 
     if adsearch_id is not None:
@@ -25,7 +25,7 @@ def list_scraperuns(session: DbSession, adsearch_id: int | None = None, limit: i
 
 @router.delete("/", status_code=204)
 def clear_scraperuns(session: DbSession):
-    """Delete all scrape runs."""
+    """Löscht alle Scrape-Läufe."""
     for run in session.exec(select(ScrapeRun)).all():
         session.delete(run)
     session.commit()

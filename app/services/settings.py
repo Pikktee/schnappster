@@ -1,4 +1,4 @@
-"""Runtime settings from DB: commercial exclusion, min seller rating, Telegram."""
+"""Laufzeit-Einstellungen aus der DB: Gewerbe-Ausschluss, Mindest-Verkäuferbewertung, Telegram."""
 
 from sqlmodel import Session
 
@@ -6,7 +6,7 @@ from app.models.settings import AppSettings
 
 
 class SettingsService:
-    """Read and write app settings stored in AppSettings table; validate against allowed values."""
+    """Liest und schreibt Einstellungen aus der Tabelle AppSettings; validiert gegen erlaubte Werte."""
 
     _SUPPORTED_SETTINGS: dict[str, dict] = {
         "exclude_commercial_sellers": {
@@ -36,16 +36,16 @@ class SettingsService:
     }
 
     def __init__(self, session: Session):
-        """Create service with the given database session."""
+        """Erstellt den Service mit der übergebenen Datenbank-Session."""
         self.session = session
 
     @property
     def supported(self) -> dict:
-        """Return schema dict of supported setting keys and metadata."""
+        """Gibt das Schema aller unterstützten Einstellungsschlüssel und Metadaten zurück."""
         return self._SUPPORTED_SETTINGS.copy()
 
     def get(self, key: str) -> str:
-        """Return the string value for a setting key; raise ValueError if key not supported."""
+        """Gibt den String-Wert für einen Einstellungsschlüssel zurück; ValueError bei unbekanntem Schlüssel."""
         if key not in self._SUPPORTED_SETTINGS:
             raise ValueError(f"This setting '{key}' is not supported.")
 
@@ -54,19 +54,19 @@ class SettingsService:
         return config.value if config else self._SUPPORTED_SETTINGS[key]["default"]
 
     def get_bool(self, key: str) -> bool:
-        """Return the setting value as a boolean (true/false string)."""
+        """Gibt den Einstellungswert als Boolean zurück (true/false-String)."""
         return self.get(key).lower() == "true"
 
     def get_int(self, key: str) -> int:
-        """Return the setting value as an integer."""
+        """Gibt den Einstellungswert als Integer zurück."""
         return int(self.get(key))
 
     def set(self, key: str, value: str):
-        """Set a setting value; validate against allowed; create or update AppSettings row."""
+        """Setzt einen Einstellungswert; validiert gegen Erlaubtes; legt Zeile an oder aktualisiert sie."""
         if key not in self._SUPPORTED_SETTINGS:
             raise ValueError(f"This setting '{key}' is not supported.")
 
-        # Validate with rules
+        # Anhand der Regeln validieren
         rules = self._SUPPORTED_SETTINGS[key]
         allowed = rules.get("allowed")
         if allowed and value not in allowed:
@@ -83,7 +83,7 @@ class SettingsService:
         self.session.commit()
 
     def get_all(self) -> list[dict]:
-        """Return all supported settings with key, value, type, default, allowed, description."""
+        """Gibt alle unterstützten Einstellungen mit Schlüssel, Wert, Typ, Default, Erlaubtes und Beschreibung zurück."""
         all_settings = []
         for key, details in self._SUPPORTED_SETTINGS.items():
             entry = {

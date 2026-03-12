@@ -1,11 +1,11 @@
-"""Start the Schnappster application.
+"""Startet die Schnappster-Anwendung.
 
-Usage:
-    uv run start                      # run tests, build web, start app (port 8000)
-    uv run start --port 8080          # use port 8080
-    uv run start --skip-tests         # skip tests, build web, start app
-    uv run start --dev                # dev mode: Next.js :3000 + backend
-    uv run start --dev --port 8080    # dev mode on port 8080
+Verwendung:
+    uv run start                      # Tests, Web-Build, App starten (Port 8000)
+    uv run start --port 8080          # Port 8080 nutzen
+    uv run start --skip-tests         # Tests überspringen, Web bauen, App starten
+    uv run start --dev                # Dev-Modus: Next.js :3000 + Backend
+    uv run start --dev --port 8080    # Dev-Modus auf Port 8080
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ DEFAULT_PORT = 8000
 
 
 def _parse_start_args() -> tuple[int, bool, bool]:
-    """Parse sys.argv for start command; return (port, skip_tests, dev_mode)."""
+    """Parst sys.argv für den start-Befehl; gibt (port, skip_tests, dev_mode) zurück."""
     argv = sys.argv[1:]
     port = DEFAULT_PORT
     skip_tests = False
@@ -69,15 +69,15 @@ def _parse_start_args() -> tuple[int, bool, bool]:
 
 
 def run_tests() -> bool:
-    """Run pytest and return True if all tests pass."""
-    # Print a visually distinct header that stands out
+    """Führt pytest aus und gibt True zurück, wenn alle Tests bestehen."""
+    # Deutlich sichtbare Kopfzeile ausgeben
     print("\n" + "=" * 60)
     print("🧪  RUNNING TESTS")
     print("=" * 60 + "\n")
 
     result = subprocess.run(["uv", "run", "pytest", "tests/", "-v"], check=False)
 
-    # Print a clear pass/fail footer
+    # Klare Bestanden/Fehlgeschlagen-Fußzeile
     print("\n" + "=" * 60)
     if result.returncode == 0:
         print("✅  ALL TESTS PASSED")
@@ -89,17 +89,17 @@ def run_tests() -> bool:
 
 
 def get_project_root() -> Path:
-    """Project root (same as app root)."""
+    """Projekt-Root (gleich dem App-Root)."""
     return get_app_root()
 
 
 def get_frontend_dir() -> Path:
-    """Return path to the web (Next.js) frontend directory."""
+    """Gibt den Pfad zum Web-Frontend-Verzeichnis (Next.js) zurück."""
     return get_app_root() / "web"
 
 
 def build_frontend() -> None:
-    """Build the Next.js frontend as static export into web/out."""
+    """Baut das Next.js-Frontend als statischen Export nach web/out."""
     frontend_dir = get_frontend_dir()
     if not frontend_dir.exists():
         logger.warning(
@@ -141,7 +141,7 @@ def build_frontend() -> None:
 
 
 def start_frontend_dev(port: int) -> subprocess.Popen[bytes]:
-    """Start the Next.js dev server (npm run dev) and return the process."""
+    """Startet den Next.js-Dev-Server (npm run dev) und gibt den Prozess zurück."""
     frontend_dir = get_frontend_dir()
     if not frontend_dir.exists():
         logger.error("Frontend directory %s does not exist. Cannot start dev server.", frontend_dir)
@@ -160,7 +160,7 @@ def start_frontend_dev(port: int) -> subprocess.Popen[bytes]:
 
 
 def main() -> None:
-    """Parse args, run tests (unless --skip-tests), build frontend or start dev, run uvicorn."""
+    """Parst Argumente, führt Tests aus (außer bei --skip-tests), baut Frontend oder startet Dev, startet uvicorn."""
     setup_logging()
 
     port, skip_tests, dev_mode = _parse_start_args()

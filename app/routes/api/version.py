@@ -1,4 +1,4 @@
-"""Version API route."""
+"""API-Route für die Anwendungsversion."""
 
 from importlib.metadata import version
 
@@ -9,5 +9,5 @@ router = APIRouter(prefix="/version", tags=["Version"])
 
 @router.get("/", response_model=dict)
 def get_version() -> dict:
-    """Return application version from package metadata (pyproject.toml)."""
+    """Gibt die Anwendungsversion aus den Paket-Metadaten (pyproject.toml) zurück."""
     return {"version": version("schnappster")}

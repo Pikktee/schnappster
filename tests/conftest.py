@@ -1,4 +1,4 @@
-"""Shared test fixtures for Schnappster tests."""
+"""Gemeinsame Test-Fixtures für Schnappster-Tests."""
 
 import pytest
 from fastapi import FastAPI
@@ -14,7 +14,7 @@ from app.routes import api_router
 
 @pytest.fixture(name="engine")
 def engine_fixture():
-    """Create an in-memory SQLite database for testing."""
+    """Erstellt eine SQLite-In-Memory-Datenbank für Tests."""
     test_engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -26,14 +26,14 @@ def engine_fixture():
 
 @pytest.fixture(name="session")
 def session_fixture(engine):
-    """Create a database session for testing."""
+    """Erstellt eine Datenbank-Session für Tests."""
     with Session(engine) as session:
         yield session
 
 
 @pytest.fixture(name="client")
 def client_fixture(session):
-    """Create a FastAPI test client with test database."""
+    """Erstellt einen FastAPI-Test-Client mit Testdatenbank."""
     test_app = FastAPI()
     test_app.include_router(api_router)
 
@@ -48,7 +48,7 @@ def client_fixture(session):
 
 @pytest.fixture
 def sample_adsearch(session):
-    """Create a sample AdSearch for testing."""
+    """Erstellt einen Beispiel-Suchauftrag für Tests."""
     adsearch = AdSearch(
         name="Test Search",
         url="https://www.kleinanzeigen.de/s-audio-hifi/60325/podmic/k0c172l4305r250",
@@ -65,7 +65,7 @@ def sample_adsearch(session):
 
 @pytest.fixture
 def sample_ads(session, sample_adsearch):
-    """Create sample Ads for testing."""
+    """Erstellt Beispiel-Anzeigen für Tests."""
     ads = [
         Ad(
             external_id="1001",
@@ -122,7 +122,7 @@ def sample_ads(session, sample_adsearch):
 
 @pytest.fixture
 def sample_ai_analysis_log(session, sample_ads, sample_adsearch):
-    """Create one AI analysis log for the first sample ad (and its adsearch)."""
+    """Erstellt einen KI-Analyse-Log-Eintrag für die erste Beispielanzeige (und ihren Suchauftrag)."""
     ad = sample_ads[0]
     log = AIAnalysisLog(
         ad_id=ad.id,

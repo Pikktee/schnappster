@@ -1,4 +1,4 @@
-"""Error log API routes."""
+"""API-Routen für Fehlerlogs."""
 
 from fastapi import APIRouter
 from sqlmodel import col, select
@@ -10,11 +10,11 @@ router = APIRouter(prefix="/errorlogs", tags=["ErrorLogs"])
 
 
 # --------------
-# --- Routes ---
+# --- Routen ---
 # --------------
 @router.get("/", response_model=list[ErrorLogRead])
 def list_errorlogs(session: DbSession, adsearch_id: int | None = None, limit: int = 100):
-    """Return error logs, optionally filtered by adsearch_id, newest first."""
+    """Gibt Fehlerlogs zurück, optional nach adsearch_id gefiltert, neueste zuerst."""
     query = select(ErrorLog).order_by(col(ErrorLog.created_at).desc()).limit(limit)
 
     if adsearch_id is not None:
@@ -25,7 +25,7 @@ def list_errorlogs(session: DbSession, adsearch_id: int | None = None, limit: in
 
 @router.delete("/", status_code=204)
 def clear_errorlogs(session: DbSession):
-    """Delete all error logs."""
+    """Löscht alle Fehlerlogs."""
     for log in session.exec(select(ErrorLog)).all():
         session.delete(log)
     session.commit()

@@ -1,4 +1,4 @@
-"""Ad search (Suchauftrag) model, validation, and API schemas."""
+"""Suchauftrag-Modell, Validierung und API-Schemas."""
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -11,7 +11,7 @@ _DETAIL_PREFIX = "https://www.kleinanzeigen.de/s-anzeige/"
 
 
 def _validate_search_url(url: str) -> str:
-    """Ensure URL is a Kleinanzeigen.de search results page (not detail page or bare prefix)."""
+    """Stellt sicher, dass die URL eine Kleinanzeigen.de-Suchergebnisseite ist."""
     if not url.startswith(_SEARCH_PREFIX):
         raise ValueError(
             "Nur Kleinanzeigen.de-Suchergebnislisten sind erlaubt "
@@ -19,29 +19,29 @@ def _validate_search_url(url: str) -> str:
         )
     if url.startswith(_DETAIL_PREFIX):
         raise ValueError(
-            "Bitte keine Anzeigen-Detailseite eingeben — "
-            "nur Suchergebnislisten sind erlaubt."
+            "Bitte keine Anzeigen-Detailseite eingeben — nur Suchergebnislisten sind erlaubt."
         )
-    # Require something meaningful after "s-" (not just the bare prefix)
-    remainder = url[len(_SEARCH_PREFIX):].strip("/")
+    # Nach "s-" muss etwas Sinnvolles kommen (nicht nur das Präfix)
+    remainder = url[len(_SEARCH_PREFIX) :].strip("/")
     if not remainder:
         raise ValueError(
             "Bitte eine vollständige Suchergebnisliste-URL eingeben, nicht nur das Präfix."
         )
     return url
 
-if TYPE_CHECKING:  # Avoid linter error
+
+if TYPE_CHECKING:  # Linter-Fehler vermeiden
     from app.models.ad import Ad
+    from app.models.logs_aianalysis import AIAnalysisLog
     from app.models.logs_error import ErrorLog
     from app.models.logs_scraperun import ScrapeRun
-    from app.models.logs_aianalysis import AIAnalysisLog
 
 
 # ----------------------
-# --- Database Table ---
+# --- Datenbanktabelle ---
 # ----------------------
 class AdSearch(SQLModel, table=True):
-    """Ad search (Suchauftrag) database table."""
+    """Datenbanktabelle für Suchaufträge."""
 
     __tablename__ = "ad_searches"  # type: ignore
 
@@ -65,10 +65,10 @@ class AdSearch(SQLModel, table=True):
 
 
 # -------------------
-# --- API Schemas ---
+# --- API-Schemas ---
 # -------------------
 class AdSearchCreate(SQLModel):
-    """API input schema for creating an ad search."""
+    """API-Eingabe-Schema zum Anlegen eines Suchauftrags."""
 
     name: str = ""
     url: str
@@ -83,12 +83,12 @@ class AdSearchCreate(SQLModel):
     @field_validator("url")
     @classmethod
     def validate_url(cls, v: str) -> str:
-        """Validate URL is a search results page."""
+        """Prüft, dass die URL eine Suchergebnisseite ist."""
         return _validate_search_url(v)
 
 
 class AdSearchRead(SQLModel):
-    """API output schema for an ad search."""
+    """API-Ausgabe-Schema für einen Suchauftrag."""
 
     id: int
     name: str
@@ -105,7 +105,7 @@ class AdSearchRead(SQLModel):
 
 
 class AdSearchUpdate(SQLModel):
-    """API input schema for partial updates to an ad search."""
+    """API-Eingabe-Schema für Teilaktualisierungen eines Suchauftrags."""
 
     name: str | None = None
     url: str | None = None
@@ -120,8 +120,7 @@ class AdSearchUpdate(SQLModel):
     @field_validator("url")
     @classmethod
     def validate_url(cls, v: str | None) -> str | None:
-        """Validate URL is a search results page when provided."""
+        """Prüft die URL auf Suchergebnisseite, falls angegeben."""
         if v is None:
             return v
         return _validate_search_url(v)
-

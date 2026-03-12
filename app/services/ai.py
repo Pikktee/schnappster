@@ -1,4 +1,4 @@
-"""AI service: analyze ads via OpenAI-compatible API, persist scores, optional Telegram."""
+"""KI-Service: Anzeigen per OpenAI-kompatibler API analysieren, Bewertungen speichern, optional Telegram."""
 
 import base64
 import json
@@ -26,10 +26,10 @@ COMPARISON_TITLE_MAX_LEN = 80
 
 
 class AIService:
-    """Analyzes ads via OpenAI API; assigns bargain score, summary, reasoning; optional Telegram."""
+    """Analysiert Anzeigen per OpenAI-API; vergibt Schnäppchen-Score, Zusammenfassung, Begründung; optional Telegram."""
 
     def __init__(self, session: Session):
-        """Create AI client; raise ValueError if OPENAI_API_KEY is not set."""
+        """Erstellt den KI-Client; wirft ValueError, wenn OPENAI_API_KEY nicht gesetzt ist."""
         self.session = session
         if not app_config.openai_api_key:
             raise ValueError(
@@ -43,7 +43,7 @@ class AIService:
         )
 
     def analyze_unprocessed(self, limit: int = 10) -> int:
-        """Analyze up to limit unprocessed ads (oldest first); return count analyzed."""
+        """Analysiert bis zu limit unbearbeitete Anzeigen (älteste zuerst); gibt die Anzahl zurück."""
         ads = self.session.exec(
             select(Ad)
             .where(Ad.is_analyzed.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
@@ -58,7 +58,7 @@ class AIService:
         return self._analyze_ads(ads)
 
     def _analyze_ads(self, ads: Sequence[Ad]) -> int:
-        """Process ads one by one; on error log and continue; return count successfully analyzed."""
+        """Verarbeitet Anzeigen nacheinander; bei Fehler loggen und weitermachen; gibt Anzahl erfolgreich Analysierter zurück."""
         analyzed = 0
         for ad in ads:
             prompt_text_for_error = self._build_prompt_text_for_log(ad)
@@ -85,8 +85,8 @@ class AIService:
                         ad, "API error", error_msg, prompt_text=prompt_text_for_error
                     )
                 except Exception:
-                    pass  # best-effort error logging
-                # continue with next ad
+                    pass  # Fehlerlog bestmöglich
+                # mit nächster Anzeige weitermachen
 
             except Exception as e:
                 self.session.rollback()
@@ -102,20 +102,20 @@ class AIService:
                         ad, "Analysis failed", err_str, prompt_text=prompt_text_for_error
                     )
                 except Exception:
-                    pass  # best-effort error logging
-                # continue with next ad
+                    pass  # Fehlerlog bestmöglich
+                # mit nächster Anzeige weitermachen
 
         return analyzed
 
     def _build_prompt_text_for_log(self, ad: Ad) -> str:
-        """Build full prompt text (no images) for logging to ErrorLog."""
+        """Erstellt den vollen Prompt-Text (ohne Bilder) für das ErrorLog."""
         context = self._build_user_context(ad, self.session.get(AdSearch, ad.adsearch_id))
         return render_system_prompt() + "\n\n--- Nutzerinhalt ---\n\n" + render_user_prompt(context)
 
     def _log_analysis_error(
         self, ad: Ad, error_type: str, message: str, prompt_text: str | None = None
     ) -> None:
-        """Persist analysis error to ErrorLog so it appears in the frontend log."""
+        """Schreibt Analysefehler ins ErrorLog, damit er im Frontend-Log erscheint."""
         details = message
         if prompt_text:
             details += "\n\n--- Prompt ---\n" + prompt_text
@@ -132,7 +132,7 @@ class AIService:
         self.session.commit()
 
     def _analyze_ad(self, ad: Ad, prompt_text_for_log: str) -> None:
-        """Run AI analysis on one ad; update score/summary/reasoning; Telegram if score >= 8."""
+        """Führt KI-Analyse für eine Anzeige aus; aktualisiert Score/Zusammenfassung/Begründung; Telegram bei Score >= 8."""
         adsearch = self.session.get(AdSearch, ad.adsearch_id)
         context = self._build_user_context(ad, adsearch)
         user_content = render_user_prompt(context)
@@ -181,7 +181,7 @@ class AIService:
             tg.send_bargain_notification(ad)
 
     def _build_user_context(self, ad: Ad, adsearch: AdSearch | None) -> dict:
-        """Build context dict for the user-message template (no string labels, only values)."""
+        """Erstellt das Kontext-Dict für die Nutzer-Nachricht (nur Werte, keine String-Labels)."""
         price_display = f"{ad.price:.0f}€" if ad.price else "VB"
         location = ""
         if ad.postal_code or ad.city:
@@ -210,7 +210,7 @@ class AIService:
         }
 
     def _download_images(self, ad: Ad, max_images: int = 1) -> list[dict]:
-        """Download up to max_images from ad; return list of image_url dicts (base64 data URLs)."""
+        """Lädt bis zu max_images von der Anzeige; liefert Liste von image_url-Dicts (Base64-Data-URLs)."""
         if not ad.image_urls:
             return []
 
@@ -238,7 +238,7 @@ class AIService:
 
     @staticmethod
     def _detect_image_type(data: bytes) -> str | None:
-        """Detect MIME type from magic bytes (PNG, JPEG, WebP, GIF); return None if unknown."""
+        """Erkennt MIME-Typ anhand der Magic-Bytes (PNG, JPEG, WebP, GIF); None bei unbekannt."""
         if data[:8] == b"\x89PNG\r\n\x1a\n":
             return "image/png"
         if data[:2] == b"\xff\xd8":
@@ -250,7 +250,7 @@ class AIService:
         return None
 
     def _build_messages(self, user_content: str, images: list[dict]) -> list[dict]:
-        """Build messages list for chat completion: system prompt + user content (text + images)."""
+        """Baut die Nachrichtenliste für die Chat-Completion: System-Prompt + Nutzerinhalt (Text + Bilder)."""
         content: list[dict] = [{"type": "text", "text": user_content}]
         content.extend(images)
 
@@ -301,9 +301,9 @@ class AIService:
 
     @staticmethod
     def _parse_response(content: str | None) -> dict:
-        """Parse JSON from model; return dict with score, summary, reasoning; raise on invalid."""
+        """Parst JSON aus der Modellantwort; liefert Dict mit score, summary, reasoning; wirft bei ungültigem Inhalt."""
         if not content:
-            raise ValueError("Empty response from AI")
+            raise ValueError("Leere Antwort von der KI")
 
         text = content.strip()
         if text.startswith("```"):
@@ -318,7 +318,7 @@ class AIService:
 
         score = float(result["score"])
         if not 0 <= score <= 10:
-            raise ValueError(f"Score {score} out of range 0-10")
+            raise ValueError(f"Score {score} außerhalb des gültigen Bereichs 0–10")
 
         return {
             "score": score,
@@ -327,7 +327,7 @@ class AIService:
         }
 
     def _build_price_context(self, ad: Ad) -> dict | None:
-        """Return comparison data from other ads in same AdSearch (titles, condition), or None."""
+        """Vergleichsdaten aus anderen Anzeigen derselben Suche (Titel, Zustand) oder None."""
         other_ads = self.session.exec(
             select(Ad)
             .where(Ad.adsearch_id == ad.adsearch_id)
@@ -338,7 +338,7 @@ class AIService:
         if not other_ads:
             return None
 
-        # Sort by price for consistent order; limit to avoid huge prompts
+        # Nach Preis sortieren für stabile Reihenfolge; begrenzen für kürzere Prompts
         sorted_ads = sorted(other_ads, key=lambda a: a.price or 0)
         limited = sorted_ads[:MAX_COMPARISON_ADS]
 

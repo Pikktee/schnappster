@@ -1,6 +1,6 @@
-"""Reset database (drop and recreate schema only).
+"""Datenbank zurücksetzen (nur Schema löschen und neu anlegen).
 
-Usage:
+Verwendung:
     uv run dbreset
 """
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    """Drop database file and recreate schema."""
+    """Löscht die Datenbankdatei und legt das Schema neu an."""
     setup_logging()
     db_path = get_app_root() / "data" / "schnappster.db"
 

@@ -1,4 +1,4 @@
-"""Send Telegram notifications for high-scoring bargains."""
+"""Telegram-Benachrichtigungen für hoch bewertete Schnäppchen."""
 
 import logging
 
@@ -10,16 +10,16 @@ logger = logging.getLogger(__name__)
 
 
 class TelegramService:
-    """Send messages to a Telegram chat via Bot API."""
+    """Sendet Nachrichten in einen Telegram-Chat über die Bot-API."""
 
     def __init__(self, bot_token: str, chat_id: str):
-        """Store bot token and chat ID; build sendMessage API URL."""
+        """Speichert Bot-Token und Chat-ID; baut die sendMessage-API-URL."""
         self.bot_token = bot_token.strip() if bot_token else ""
         self.chat_id = chat_id.strip() if chat_id else ""
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
 
     def send_bargain_notification(self, ad: Ad) -> None:
-        """Send formatted ad message to configured Telegram chat; no-op if not configured."""
+        """Sendet formatierte Anzeigen-Nachricht an den konfigurierten Telegram-Chat; ohne Wirkung wenn nicht konfiguriert."""
         if not self.is_configured:
             logger.debug("Telegram is not configured, skipping notification")
             return
@@ -45,11 +45,11 @@ class TelegramService:
 
     @property
     def is_configured(self) -> bool:
-        """Return True if bot token and chat id are non-empty."""
+        """True, wenn Bot-Token und Chat-ID gesetzt sind."""
         return bool(self.bot_token and self.chat_id)
 
     def _format_message(self, ad: Ad) -> str:
-        """Format ad as Markdown for Telegram (title, url, price, score, summary, reasoning)."""
+        """Formatiert die Anzeige als Markdown für Telegram (Titel, URL, Preis, Score, Zusammenfassung, Begründung)."""
         price_str = f"{ad.price:.0f} €" if ad.price is not None else "VB"
         score_str = f"{ad.bargain_score:.1f}" if ad.bargain_score is not None else "–"
 

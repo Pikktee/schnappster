@@ -1,4 +1,4 @@
-"""Ads API routes."""
+"""API-Routen für Anzeigen."""
 
 from fastapi import APIRouter, HTTPException
 from sqlmodel import col, func, select
@@ -10,7 +10,7 @@ router = APIRouter(prefix="/ads", tags=["Ads"])
 
 
 # --------------
-# --- Routes ---
+# --- Routen ---
 # --------------
 @router.get("/")
 def list_ads(
@@ -22,7 +22,7 @@ def list_ads(
     limit: int = 24,
     offset: int = 0,
 ):
-    """Return paginated ads with optional filters (adsearch_id, is_analyzed, min_score) and sort."""
+    """Gibt paginierte Anzeigen mit optionalen Filtern (adsearch_id, is_analyzed, min_score) und Sortierung zurück."""
     query = select(Ad)
 
     if adsearch_id is not None:
@@ -49,7 +49,7 @@ def list_ads(
 
 @router.get("/{ad_id}", response_model=AdRead)
 def get_ad(ad_id: int, session: DbSession):
-    """Return a specific ad by ID; raise 404 if not found."""
+    """Gibt eine Anzeige anhand der ID zurück; 404 wenn nicht gefunden."""
     ad = session.get(Ad, ad_id)
 
     if not ad:

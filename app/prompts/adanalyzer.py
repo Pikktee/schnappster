@@ -1,4 +1,4 @@
-"""Render ad-analyzer prompts from Jinja2 templates (system + user)."""
+"""Rendert Anzeigen-Analyzer-Prompts aus Jinja2-Vorlagen (System + Nutzer)."""
 
 import re
 from pathlib import Path
@@ -9,14 +9,14 @@ _PROMPTS_DIR = Path(__file__).resolve().parent
 
 
 def render_system_prompt(context: dict | None = None) -> str:
-    """Render the system-prompt template. Optional context for future template variables."""
+    """Rendert das System-Prompt Template."""
     env = _get_env()
     template = env.get_template("adanalyzer_system.jinja2")
     return _strip_leading_whitespace(template.render(**(context or {})).strip())
 
 
 def render_user_prompt(context: dict) -> str:
-    """Render the user-message part of the prompt. context can be partial"""
+    """Rendert den Nutzer-Nachrichtenteil des Prompts. context kann unvollständig sein."""
     env = _get_env()
     template = env.get_template("adanalyzer_user.jinja2")
     full_context = {**_default_user_context(), **context}
@@ -26,12 +26,14 @@ def render_user_prompt(context: dict) -> str:
 
 
 def _strip_leading_whitespace(text: str) -> str:
-    """Remove leading whitespace from each line so prompt output is clean."""
+    """Entfernt führende Leerzeichen pro Zeile, damit die Prompt-Ausgabe sauber ist."""
     return "\n".join(line.lstrip() for line in text.split("\n"))
 
 
 def _collapse_blank_lines(text: str) -> str:
-    """Replace 3+ consecutive newlines with 2 (höchstens eine Leerzeile zwischen Blöcken)."""
+    """Ersetzt 3+ aufeinanderfolgende Zeilenumbrüche durch 2
+    (höchstens eine Leerzeile zwischen Blöcken).
+    """
     return re.sub(r"\n{3,}", "\n\n", text)
 
 
@@ -43,7 +45,7 @@ def _get_env() -> Environment:
 
 
 def _default_user_context() -> dict:
-    """Default values for user template variables so callers can pass partial context."""
+    """Standardwerte für Nutzer-Template-Variablen."""
     return {
         "title": "",
         "price_display": "",

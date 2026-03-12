@@ -1,4 +1,4 @@
-"""Background job scheduler for periodic scraping and AI analysis."""
+"""Hintergrund-Job-Scheduler für periodisches Scraping und KI-Auswertung."""
 
 import logging
 import traceback
@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 class BackgroundJobs:
-    """Scheduler for scrape and analyzer jobs
+    """Scheduler für Scrape- und Analyzer-Jobs.
 
-    Note: Single-worker queues to avoid overlap.
+    Einzelne Worker-Queues, damit sich Jobs nicht überlappen.
     """
 
     _EXECUTORS = {
@@ -32,13 +32,13 @@ class BackgroundJobs:
     }
 
     def __init__(self) -> None:
-        """Create the scheduler with threadpool executors for scraper and analyzer."""
+        """Erstellt den Scheduler mit Threadpool-Executors für Scraper und Analyzer."""
         self._scheduler = BackgroundScheduler(executors=self._EXECUTORS)
 
     def start(self) -> None:
-        """Start the scheduler and register periodic and one-off jobs."""
+        """Startet den Scheduler und registriert periodische und einmalige Jobs."""
 
-        # Periodic scrape job
+        # Periodischer Scrape-Job
         self._scheduler.add_job(
             self._run_scrape_ads,
             "interval",
@@ -48,7 +48,7 @@ class BackgroundJobs:
             executor="scraper",
         )
 
-        # Initial scrape job (run once at startup)
+        # Erster Scrape-Job (einmalig beim Start)
         self._scheduler.add_job(
             self._run_scrape_ads,
             "date",
@@ -56,7 +56,7 @@ class BackgroundJobs:
             executor="scraper",
         )
 
-        # Initial analyze job (run once at startup to process any backlog)
+        # Erster Analyse-Job (einmalig beim Start, verarbeitet Rückstand)
         self._scheduler.add_job(
             self._run_analyze_ads,
             "date",
@@ -65,7 +65,7 @@ class BackgroundJobs:
             executor="analyzer",
         )
 
-        # Periodic cleanup job (every 24 hours)
+        # Periodischer Aufräum-Job (alle 24 Stunden)
         self._scheduler.add_job(
             self._run_cleanup_old_ads,
             "interval",
@@ -75,7 +75,7 @@ class BackgroundJobs:
             executor="default",
         )
 
-        # Initial cleanup job (run once at startup)
+        # Erster Aufräum-Job (einmalig beim Start)
         self._scheduler.add_job(
             self._run_cleanup_old_ads,
             "date",
@@ -86,18 +86,18 @@ class BackgroundJobs:
         self._scheduler.start()
         logger.info(
             "Scheduler started: scrape every 1 min (scraper queue), "
-            "AI analysis after each scrape when new ads found and once at startup (analyzer queue), "
+            "AI analysis after each scrape when new ads found and once at startup, "
             "cleanup old ads every 24h and once at startup"
         )
 
     def stop(self) -> None:
-        """Shut down the scheduler; no new jobs, running jobs may finish in background."""
+        """Fährt Scheduler herunter; keine neuen Jobs, laufende Jobs können im Hintergrund enden."""
         if self._scheduler.running:
             self._scheduler.shutdown(wait=False)
             logger.info("Scheduler stopped")
 
     def trigger_scrape_once(self) -> None:
-        """Queue a one-off scrape run (e.g. after creating a new ad search)."""
+        """Stellt einmaligen Scrape-Lauf in die Queue (z. B. nach Anlegen einer neuen Suche)."""
         self._scheduler.add_job(
             self._run_scrape_ads,
             "date",
@@ -109,11 +109,11 @@ class BackgroundJobs:
         logger.debug("Queued one-off scrape run")
 
     def _run_scrape_ads(self) -> None:
-        """Job: run scrape_due_searches; queue analyzer if new ads found."""
+        """Job: scrape_due_searches ausführen; bei neuen Anzeigen Analyzer in die Queue."""
         with Session(db_engine) as session:
             total_new = ScraperService(session).scrape_due_searches()
 
-        # If new ads were found, queue AI analysis job
+        # Bei neuen Anzeigen KI-Analyse anstoßen
         if total_new > 0:
             self._scheduler.add_job(
                 self._run_analyze_ads,
@@ -124,7 +124,7 @@ class BackgroundJobs:
             logger.info(f"Queued AI analysis after scraping {total_new} new ad(s)")
 
     def _run_analyze_ads(self) -> None:
-        """Job: analyze unprocessed ads; re-queue if backlog remains and progress made."""
+        """Job: unbearbeitete Anzeigen analysieren; bei Rückstand erneut einplanen."""
         with Session(db_engine) as session:
             run_ok = False
             analyzed = 0
@@ -137,7 +137,7 @@ class BackgroundJobs:
                 if analyzed > 0:
                     logger.info(f"AI analyzed {analyzed} ads")
             except ValueError:
-                pass  # API key not configured yet
+                pass  # API-Key noch nicht konfiguriert
             except Exception as e:
                 logger.error(f"AI analysis failed: {e}")
                 session.add(
@@ -167,7 +167,7 @@ class BackgroundJobs:
                     logger.debug(f"Queued next AI analysis ({remaining} ads remaining)")
 
     def _run_cleanup_old_ads(self) -> None:
-        """Job: delete ads older than the configured number of days."""
+        """Job: Anzeigen löschen, die älter als die konfigurierte Anzahl Tage sind."""
         with Session(db_engine) as session:
             days = SettingsService(session).get_int("auto_delete_ads_days")
             if days == 0:
@@ -175,9 +175,7 @@ class BackgroundJobs:
                 return
 
             cutoff = datetime.now(UTC) - timedelta(days=days)
-            old_ads = session.exec(
-                select(Ad).where(Ad.first_seen_at < cutoff)
-            ).all()
+            old_ads = session.exec(select(Ad).where(Ad.first_seen_at < cutoff)).all()
 
             if not old_ads:
                 logger.debug(f"Cleanup: no ads older than {days} days")
@@ -194,5 +192,5 @@ _jobs = BackgroundJobs()
 
 
 def get_background_jobs() -> BackgroundJobs:
-    """Return the shared BackgroundJobs instance (module-level singleton)."""
+    """Gibt die gemeinsame BackgroundJobs-Instanz zurück (Modul-Singleton)."""
     return _jobs

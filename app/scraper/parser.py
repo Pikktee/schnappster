@@ -1,6 +1,6 @@
-"""Parse Kleinanzeigen.de HTML: search results, detail pages, titles, pagination."""
+"""Parst Kleinanzeigen.de-HTML: Suchergebnisse, Detailseiten, Titel, Paginierung."""
 
-# Public
+# Öffentlich
 import re
 from dataclasses import dataclass, field
 from typing import cast
@@ -20,11 +20,11 @@ BASE_URL = "https://www.kleinanzeigen.de"
 
 
 # --------------------------
-# --- Output types ---
+# --- Ausgabe-Typen ---
 # --------------------------
 @dataclass
 class ScrapedAdPreview:
-    """Basic ad data from search results page."""
+    """Grunddaten einer Anzeige von der Suchergebnisseite."""
 
     external_id: str
     title: str
@@ -36,7 +36,7 @@ class ScrapedAdPreview:
 
 @dataclass
 class ScrapedAdDetail:
-    """Full ad data from detail page."""
+    """Vollständige Anzeigendaten von der Detailseite."""
 
     external_id: str
     title: str
@@ -65,10 +65,10 @@ class ScrapedAdDetail:
 
 
 # ---------------
-# --- Helpers ---
+# --- Hilfsfunktionen ---
 # ---------------
 def _parse_price(text: str) -> float | None:
-    """Parse price from text like '75 €', '110 € VB'; return None if not parseable."""
+    """Parst Preis aus Text wie '75 €', '110 € VB'; None wenn nicht parsebar."""
     cleaned = text.replace("€", "").replace("VB", "").strip()
     if not cleaned:
         return None
@@ -81,7 +81,7 @@ def _parse_price(text: str) -> float | None:
 
 
 def _split_locality(text: str) -> tuple[str | None, str | None]:
-    """Split '51105 Innenstadt - Poll' into (postal_code, city); (None, text) if no digits."""
+    """Teilt '51105 Innenstadt - Poll' in (postal_code, city); (None, text) wenn keine Ziffern."""
     text = text.strip()
     if not text:
         return None, None
@@ -92,11 +92,11 @@ def _split_locality(text: str) -> tuple[str | None, str | None]:
 
 
 # ------------------------------
-# --- Search results parsing ---
+# --- Suchergebnisse parsen ---
 # ------------------------------
 
-# Matches trailing Kleinanzeigen branding at end of string (e.g. " - kleinanzeigen.de",
-# " | Kleinanzeigen", " – Kleinanzeigen", " auf Kleinanzeigen"). Used to strip it from <title>.
+# Erkennt Kleinanzeigen-Branding am Ende des Strings (z. B. " - kleinanzeigen.de",
+# " | Kleinanzeigen", " – Kleinanzeigen", " auf Kleinanzeigen"). Wird vom <title> abgeschnitten.
 _TITLE_SUFFIX_RE = re.compile(
     r"(?:\s*[-–|]\s*|\s+(?:auf\s+)?)kleinanzeigen(?:\.de)?\s*$",
     re.IGNORECASE,
@@ -104,7 +104,7 @@ _TITLE_SUFFIX_RE = re.compile(
 
 
 def parse_search_results(html: str) -> list[ScrapedAdPreview]:
-    """Parse ad previews from a search results page HTML."""
+    """Parst Anzeigen-Vorschauen aus dem HTML einer Suchergebnisseite."""
 
     # Kleinanzeigen blendet unterhalb der eigentlichen Suchtreffer häufig einen separaten
     # Block "Alternative Anzeigen in der Umgebung" ein. Diese Alternativen sollen NICHT
@@ -126,7 +126,7 @@ def parse_search_results(html: str) -> list[ScrapedAdPreview]:
 
 
 def _parse_search_item(item: Tag) -> ScrapedAdPreview | None:
-    """Parse one search result list item into ScrapedAdPreview or None if invalid."""
+    """Parst einen Suchergebnis-Listen-Eintrag zu ScrapedAdPreview oder None wenn ungültig."""
     link = item.select_one("a[href*='/s-anzeige/']")
     if not link:
         return None
@@ -171,7 +171,7 @@ def _parse_search_item(item: Tag) -> ScrapedAdPreview | None:
 
 
 def parse_search_title(html: str) -> str | None:
-    """Extract page title from search HTML; try <title> then <h1>, strip Kleinanzeigen branding."""
+    """Extrahiert den Seitentitel aus dem Such-HTML; zuerst <title>, dann <h1>, Kleinanzeigen-Branding entfernen."""
     soup = BeautifulSoup(html, "lxml")
     title_tag = soup.find("title")
     if title_tag:
@@ -187,7 +187,7 @@ def parse_search_title(html: str) -> str | None:
 
 
 def parse_next_page_urls(html: str) -> list[str]:
-    """Extract all pagination URLs from search results."""
+    """Extrahiert alle Paginierungs-URLs aus den Suchergebnissen."""
     soup = BeautifulSoup(html, "lxml")
     urls: list[str] = []
     for link in soup.select("a[href*='seite:']"):
@@ -199,7 +199,7 @@ def parse_next_page_urls(html: str) -> list[str]:
 
 
 # ----------------------------
-# --- Detail page parsing ---
+# --- Detailseiten parsen ---
 # ----------------------------
 
 # Regexes zum Auslesen der Kategorie- und Preis-Typ-Felder aus dem eingebetteten JS-Block
@@ -210,7 +210,7 @@ _RE_AD_PRICE_TYPE = re.compile(r"adPriceType:\s*'([^']*)'")
 
 
 def _parse_detail_js_meta(html: str) -> tuple[str | None, str | None, str | None]:
-    """Extract category_l1, category_l2, price_type from the detail page's embedded JS config."""
+    """Extrahiert category_l1, category_l2, price_type aus der eingebetteten JS-Konfiguration der Detailseite."""
     l1 = _RE_AD_L1_CATEGORY.search(html)
     l2 = _RE_AD_L2_CATEGORY.search(html)
     pt = _RE_AD_PRICE_TYPE.search(html)
@@ -221,13 +221,13 @@ def _parse_detail_js_meta(html: str) -> tuple[str | None, str | None, str | None
 
 
 def _parse_detail_title(soup: BeautifulSoup) -> str | None:
-    """Extract title from detail page; None if missing (invalid page)."""
+    """Extrahiert den Titel von der Detailseite; None wenn fehlend (ungültige Seite)."""
     title_tag = soup.select_one("#viewad-title")
     return title_tag.get_text(strip=True) if title_tag else None
 
 
 def _parse_detail_price(soup: BeautifulSoup) -> float | None:
-    """Extract price from meta or visible price element on detail page."""
+    """Extrahiert den Preis aus Meta oder sichtbarem Preiselement auf der Detailseite."""
     price_meta = soup.select_one("meta[itemprop='price']")
     if price_meta and isinstance(price_meta, Tag):
         content = price_meta.get("content", "")
@@ -242,19 +242,19 @@ def _parse_detail_price(soup: BeautifulSoup) -> float | None:
 
 
 def _parse_detail_location(soup: BeautifulSoup) -> tuple[str | None, str | None]:
-    """Extract (postal_code, city) from locality element."""
+    """Extrahiert (postal_code, city) aus dem Orts-Element."""
     locality_tag = soup.select_one("#viewad-locality")
     if not locality_tag:
         return None, None
     return _split_locality(locality_tag.get_text(strip=True))
 
 
-# Placeholder so get_text(strip=True) does not remove line breaks (strip strips newlines)
+# Platzhalter, damit get_text(strip=True) Zeilenumbrüche nicht entfernt (strip entfernt Newlines)
 _BR_PLACEHOLDER = "\x01"
 
 
 def _parse_detail_description(soup: BeautifulSoup) -> str | None:
-    """Extract description text; convert <br> to newlines."""
+    """Extrahiert den Beschreibungstext; <br> in Zeilenumbrüche umwandeln."""
     desc_tag = soup.select_one("#viewad-description-text")
     if not desc_tag:
         return None
@@ -265,7 +265,7 @@ def _parse_detail_description(soup: BeautifulSoup) -> str | None:
 
 
 def _parse_detail_condition(soup: BeautifulSoup) -> str | None:
-    """Extract condition (Zustand) from details list."""
+    """Extrahiert den Zustand aus der Detail-Liste."""
     for detail in soup.select(".addetailslist--detail"):
         label = detail.get_text(strip=True)
         value_tag = detail.select_one(".addetailslist--detail--value")
@@ -275,7 +275,7 @@ def _parse_detail_condition(soup: BeautifulSoup) -> str | None:
 
 
 def _parse_detail_shipping_cost(soup: BeautifulSoup) -> str | None:
-    """Extract shipping cost text from detail box."""
+    """Extrahiert den Versandkosten-Text aus der Detail-Box."""
     shipping_tag = soup.select_one(".boxedarticle--details--shipping")
     if not shipping_tag:
         return None
@@ -284,7 +284,7 @@ def _parse_detail_shipping_cost(soup: BeautifulSoup) -> str | None:
 
 
 def _parse_detail_images(soup: BeautifulSoup) -> list[str]:
-    """Extract image URLs from gallery (data-imgsrc)."""
+    """Extrahiert Bild-URLs aus der Galerie (data-imgsrc)."""
     urls: list[str] = []
     for img in soup.select(".galleryimage-element img[data-imgsrc]"):
         raw = img.get("data-imgsrc", "")
@@ -305,7 +305,7 @@ def _parse_detail_seller(
     str | None,
     str | None,
 ]:
-    """Extract seller fields from profile box (name, url, rating, badges, type, active_since)."""
+    """Extrahiert Verkäuferfelder aus der Profil-Box (Name, URL, Rating, Badges, Typ, aktiv seit)."""
     seller_name = None
     seller_url = None
     seller_rating = None
@@ -367,7 +367,7 @@ def _parse_detail_seller(
 
 
 def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | None:
-    """Parse full ad details from a detail page; return None if title missing (invalid page)."""
+    """Parst vollständige Anzeigendetails von einer Detailseite; None wenn Titel fehlt (ungültige Seite)."""
     soup = BeautifulSoup(html, "lxml")
 
     title = _parse_detail_title(soup)

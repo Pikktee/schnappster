@@ -1,4 +1,4 @@
-"""Ad search (Suchauftrag) API routes."""
+"""API-Routen für Suchaufträge (Ad Searches)."""
 
 import logging
 import threading
@@ -24,17 +24,17 @@ router = APIRouter(prefix="/adsearches", tags=["AdSearches"])
 
 
 # --------------
-# --- Routes ---
+# --- Routen ---
 # --------------
 @router.get("/", response_model=list[AdSearchRead])
 def list_adsearches(session: DbSession):
-    """Return all ad searches (Suchaufträge)."""
+    """Gibt alle Suchaufträge zurück."""
     return session.exec(select(AdSearch)).all()
 
 
 @router.get("/{adsearch_id}", response_model=AdSearchRead)
 def get_adsearch(adsearch_id: int, session: DbSession):
-    """Return a specific ad search by ID; raise 404 if not found."""
+    """Gibt einen Suchauftrag anhand der ID zurück; 404 wenn nicht gefunden."""
     adsearch = session.get(AdSearch, adsearch_id)
 
     if not adsearch:
@@ -49,7 +49,7 @@ def create_adsearch(
     session: DbSession,
     background_jobs: BackgroundJobs = Depends(get_background_jobs),  # noqa: B008
 ):
-    """Create a new ad search; URL is validated by fetch, name from page title if empty."""
+    """Legt einen neuen Suchauftrag an; URL wird per Abruf validiert, Name aus Seitentitel wenn leer."""
     name = data.name.strip()
     title_from_page = _validate_search_url_reachable(data.url)
 
@@ -76,7 +76,7 @@ def create_adsearch(
 
 @router.patch("/{adsearch_id}", response_model=AdSearchRead)
 def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
-    """Update an existing ad search. Raise 404 if not found. URL is validated when provided."""
+    """Aktualisiert einen bestehenden Suchauftrag. 404 wenn nicht gefunden. URL wird bei Angabe validiert."""
     adsearch = session.get(AdSearch, adsearch_id)
 
     if not adsearch:
@@ -84,11 +84,11 @@ def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
 
     update_data = data.model_dump(exclude_unset=True)
 
-    # When URL is changed, validate reachability (and optionally use page title for empty name).
+    # Bei geänderter URL Erreichbarkeit prüfen (und ggf. Seitentitel für leeren Namen nutzen).
     if "url" in update_data:
         _validate_search_url_reachable(update_data["url"])
 
-    # If client cleared the name, fetch current URL and use its title as new name.
+    # Wenn der Client den Namen geleert hat: aktuelle URL laden und deren Titel als neuen Namen nutzen.
     title_from_page: str | None = None
     if (
         "name" in update_data
@@ -123,27 +123,27 @@ def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
 
 @router.delete("/{adsearch_id}", status_code=204)
 def delete_adsearch(adsearch_id: int, session: DbSession):
-    """Delete ad search together with its ads, scrape runs, and error logs."""
+    """Löscht den Suchauftrag inklusive zugehöriger Anzeigen, Scrape-Läufe und Fehlerlogs."""
     adsearch = session.get(AdSearch, adsearch_id)
 
     if not adsearch:
         raise HTTPException(status_code=404, detail="AdSearch not found")
 
-    # Delete related scrape runs
+    # Zugehörige Scrape-Läufe löschen
     for run in session.exec(select(ScrapeRun).where(ScrapeRun.adsearch_id == adsearch_id)).all():
         session.delete(run)
 
-    # Delete related AI analysis logs (reference adsearch_id and ad_id)
+    # Zugehörige KI-Analyse-Logs löschen
     for log in session.exec(
         select(AIAnalysisLog).where(AIAnalysisLog.adsearch_id == adsearch_id)
     ).all():
         session.delete(log)
 
-    # Delete related ads
+    # Zugehörige Anzeigen löschen
     for ad in session.exec(select(Ad).where(Ad.adsearch_id == adsearch_id)).all():
         session.delete(ad)
 
-    # Delete related error logs
+    # Zugehörige Fehlerlogs löschen
     for log in session.exec(select(ErrorLog).where(ErrorLog.adsearch_id == adsearch_id)).all():
         session.delete(log)
 
@@ -153,14 +153,14 @@ def delete_adsearch(adsearch_id: int, session: DbSession):
 
 @router.post("/{adsearch_id}/scrape", status_code=202)
 def trigger_scrape(adsearch_id: int, session: DbSession):
-    """Trigger an immediate scrape for the given AdSearch (async in background)."""
+    """Löst einen sofortigen Scrape für den Suchauftrag aus (asynchron im Hintergrund)."""
     adsearch = session.get(AdSearch, adsearch_id)
 
     if not adsearch:
         raise HTTPException(status_code=404, detail="AdSearch not found")
 
     def _run_scrape() -> None:
-        """Run scrape in a background thread; log errors to ErrorLog on failure."""
+        """Führt den Scrape in einem Hintergrund-Thread aus; bei Fehler in ErrorLog schreiben."""
         with Session(db_engine) as bg_session:
             try:
                 scraper = ScraperService(bg_session)
@@ -185,10 +185,10 @@ def trigger_scrape(adsearch_id: int, session: DbSession):
 
 
 # ---------------
-# --- Helpers ---
+# --- Hilfsfunktionen ---
 # ---------------
 def _validate_search_url_reachable(url: str) -> str | None:
-    """Fetch URL, validate reachability; raise 422 on failure; return page title or None."""
+    """Lädt die URL, prüft Erreichbarkeit; bei Fehler 422; gibt Seitentitel oder None zurück."""
     status, html = fetch_page_with_status(url)
     if status == 0:
         raise HTTPException(

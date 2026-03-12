@@ -1,4 +1,4 @@
-"""Schnappster entry point."""
+"""Schnappster-Einstiegspunkt."""
 
 from app.core.bootstrap import create_app
 

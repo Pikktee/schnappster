@@ -1,4 +1,4 @@
-"""API route modules; api_router includes all API routers under /api."""
+"""API-Routen-Module; api_router bündelt alle API-Router unter /api."""
 
 from fastapi import APIRouter
 

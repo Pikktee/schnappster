@@ -1,8 +1,8 @@
-"""Manual AI analysis invocation.
+"""Manueller Aufruf der KI-Analyse.
 
-Usage:
-    uv run analyze           # analyze up to 10 unprocessed ads
-    uv run analyze 50        # analyze up to 50 unprocessed ads
+Verwendung:
+    uv run analyze           # bis zu 10 unbearbeitete Anzeigen analysieren
+    uv run analyze 50       # bis zu 50 unbearbeitete Anzeigen analysieren
 """
 
 import logging
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    """Run AI analysis for unprocessed ads; limit from argv or default 10."""
+    """Führt die KI-Analyse für unbearbeitete Anzeigen aus; Limit aus argv oder Standard 10."""
     setup_logging()
 
     limit = int(sys.argv[1]) if len(sys.argv) > 1 else 10

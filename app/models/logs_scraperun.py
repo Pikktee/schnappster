@@ -1,19 +1,19 @@
-"""Scrape run database model and API schema."""
+"""Datenbankmodell und API-Schema für Scrape-Läufe."""
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
 
-if TYPE_CHECKING:  # Avoid linter error
+if TYPE_CHECKING:  # Linter-Fehler vermeiden
     from app.models.adsearch import AdSearch
 
 
 # ----------------------
-# --- Database Table ---
+# --- Datenbanktabelle ---
 # ----------------------
 class ScrapeRun(SQLModel, table=True):
-    """Scrape run database table (one record per scrape execution)."""
+    """Datenbanktabelle für Scrape-Läufe (ein Datensatz pro Scrape-Durchlauf)."""
     __tablename__ = "scrape_runs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
@@ -30,10 +30,10 @@ class ScrapeRun(SQLModel, table=True):
 
 
 # -------------------
-# --- API Schemas ---
+# --- API-Schemas ---
 # -------------------
 class ScrapeRunRead(SQLModel):
-    """API output schema for a scrape run."""
+    """API-Ausgabe-Schema für einen Scrape-Lauf."""
 
     id: int
     adsearch_id: int

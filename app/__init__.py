@@ -1,15 +1,15 @@
-"""Schnappster application package.
+"""Schnappster-Anwendungspaket.
 
-Schnappster is a personal web app that periodically scrapes Kleinanzeigen.de search results,
-analyses them for bargains using AI (OpenAI-compatible API), and displays results in a dashboard.
+Schnappster ist eine persönliche Web-App, die periodisch Kleinanzeigen.de-Suchergebnisse scraped,
+sie per KI (OpenAI-kompatible API) auf Schnäppchen prüft und die Ergebnisse in einem Dashboard anzeigt.
 
-Project structure (backend)
-----------------------------
-- **core/** — DB engine, settings (Pydantic/.env), background jobs (APScheduler), logging
-- **models/** — SQLModel tables + API schemas (Read/Create/Update)
-- **scraper/** — HTTP/HTML layer (curl-cffi, BeautifulSoup), no business logic
-- **services/** — Business logic: ScraperService (pipeline), AIService (analysis), SettingsService
-- **routes/** — FastAPI routers, bundled in api_router (main.py)
-- **cli/** — Entry points (uv run …)
+Projektstruktur (Backend)
+-------------------------
+- **core/** — DB-Engine, Einstellungen (Pydantic/.env), Hintergrund-Jobs (APScheduler), Logging
+- **models/** — SQLModel-Tabellen + API-Schemas (Read/Create/Update)
+- **scraper/** — HTTP/HTML-Schicht (curl-cffi, BeautifulSoup), keine Geschäftslogik
+- **services/** — Geschäftslogik: ScraperService (Pipeline), AIService (Analyse), SettingsService
+- **routes/** — FastAPI-Router, gebündelt in api_router (main.py)
+- **cli/** — Einstiegspunkte (uv run …)
 """
 

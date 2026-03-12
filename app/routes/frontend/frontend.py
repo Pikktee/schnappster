@@ -1,4 +1,4 @@
-"""Serve the statically exported Next.js frontend and SPA fallback routes."""
+"""Stellt das statisch exportierte Next.js-Frontend und SPA-Fallback-Routen bereit."""
 
 from fastapi import APIRouter
 from fastapi.responses import FileResponse
@@ -14,7 +14,7 @@ NO_CACHE_HEADERS = {"Cache-Control": "no-cache"}
 
 
 def _serve_detail_page(section: str, id: int) -> FileResponse:
-    """Serve pre-rendered detail page for section/id, or id=0 shell if missing."""
+    """Liefert die vorgerenderte Detailseite für section/id oder die id=0-Hülle falls fehlend."""
     candidate = FRONTEND_OUT_DIR / section / str(id) / "index.html"
     if candidate.is_file():
         return FileResponse(candidate, headers=NO_CACHE_HEADERS)
@@ -28,22 +28,22 @@ def _serve_detail_page(section: str, id: int) -> FileResponse:
 router = APIRouter(include_in_schema=False)
 
 
-# SPA fallback: direct hits to /searches/5, /ads/21 get the id=0 HTML shell
-# so the client router can hydrate and fetch data for the actual ID.
+# SPA-Fallback: Direkte Aufrufe von /searches/5, /ads/21 erhalten die id=0-HTML-Hülle,
+# damit der Client-Router hydrieren und Daten für die echte ID laden kann.
 @router.api_route("/searches/{id:int}", methods=["GET", "HEAD"])
 def serve_search_detail(id: int):
-    """Serve search detail SPA shell for the given id."""
+    """Liefert die SPA-Detail-Hülle für die gegebene Suchauftrags-ID."""
     return _serve_detail_page("searches", id)
 
 
 @router.api_route("/ads/{id:int}", methods=["GET", "HEAD"])
 def serve_ad_detail(id: int):
-    """Serve ad detail SPA shell for the given id."""
+    """Liefert die SPA-Detail-Hülle für die gegebene Anzeigen-ID."""
     return _serve_detail_page("ads", id)
 
 
 def mount_frontend(app):
-    """Mount the static Next.js export at / (call after including router)."""
+    """Hängt das statische Next.js-Export unter / ein (nach dem Einbinden des Routers aufrufen)."""
     app.mount(
         "/",
         StaticFiles(directory=str(FRONTEND_OUT_DIR), html=True, check_dir=False),

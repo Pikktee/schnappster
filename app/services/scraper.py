@@ -1,4 +1,4 @@
-"""Scraper service: due searches, collect previews, fetch details, filter, save."""
+"""Scraper-Service: fällige Suchen, Vorschau sammeln, Details holen, filtern, speichern."""
 
 import logging
 import traceback
@@ -23,14 +23,14 @@ logger = logging.getLogger(__name__)
 
 
 class ScraperService:
-    """Orchestrates scraping: load due AdSearches, fetch pages, filter ads, persist to DB."""
+    """Orchestriert das Scraping: fällige Suchen laden, Seiten holen, Anzeigen filtern, in DB speichern."""
 
     def __init__(self, session: Session):
-        """Create service with the given database session."""
+        """Erstellt den Service mit der übergebenen Datenbank-Session."""
         self.session = session
 
     def scrape_due_searches(self) -> int:
-        """Run scrape for all active AdSearches that are due; return total new ads saved."""
+        """Führt Scrape für alle aktiven, fälligen Suchaufträge aus; gibt die Gesamtzahl neu gespeicherter Anzeigen zurück."""
         searches = self.session.exec(
             select(AdSearch).where(col(AdSearch.is_active).is_(True))
         ).all()
@@ -56,17 +56,17 @@ class ScraperService:
 
     @staticmethod
     def _is_due(adsearch: AdSearch, now: datetime) -> bool:
-        """Return True if the AdSearch is due for scraping (interval elapsed or never scraped)."""
+        """True, wenn der Suchauftrag fällig ist (Intervall abgelaufen oder noch nie gescrapt)."""
         if adsearch.last_scraped_at is None:
             return True
         next_scrape = adsearch.last_scraped_at + timedelta(minutes=adsearch.scrape_interval_minutes)
-        # DB may return naive datetimes; treat as UTC for comparison
+        # DB kann naive Datetimes liefern; für Vergleich als UTC behandeln
         if next_scrape.tzinfo is None:
             next_scrape = next_scrape.replace(tzinfo=UTC)
         return now >= next_scrape
 
     def scrape_adsearch(self, adsearch: AdSearch) -> ScrapeRun:
-        """Scrape all new ads for one AdSearch; return run."""
+        """Scrapt alle neuen Anzeigen für einen Suchauftrag; gibt den Lauf zurück."""
         assert adsearch.id is not None, "AdSearch muss eine ID haben, um gescrapt zu werden"
         started_at = datetime.now(UTC)
         ads_found_result = 0
@@ -122,7 +122,7 @@ class ScraperService:
         message: str,
         details: str | None = None,
     ) -> None:
-        """Persist an error to the error_logs table."""
+        """Schreibt einen Fehler in die Tabelle error_logs."""
         self.session.add(
             ErrorLog(
                 adsearch_id=adsearch_id,
@@ -136,7 +136,7 @@ class ScraperService:
     def _filter_ads(
         self, details: list[ScrapedAdDetail], adsearch: AdSearch
     ) -> list[ScrapedAdDetail]:
-        """Filter details by AdSearch and global settings (price, blacklist, seller, rating)."""
+        """Filtert Details nach Suchauftrag und globalen Einstellungen (Preis, Blacklist, Verkäufer, Rating)."""
         settings = SettingsService(self.session)
         exclude_commercial = settings.get_bool("exclude_commercial_sellers")
         min_rating = settings.get_int("min_seller_rating")
@@ -161,7 +161,7 @@ class ScraperService:
         exclude_commercial: bool,
         min_rating: int,
     ) -> str | None:
-        """Return a short reason string if ad should be filtered out, else None."""
+        """Kurzer Grund-String, wenn die Anzeige aussortiert werden soll, sonst None."""
         # Nur Anzeigen mit ausschließlich VB (ohne angegebenen Preis) aussortieren.
         # "VB + Preis" (z.B. "1.999 € VB") soll gespeichert werden; nur reines VB nicht.
         is_vb = (detail.price_type == "NEGOTIABLE") or ("vb" in (detail.price_raw or "").lower())
@@ -210,7 +210,7 @@ class ScraperService:
         return None
 
     def _collect_previews(self, search_url: str) -> list:
-        """Fetch all paginated search result pages and collect ad previews."""
+        """Lädt alle paginierten Suchergebnisseiten und sammelt Anzeigen-Vorschauen."""
         first_page_html = fetch_page(search_url)
         all_previews = parse_search_results(first_page_html)
         next_page_urls = parse_next_page_urls(first_page_html)
@@ -224,7 +224,7 @@ class ScraperService:
         return all_previews
 
     def _filter_known(self, previews: list, adsearch_id: int) -> list:
-        """Drop previews whose external_id already exists for this adsearch_id."""
+        """Entfernt Vorschauen, deren external_id für diesen Suchauftrag bereits existiert."""
         if not previews:
             return []
 
@@ -240,7 +240,7 @@ class ScraperService:
         return [p for p in previews if p.external_id not in existing_ids]
 
     def _fetch_details(self, previews: list) -> list[ScrapedAdDetail]:
-        """Fetch detail pages for each preview and parse into ScrapedAdDetail list."""
+        """Lädt die Detailseiten für jede Vorschau und parst sie in eine ScrapedAdDetail-Liste."""
         if not previews:
             return []
 
@@ -261,7 +261,7 @@ class ScraperService:
         return details
 
     def _save_ads(self, details: list[ScrapedAdDetail], adsearch_id: int) -> list[Ad]:
-        """Insert scraped ad details into the ads table and return created Ad instances."""
+        """Fügt die gescrapten Anzeigendetails in die ads-Tabelle ein und gibt die erstellten Ad-Instanzen zurück."""
         ads: list[Ad] = []
 
         for detail in details:

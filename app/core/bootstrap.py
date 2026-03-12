@@ -1,4 +1,4 @@
-"""Build the FastAPI app with middleware, routes, and static frontend."""
+"""FastAPI-App mit Middleware, Routen und statischem Frontend aufbauen."""
 
 from contextlib import asynccontextmanager
 from importlib.metadata import version
@@ -13,7 +13,7 @@ from app.routes import api_router, frontend_router, mount_frontend
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup: setup logging, init DB, start background jobs; shutdown: stop jobs."""
+    """Start: Logging einrichten, DB initialisieren, Hintergrund-Jobs starten; Ende: Jobs stoppen."""
     setup_logging()
     init_db()
 
@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    """Create and configure the FastAPI application instance."""
+    """Erstellt und konfiguriert die FastAPI-Anwendung."""
     app = FastAPI(
         title="Schnappster",
         version=version("schnappster"),
@@ -37,11 +37,11 @@ def create_app() -> FastAPI:
     setup_cors(app)
     setup_no_store_api(app)
 
-    # Include the API and frontend routers
+    # API- und Frontend-Router einbinden
     app.include_router(api_router)
     app.include_router(frontend_router)
 
-    # Mount the frontend static files
+    # Statische Frontend-Dateien bereitstellen
     mount_frontend(app)
 
     return app

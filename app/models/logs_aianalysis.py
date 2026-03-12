@@ -1,4 +1,4 @@
-"""AI analysis log database model and API schema (successful analyses only)."""
+"""Datenbankmodell und API-Schema für KI-Analyse-Logs (nur erfolgreiche Analysen)."""
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -11,10 +11,10 @@ if TYPE_CHECKING:
 
 
 # ----------------------
-# --- Database Table ---
+# --- Datenbanktabelle ---
 # ----------------------
 class AIAnalysisLog(SQLModel, table=True):
-    """AI analysis log (one row per successful analysis, for display in Logs > AI-Analysen)."""
+    """KI-Analyse-Log (eine Zeile pro erfolgreicher Analyse, Anzeige unter Logs > AI-Analysen)."""
     __tablename__ = "ai_analysis_logs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
@@ -32,10 +32,10 @@ class AIAnalysisLog(SQLModel, table=True):
 
 
 # -------------------
-# --- API Schemas ---
+# --- API-Schemas ---
 # -------------------
 class AIAnalysisLogRead(SQLModel):
-    """API output schema for an AI analysis log entry."""
+    """API-Ausgabe-Schema für einen KI-Analyse-Log-Eintrag."""
 
     id: int
     ad_id: int

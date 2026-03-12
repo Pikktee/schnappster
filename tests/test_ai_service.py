@@ -1,4 +1,4 @@
-"""Tests for the AI analysis service."""
+"""Tests für den KI-Analyse-Service."""
 
 import json
 from unittest.mock import patch
@@ -9,11 +9,11 @@ from app.models.ad import Ad
 from app.prompts import render_user_prompt
 from app.services.ai import AIService
 
-# --- Response parsing ---
+# --- Response parsen ---
 
 
 def test_parse_response_valid_json():
-    """Valid JSON response is parsed to score, summary, reasoning."""
+    """Gültige JSON-Antwort wird zu score, summary, reasoning geparst."""
     content = '{"score": 7, "summary": "Gutes Angebot", "reasoning": "Günstig"}'
     result = AIService._parse_response(content)
     assert result["score"] == 7.0
@@ -22,69 +22,69 @@ def test_parse_response_valid_json():
 
 
 def test_parse_response_with_markdown_fences():
-    """JSON inside markdown code fences is extracted and parsed."""
+    """JSON innerhalb von Markdown-Code-Fences wird extrahiert und geparst."""
     content = '```json\n{"score": 5, "summary": "Ok", "reasoning": "Fair"}\n```'
     result = AIService._parse_response(content)
     assert result["score"] == 5.0
 
 
 def test_parse_response_score_out_of_range():
-    """Score outside 0-10 raises ValueError."""
+    """Score außerhalb 0–10 löst ValueError aus."""
     content = '{"score": 15, "summary": "Test", "reasoning": "Test"}'
-    with pytest.raises(ValueError, match="out of range"):
+    with pytest.raises(ValueError, match="außerhalb"):
         AIService._parse_response(content)
 
 
 def test_parse_response_empty():
-    """None or empty content raises ValueError."""
-    with pytest.raises(ValueError, match="Empty response"):
+    """None oder leerer Inhalt löst ValueError aus."""
+    with pytest.raises(ValueError, match="Leere Antwort"):
         AIService._parse_response(None)
 
 
 def test_parse_response_invalid_json():
-    """Non-JSON content raises JSONDecodeError."""
+    """Nicht-JSON-Inhalt löst JSONDecodeError aus."""
     with pytest.raises(json.JSONDecodeError):
         AIService._parse_response("This is not JSON")
 
 
-# --- Image type detection ---
+# --- Bildtyp-Erkennung ---
 
 
 def test_detect_jpeg():
-    """JPEG magic bytes are detected as image/jpeg."""
+    """JPEG-Magic-Bytes werden als image/jpeg erkannt."""
     data = b"\xff\xd8\xff\xe0" + b"\x00" * 100
     assert AIService._detect_image_type(data) == "image/jpeg"
 
 
 def test_detect_png():
-    """PNG magic bytes are detected as image/png."""
+    """PNG-Magic-Bytes werden als image/png erkannt."""
     data = b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
     assert AIService._detect_image_type(data) == "image/png"
 
 
 def test_detect_webp():
-    """WebP magic bytes are detected as image/webp."""
+    """WebP-Magic-Bytes werden als image/webp erkannt."""
     data = b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 100
     assert AIService._detect_image_type(data) == "image/webp"
 
 
 def test_detect_gif():
-    """GIF magic bytes are detected as image/gif."""
+    """GIF-Magic-Bytes werden als image/gif erkannt."""
     data = b"GIF89a" + b"\x00" * 100
     assert AIService._detect_image_type(data) == "image/gif"
 
 
 def test_detect_unknown():
-    """Unknown magic bytes return None."""
+    """Unbekannte Magic-Bytes liefern None."""
     data = b"\x00\x00\x00\x00" + b"\x00" * 100
     assert AIService._detect_image_type(data) is None
 
 
-# --- Price context ---
+# --- Preiskontext ---
 
 
 def test_build_price_context(session, sample_adsearch, sample_ads):
-    """Price context returns dict with entries (title+price), average and median from same AdSearch."""
+    """Preiskontext liefert Dict mit Einträgen (Titel+Preis), Durchschnitt und Median aus demselben Suchauftrag."""
     ai_service = AIService.__new__(AIService)
     ai_service.session = session
 
@@ -106,7 +106,7 @@ def test_build_price_context(session, sample_adsearch, sample_ads):
 
 
 def test_build_price_context_no_other_ads(session, sample_adsearch):
-    """Price context is None when no other ads in same AdSearch."""
+    """Preiskontext ist None, wenn keine anderen Anzeigen im selben Suchauftrag sind."""
     ai_service = AIService.__new__(AIService)
     ai_service.session = session
 
@@ -124,11 +124,11 @@ def test_build_price_context_no_other_ads(session, sample_adsearch):
     assert context is None
 
 
-# --- User context and rendered text ---
+# --- Nutzerkontext und gerenderter Text ---
 
 
 def test_build_user_context_and_render(session, sample_adsearch, sample_ads):
-    """User context + render produces text with title, price, seller rating, comparison."""
+    """Nutzerkontext + Render erzeugt Text mit Titel, Preis, Verkäufer-Rating, Vergleich."""
     ai_service = AIService.__new__(AIService)
     ai_service.session = session
 
@@ -142,7 +142,7 @@ def test_build_user_context_and_render(session, sample_adsearch, sample_ads):
 
 
 def test_build_user_context_seller_rating_labels(session, sample_adsearch, sample_ads):
-    """Seller rating 1 and 0 appear as OK and Na ja in rendered content."""
+    """Verkäufer-Rating 1 und 0 erscheinen als OK und Na ja im gerenderten Inhalt."""
     ai_service = AIService.__new__(AIService)
     ai_service.session = session
 
@@ -158,7 +158,7 @@ def test_build_user_context_seller_rating_labels(session, sample_adsearch, sampl
 
 
 def test_build_user_context_without_prompt_addition(session, sample_adsearch, sample_ads):
-    """Rendered user content has no instructions block when prompt_addition is not set."""
+    """Gerenderter Nutzerinhalt hat keinen Anweisungsblock, wenn prompt_addition nicht gesetzt ist."""
     ai_service = AIService.__new__(AIService)
     ai_service.session = session
     ad = sample_ads[0]
@@ -168,12 +168,12 @@ def test_build_user_context_without_prompt_addition(session, sample_adsearch, sa
     assert "[Zusätzliche Bewertungshinweise]" not in text
 
 
-# --- Analyze with mocked API ---
+# --- Analyse mit gemockter API ---
 
 
 @patch("app.services.ai.app_config")
 def test_ai_service_raises_without_api_key(mock_app_config, session):
-    """AIService raises ValueError when OPENAI_API_KEY is not set."""
+    """AIService löst ValueError aus, wenn OPENAI_API_KEY nicht gesetzt ist."""
     mock_app_config.openai_api_key = ""
     with pytest.raises(ValueError, match="API key not configured"):
         AIService(session)

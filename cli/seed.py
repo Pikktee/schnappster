@@ -1,6 +1,6 @@
-"""Seed database with sample data for all tables.
+"""Füllt die Datenbank mit Beispieldaten für alle Tabellen.
 
-Usage:
+Verwendung:
     uv run seed
 """
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    """Insert example data into all database tables."""
+    """Fügt Beispieldaten in alle Datenbanktabellen ein."""
     setup_logging()
 
     past = datetime.now(UTC) - timedelta(hours=2)
@@ -29,7 +29,7 @@ def main() -> None:
     with Session(db_engine) as session:
         session.execute(text("PRAGMA foreign_keys=ON"))
 
-        # AdSearch
+        # Suchauftrag
         session.add(adsearch)
         session.flush()
         assert adsearch.id is not None

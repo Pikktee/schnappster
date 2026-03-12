@@ -1,8 +1,8 @@
-"""Manual scraper invocation.
+"""Manueller Scraper-Aufruf.
 
-Usage:
-    uv run scrape           # scrape all active AdSearches
-    uv run scrape 1         # scrape AdSearch with ID 1
+Verwendung:
+    uv run scrape           # alle aktiven Suchaufträge scrapen
+    uv run scrape 1          # Suchauftrag mit ID 1 scrapen
 """
 
 import logging
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    """Run scraper for all active AdSearches or a single one by ID (from argv)."""
+    """Führt den Scraper für alle aktiven Suchaufträge oder einen einzelnen per ID aus (aus argv)."""
     setup_logging()
 
     adsearch_id = int(sys.argv[1]) if len(sys.argv) > 1 else None

@@ -1,4 +1,4 @@
-"""Logging setup with Rich handler for console output."""
+"""Logging mit Rich-Handler für die Konsolenausgabe."""
 
 import logging
 
@@ -14,13 +14,13 @@ RICH_HANDLER = RichHandler(
 
 
 def setup_logging(level: int = logging.INFO) -> None:
-    """Configure application logging and attach Rich handler to root and uvicorn loggers."""
+    """Anwendungs-Logging einrichten und Rich-Handler an Root- und Uvicorn-Logger hängen."""
     root = logging.getLogger()
     root.handlers.clear()
     root.setLevel(level)
     root.addHandler(RICH_HANDLER)
 
-    # Also configure Uvicorn loggers to use the same format
+    # Uvicorn-Logger ebenfalls im gleichen Format
     uvicorn_loggers = ["uvicorn", "uvicorn.error", "uvicorn.asgi"]
     for logger_name in uvicorn_loggers:
         logger = logging.getLogger(logger_name)
@@ -29,11 +29,11 @@ def setup_logging(level: int = logging.INFO) -> None:
         logger.setLevel(level)
         logger.propagate = False
 
-    # Suppress access log (every GET/POST) and httptools noise
+    # Access-Log (jeder GET/POST) und httptools-Ausgaben dämpfen
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
-    # Suppress 'X changes detected' messages from Uvicorns file watcher
+    # „X changes detected“-Meldungen vom Uvicorn-Dateiwächter dämpfen
     logging.getLogger("watchfiles.main").setLevel(logging.WARNING)
 
-    # Suppress verbose APScheduler job registration messages
+    # Ausführliche APScheduler-Job-Registrierungs-Meldungen dämpfen
     logging.getLogger("apscheduler").setLevel(logging.WARNING)
