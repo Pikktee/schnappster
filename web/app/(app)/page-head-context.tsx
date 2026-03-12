@@ -18,9 +18,9 @@ type PageHeadState = {
 }
 
 const defaultTitles: Record<string, { title: string; subtitle: string }> = {
-  "/": { title: "Dashboard", subtitle: "Übersicht über deine Schnäppchen-Suchergebnisse" },
+  "/": { title: "Dashboard", subtitle: "Übersicht über deine Angebots-Suchergebnisse" },
   "/ads": {
-    title: "Schnäppchen",
+    title: "Angebote",
     subtitle: "Von der KI bewertete Angebote aus deinen Suchen",
   },
   "/searches": {

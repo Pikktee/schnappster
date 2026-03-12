@@ -37,9 +37,9 @@ export function AppPageHead() {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {pathSegments.length === 1 ? (
-                  <BreadcrumbPage>Schnäppchen</BreadcrumbPage>
+                  <BreadcrumbPage>Angebote</BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink href="/ads">Schnäppchen</BreadcrumbLink>
+                  <BreadcrumbLink href="/ads">Angebote</BreadcrumbLink>
                 )}
               </BreadcrumbItem>
             </>

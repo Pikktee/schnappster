@@ -74,9 +74,9 @@ export function LatestDeals({ ads }: LatestDealsProps) {
         )
       })}
       <div className="flex justify-end pt-4 mt-2">
-        <Link href="/ads/?minScore=8" className="group">
+        <Link href="/ads/" className="group">
           <Button variant="ghost" size="sm" className="cursor-pointer group-hover:bg-primary/10">
-            Alle Schnäppchen anzeigen
+            Alle Angebote anzeigen
             <ArrowRight className="size-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
           </Button>
         </Link>

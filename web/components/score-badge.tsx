@@ -13,7 +13,7 @@ interface ScoreBadgeProps {
 }
 
 function getScoreLabel(score: number): string {
-  if (score >= 8) return "Top-Schnäppchen"
+  if (score >= 8) return "Top-Angebot"
   if (score >= 6) return "Guter Deal"
   return "Normaler Preis"
 }

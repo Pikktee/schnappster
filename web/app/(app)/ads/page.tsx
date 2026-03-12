@@ -100,7 +100,7 @@ function AdsPageContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [minScore, setMinScore] = useState<string>(searchParams.get("minScore") || "8")
+  const [minScore, setMinScore] = useState<string>(searchParams.get("minScore") ?? "0")
   const [searchId, setSearchId] = useState<string>(searchParams.get("search") || "all")
   const [sortBy, setSortBy] = useState<SortOption>((searchParams.get("sort") as SortOption) || "date")
   const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get("view") as ViewMode) || "cards")
@@ -109,7 +109,7 @@ function AdsPageContent() {
   const updateUrl = useCallback((params: Record<string, string>) => {
     const sp = new URLSearchParams(searchParams.toString())
     for (const [key, value] of Object.entries(params)) {
-      if (value && value !== "0" && value !== "8" && value !== "all" && value !== "date" && value !== "cards") {
+      if (value && value !== "0" && value !== "all" && value !== "date" && value !== "cards") {
         sp.set(key, value)
       } else {
         sp.delete(key)
@@ -154,7 +154,7 @@ function AdsPageContent() {
       v === "date" || v === "price-asc" || v === "price-desc" || v === "score-desc"
     const validView = (v: unknown): v is ViewMode => v === "cards" || v === "table"
     const effective = {
-      minScore: stored?.minScore ?? searchParams.get("minScore") ?? "8",
+      minScore: stored?.minScore ?? searchParams.get("minScore") ?? "0",
       searchId: stored?.searchId ?? searchParams.get("search") ?? "all",
       sortBy: validSort(stored?.sortBy) ? stored.sortBy : (searchParams.get("sort") as SortOption) || defaultSort,
       viewMode: validView(stored?.viewMode) ? stored.viewMode : (searchParams.get("view") as ViewMode) || defaultView,
@@ -222,7 +222,7 @@ function AdsPageContent() {
   }
 
   const activeFilterCount = [
-    minScore !== "8",
+    minScore !== "0",
     searchId !== "all",
     sortBy !== "date",
   ].filter(Boolean).length
@@ -234,13 +234,13 @@ function AdsPageContent() {
   }
 
   function resetFilters() {
-    setMinScore("8")
+    setMinScore("0")
     setSearchId("all")
     setSortBy("date")
     setPage(1)
-    updateUrl({ minScore: "8", search: "all", sort: "date", page: "0" })
-    saveFilters({ minScore: "8", searchId: "all", sortBy: "date", viewMode, page: 1 })
-    reload(1, "8", "all", "date")
+    updateUrl({ minScore: "0", search: "all", sort: "date", page: "0" })
+    saveFilters({ minScore: "0", searchId: "all", sortBy: "date", viewMode, page: 1 })
+    reload(1, "0", "all", "date")
   }
 
   const filterControls = (
@@ -342,7 +342,7 @@ function AdsPageContent() {
         )}
         <div className="flex items-center gap-2 ml-auto">
           <span className="text-xs text-muted-foreground">
-            {total} Schnäppchen
+            {total} Angebote
           </span>
           <div className="flex gap-1">
             <Button
@@ -411,7 +411,7 @@ function AdsPageContent() {
           </SheetContent>
         </Sheet>
         <span className="text-xs text-muted-foreground ml-auto">
-          {total} Schnäppchen
+          {total} Angebote
         </span>
         <div className="flex gap-1">
           <Button
@@ -442,7 +442,7 @@ function AdsPageContent() {
       </div>
 
       {ads.length === 0 ? (
-        <EmptyState message="Keine Schnäppchen gefunden. Passe die Filter an oder warte auf neue Analysen." />
+        <EmptyState message="Keine Angebote gefunden. Passe die Filter an oder warte auf neue Analysen." />
       ) : viewMode === "cards" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {ads.map((ad) => (

@@ -7,7 +7,7 @@ const _inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: 'Schnappster',
-  description: 'Dein persönlicher Schnäppchen-Finder für Kleinanzeigen.de',
+  description: 'Dein persönlicher Angebote-Finder für Kleinanzeigen.de',
   icons: {
     icon: [
       { url: '/icon1.png', sizes: '16x16', type: 'image/png' },

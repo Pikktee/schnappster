@@ -177,10 +177,10 @@ export default function SettingsPage() {
                 htmlFor="telegram-notifications"
                 className={!telegramConfigured ? "opacity-60" : undefined}
               >
-                Telegram-Benachrichtigungen bei Schnäppchen
+                Telegram-Benachrichtigungen bei Angeboten
               </Label>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Bei identifizierten Schnäppchen (Score ≥ 8) eine Nachricht an
+                Bei identifizierten Top-Angeboten (Score ≥ 8) eine Nachricht an
                 den konfigurierten Telegram-Chat senden.
               </p>
             </div>

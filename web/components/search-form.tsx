@@ -303,7 +303,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
             <div className="space-y-5">
               <div className="flex items-center gap-1.5">
                 <Label className="font-normal">Suchintervall</Label>
-                <HelpTip text="Kürzere Intervalle finden Schnäppchen schneller, belasten aber den Server mehr." />
+                <HelpTip text="Kürzere Intervalle finden Angebote schneller, belasten aber den Server mehr." />
               </div>
               <div className="grid grid-cols-6 gap-1.5">
                 {INTERVAL_PRESETS.map((preset) => (
