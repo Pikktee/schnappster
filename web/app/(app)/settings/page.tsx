@@ -107,7 +107,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-8">
         <PageHeader title="Einstellungen" subtitle="Globale App-Einstellungen" />
         <Skeleton className="h-48 max-w-2xl" />
       </div>
@@ -115,7 +115,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <ContentReveal className="flex flex-col gap-6">
+    <ContentReveal className="flex flex-col gap-8">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -133,11 +133,11 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Verkäufer-Filter</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-5">
+        <CardContent className="flex flex-col gap-6">
           <div className="flex items-center justify-between gap-4">
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <Label htmlFor="exclude-commercial">Gewerbliche Verkäufer ausschließen</Label>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 Angebote von gewerblichen Verkäufern werden bei Suchen ausgeblendet.
               </p>
             </div>
@@ -148,7 +148,7 @@ export default function SettingsPage() {
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="min-seller-rating">Mindest-Verkäuferbewertung</Label>
             <Select value={minSellerRating} onValueChange={setMinSellerRating}>
               <SelectTrigger id="min-seller-rating" className="w-full max-w-xs">
@@ -162,7 +162,7 @@ export default function SettingsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               Nur Angebote von Verkäufern mit mindestens dieser Bewertung anzeigen.
             </p>
           </div>
@@ -173,12 +173,14 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Benachrichtigungen</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-5">
+        <CardContent className="flex flex-col gap-6">
           {!telegramConfigured && (
-            <div className="text-sm text-muted-foreground space-y-1">
+            <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
               <p>
-                Telegram ist nicht konfiguriert. Setze <code className="text-xs bg-muted px-1 py-0.5 rounded">TELEGRAM_BOT_TOKEN</code> und{" "}
-                <code className="text-xs bg-muted px-1 py-0.5 rounded">TELEGRAM_CHAT_ID</code> in der .env-Datei.
+                Telegram ist nicht konfiguriert. Setze{" "}
+                <code className="rounded bg-muted px-1.5 py-0.5 text-[0.8em]">TELEGRAM_BOT_TOKEN</code>{" "}
+                und <code className="rounded bg-muted px-1.5 py-0.5 text-[0.8em]">TELEGRAM_CHAT_ID</code>{" "}
+                in der .env-Datei.
               </p>
               <p>
                 <a
@@ -193,14 +195,14 @@ export default function SettingsPage() {
             </div>
           )}
           <div className="flex items-center justify-between gap-4">
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <Label
                 htmlFor="telegram-notifications"
                 className={!telegramConfigured ? "opacity-60" : undefined}
               >
                 Telegram-Benachrichtigungen bei Schnäppchen
               </Label>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 Bei identifizierten Schnäppchen (Score ≥ 7) eine Nachricht an
                 den konfigurierten Telegram-Chat senden.
               </p>
@@ -220,8 +222,8 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Datenverwaltung</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <div className="flex flex-col gap-1.5">
+        <CardContent className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="auto-delete-ads">Alte Anzeigen automatisch löschen</Label>
             <Select value={autoDeleteAdsDays} onValueChange={setAutoDeleteAdsDays}>
               <SelectTrigger id="auto-delete-ads" className="w-full max-w-xs">
@@ -235,7 +237,7 @@ export default function SettingsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               Anzeigen werden nach der gewählten Anzahl von Tagen automatisch gelöscht.
               Bei &quot;Deaktiviert&quot; werden keine Anzeigen gelöscht.
             </p>
@@ -244,7 +246,11 @@ export default function SettingsPage() {
       </Card>
 
       <div className="max-w-2xl pt-2">
-        <Button onClick={handleSave} disabled={isSaving} className="cursor-pointer">
+        <Button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="cursor-pointer gap-2 px-5"
+        >
           <Save className="size-4" />
           {isSaving ? "Speichern..." : "Einstellungen speichern"}
         </Button>
