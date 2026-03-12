@@ -106,7 +106,7 @@ class ScraperService:
                 started_at=started_at,
                 finished_at=finished_at,
                 ads_found=ads_found_result,
-                 ads_filtered=ads_filtered_result,
+                ads_filtered=ads_filtered_result,
                 ads_new=ads_new_result,
             )
             self.session.add(scrape_run)
@@ -164,9 +164,7 @@ class ScraperService:
         """Return a short reason string if ad should be filtered out, else None."""
         # Nur Anzeigen mit ausschließlich VB (ohne angegebenen Preis) aussortieren.
         # "VB + Preis" (z.B. "1.999 € VB") soll gespeichert werden; nur reines VB nicht.
-        is_vb = (detail.price_type == "NEGOTIABLE") or (
-            "vb" in (detail.price_raw or "").lower()
-        )
+        is_vb = (detail.price_type == "NEGOTIABLE") or ("vb" in (detail.price_raw or "").lower())
         if is_vb and detail.price is None:
             return "VB-Anzeige (Preis Verhandlungsbasis) ohne angegebenen Preis"
 

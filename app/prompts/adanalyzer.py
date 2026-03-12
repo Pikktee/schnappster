@@ -16,7 +16,7 @@ def render_system_prompt(context: dict | None = None) -> str:
 
 
 def render_user_prompt(context: dict) -> str:
-    """Render the user-message part of the prompt. context can be partial; defaults used for rest."""
+    """Render the user-message part of the prompt. context can be partial"""
     env = _get_env()
     template = env.get_template("adanalyzer_user.jinja2")
     full_context = {**_default_user_context(), **context}
