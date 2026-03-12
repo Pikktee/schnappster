@@ -21,13 +21,14 @@ STATIC_PREFIX = "_static"
 
 
 def _nav_html(active: str | None) -> str:
-    """Build navigation HTML for doc pages (Start, Backend, Frontend, Architektur, Chrome Extension)."""
+    """Build navigation HTML for doc pages (Backend, Frontend, Architektur, etc.)."""
     items = [
         ("index.html", "Start", None),
         ("app.html", "Backend (Referenz)", "code"),
         ("frontend.html", "Frontend", "frontend"),
         ("architecture.html", "Architektur", "arch"),
         ("extension.html", "Chrome Extension", "extension"),
+        ("praesentation.html", "Präsentation", "presentation"),
     ]
     parts = []
     for href, label, key in items:
@@ -40,9 +41,7 @@ def _nav_html(active: str | None) -> str:
         f'<a href="index.html" class="doc-nav-home" aria-label="Schnappster">'
         f'<img src="{logo_src}" alt="" class="doc-nav-logo" width="140" height="140">'
         "</a>"
-        '<span class="doc-nav-sep">·</span>'
-        + " ".join(parts)
-        + "</div></nav>"
+        '<span class="doc-nav-sep">·</span>' + " ".join(parts) + "</div></nav>"
     )
 
 
@@ -54,7 +53,7 @@ def _doc_page(
     back_link: bool = False,
 ) -> str:
     """Build full HTML page with shared layout and doc.css."""
-    back = ''
+    back = ""
     if back_link:
         back = '<a href="index.html" class="doc-back">← Zur Übersicht</a>'
     return f"""<!DOCTYPE html>
@@ -116,8 +115,7 @@ def _inject_pdoc_back_link(html_path: Path, build_dir: Path) -> None:
     index_url = f"{prefix}index.html"
     css_url = f"{prefix}{STATIC_PREFIX}/doc.css"
     back_div = (
-        f'<div class="doc-pdoc-back">'
-        f'<a href="{index_url}">← Zur Dokumentations-Übersicht</a></div>'
+        f'<div class="doc-pdoc-back"><a href="{index_url}">← Zur Dokumentations-Übersicht</a></div>'
     )
     # CSS vor </head> einfügen (nur wenn noch nicht vorhanden)
     if "doc.css" not in text:
@@ -165,11 +163,13 @@ def main() -> None:
             if f.is_file():
                 shutil.copy2(f, static_out / f.name)
         print("Copied _static into build")
-    # Logo aus Frontend für Header
+    # Logo aus Frontend für Header (build) und für Quell-Präsentation (docs/_static)
     web_logo = root / "web" / "public" / "logo.svg"
     if web_logo.exists():
         shutil.copy2(web_logo, static_out / "logo.svg")
-        print("Copied logo.svg from web/public into build")
+        static_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(web_logo, static_dir / "logo.svg")
+        print("Copied logo.svg from web/public into build and docs/_static")
 
     # 3. Architektur
     if arch_dir.exists():
@@ -186,7 +186,7 @@ def main() -> None:
                 image_prefix="architecture/",
                 img_prefix_replace=(
                     r'<figure><img src="architecture/\1" alt="\1" style="max-width:100%;"/>'
-                    r'</figure>'
+                    r"</figure>"
                 ),
             )
             page = _doc_page(
@@ -226,7 +226,20 @@ def main() -> None:
         (build_dir / "extension.html").write_text(page, encoding="utf-8")
         print("Generated extension.html")
 
-    # 6. Startseite (Übersicht mit Kacheln): Backend, Frontend, Architektur, Chrome Extension
+    # 5b. Präsentation (Reveal.js) + Screenshots
+    praesentation_src = docs_dir / "praesentation.html"
+    screenshots_src = docs_dir / "screenshots"
+    if praesentation_src.exists():
+        shutil.copy2(praesentation_src, build_dir / "praesentation.html")
+        if screenshots_src.exists():
+            screenshots_out = build_dir / "screenshots"
+            screenshots_out.mkdir(parents=True, exist_ok=True)
+            for f in screenshots_src.iterdir():
+                if f.is_file():
+                    shutil.copy2(f, screenshots_out / f.name)
+        print("Copied praesentation.html (and screenshots) into build")
+
+    # 6. Startseite (Übersicht mit Kacheln): Backend, Frontend, Architektur, Chrome Extension, Präsentation
     cards = []
     cards.append(
         '<a href="app.html" class="doc-card">'
@@ -251,6 +264,12 @@ def main() -> None:
             "<h2>Chrome Extension</h2>"
             "<p>Kleinanzeigen-Suchergebnisseite per Klick als Suchauftrag in Schnappster hinzufügen.</p></a>"
         )
+    if (build_dir / "praesentation.html").exists():
+        cards.append(
+            '<a href="praesentation.html" class="doc-card">'
+            "<h2>Präsentation</h2>"
+            "<p>Reveal.js-Folien: Projektvorstellung, Backend/Frontend, Technik, Screenshots.</p></a>"
+        )
     body = (
         "<h1>Dokumentation</h1>"
         '<p class="doc-intro">Übersicht über Backend-Code, Frontend, Architektur und Chrome Extension.</p>'
@@ -261,7 +280,13 @@ def main() -> None:
     print("Updated index.html")
 
     # 7. Back-Link + doc.css in alle pdoc-Seiten injizieren
-    skip = {"index.html", "architecture.html", "frontend.html", "extension.html"}
+    skip = {
+        "index.html",
+        "architecture.html",
+        "frontend.html",
+        "extension.html",
+        "praesentation.html",
+    }
     for html_path in build_dir.rglob("*.html"):
         if html_path.name in skip:
             continue

@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Schnappster</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.0/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.0/dist/theme/white.css" id="theme" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* Schnappster-Farben wie im Frontend (globals.css) */
+    :root {
+      --r-heading-font: 'Lexend', sans-serif;
+      --r-main-font: 'Lexend', sans-serif;
+      --primary: #F59E0B;
+      --primary-foreground: #FFFFFF;
+      --link: #D97706;
+      --primary-glow: rgba(245, 158, 11, 0.15);
+      --background: #FAFAF9;
+      --foreground: #1C1917;
+      --muted: #F5F5F4;
+      --muted-foreground: #78716C;
+      --accent: #FEF3C7;
+      --accent-foreground: #92400E;
+      --border: #E7E5E4;
+      --card: #FFFFFF;
+      --radius: 0.5rem;
+      --radius-lg: 0.75rem;
+    }
+    .reveal {
+      font-family: var(--r-main-font);
+      color: var(--foreground);
+      background: var(--background);
+      font-size: 30px;
+    }
+    .reveal .slides { text-align: left; }
+    /* Folien oben ausrichten: Reveal zentriert sonst den Section-Container → mehr Platz oben */
+    .reveal .slides { align-items: flex-start !important; justify-content: flex-start !important; }
+    /* Inhalt oben ausrichten, gleicher Abstand oben/unten: minimales Padding oben */
+    .reveal .slides > section {
+      padding: 0.25em 0.6em 0.5em !important;
+      box-sizing: border-box;
+      height: 100%;
+      overflow: hidden;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: flex-start !important;
+    }
+    .reveal h1, .reveal h2, .reveal h3 { font-family: var(--r-heading-font); font-weight: 700; }
+    .reveal h1 { color: var(--foreground); font-size: 1.55em; margin: 0 0 0.2em; letter-spacing: -0.02em; }
+    .reveal h2 {
+      color: var(--foreground);
+      font-size: 1.25em;
+      border-bottom: 3px solid var(--primary);
+      padding-bottom: 0.15em;
+      margin: 0 0 0.3em;
+      font-weight: 600;
+    }
+    .reveal h3 { font-size: 1em; color: var(--muted-foreground); margin: 0.3em 0 0.15em; font-weight: 600; }
+    .reveal p, .reveal li { font-size: 0.9em; line-height: 1.5; color: var(--foreground); margin: 0.12em 0; }
+    .reveal ul { margin: 0.15em 0 0; padding-left: 1.2em; }
+    .reveal li { margin-bottom: 0.08em; }
+    .reveal strong { color: var(--accent-foreground); font-weight: 600; }
+    .reveal a { color: var(--link); }
+    .reveal .subtitle { color: var(--muted-foreground); font-size: 0.88em; margin: 0.05em 0 0.2em; font-weight: 400; }
+    .reveal section.stack { padding: 0; }
+    .reveal pre {
+      font-size: 0.5em;
+      margin: 0.2em 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      background: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.5em 0.75em;
+    }
+    .reveal code {
+      background: var(--accent);
+      color: var(--accent-foreground);
+      padding: 0.12em 0.32em;
+      border-radius: 4px;
+      font-size: 0.95em;
+      font-weight: 500;
+    }
+    .reveal table {
+      font-size: 0.78em;
+      margin: 0.15em 0;
+      border-collapse: collapse;
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .reveal th, .reveal td { border: 1px solid var(--border); padding: 0.3em 0.55em; text-align: left; }
+    .reveal th { background: var(--accent); color: var(--accent-foreground); font-weight: 600; }
+    .reveal tr:nth-child(even) { background: var(--muted); }
+    /* Technischer Überblick – thematische Blöcke */
+    .reveal .tech-overview { margin-top: 0.2em; }
+    .reveal .tech-block { margin-bottom: 0.5em; }
+    .reveal .tech-block h4 {
+      font-size: 0.95em;
+      color: var(--foreground);
+      margin: 0 0 0.2em;
+      padding-bottom: 0.1em;
+      border-bottom: 2px solid var(--primary);
+      font-weight: 600;
+    }
+    .reveal .tech-block ul { margin: 0; padding-left: 1em; }
+    .reveal .tech-block li { margin-bottom: 0.08em; font-size: 0.82em; }
+    .reveal .tech-block-deployment .deployment-mode {
+      font-size: 0.82em;
+      margin-top: 0.35em;
+      padding: 0.25em 0.35em;
+      background: var(--muted);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--primary);
+      line-height: 1.4;
+    }
+    .reveal .tech-block-deployment .deployment-mode:first-of-type { margin-top: 0.2em; }
+    /* Backend-Architektur – kompakte Zeilen */
+    .reveal .arch-blocks { margin-top: 0.25em; }
+    .reveal .arch-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5em 1.2em;
+      margin-bottom: 0.35em;
+    }
+    .reveal .arch-item {
+      font-size: 0.85em;
+      line-height: 1.4;
+      padding: 0.25em 0.4em;
+      background: var(--muted);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--primary);
+    }
+    /* Ablauf Scraping → KI – nummerierte Schritte */
+    .reveal .flow-steps { margin-top: 0.3em; }
+    .reveal .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5em;
+      font-size: 0.88em;
+      line-height: 1.45;
+      padding: 0.3em 0.4em;
+      margin-bottom: 0.25em;
+      background: var(--muted);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--border);
+    }
+    .reveal .flow-step-ki { border-left-color: var(--primary); background: var(--accent); }
+    .reveal .flow-num {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.4em;
+      height: 1.4em;
+      font-size: 0.9em;
+      font-weight: 700;
+      color: var(--primary-foreground);
+      background: var(--primary);
+      border-radius: 50%;
+    }
+    .reveal .flow-step-ki .flow-num { background: var(--accent-foreground); color: var(--accent); }
+    /* Ablauf Scraping → KI – zwei Phasen */
+    .reveal .flow-phases { margin-top: 0.2em; }
+    .reveal .flow-phase {
+      font-size: 0.82em;
+      padding: 0.35em 0.5em;
+      margin-bottom: 0.4em;
+      background: var(--muted);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--primary);
+    }
+    .reveal .flow-phase:last-child { margin-bottom: 0; }
+    .reveal .flow-phase h4 {
+      margin: 0 0 0.2em;
+      font-size: 1em;
+      font-weight: 600;
+      color: var(--foreground);
+      border: none;
+      padding: 0;
+    }
+    .reveal .flow-phase > p { margin: 0 0 0.2em; color: var(--muted-foreground); font-size: 0.92em; }
+    .reveal .flow-phase-list {
+      margin: 0;
+      padding-left: 1.1em;
+      line-height: 1.4;
+    }
+    .reveal .flow-phase-list li { margin-bottom: 0.12em; }
+    /* Frontend in Kürze – freundliche Blöcke */
+    .reveal .frontend-blocks { margin-top: 0.3em; }
+    .reveal .frontend-block {
+      font-size: 0.88em;
+      line-height: 1.5;
+      padding: 0.35em 0.5em;
+      margin-bottom: 0.3em;
+      background: var(--muted);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--primary);
+      color: var(--foreground);
+    }
+    .reveal .frontend-block strong { color: var(--accent-foreground); }
+    /* Titelfolie – wenig Abstand oben, Logo + großer Screenshot, Box ohne Weißraum */
+    .reveal .title-slide {
+      text-align: center;
+      background: linear-gradient(160deg, var(--background) 0%, color-mix(in srgb, var(--primary) 8%, var(--background)) 100%);
+      padding: 0 0.6em 0.5em !important;
+      justify-content: flex-start !important;
+      margin-top: -0.55em !important;
+    }
+    .reveal .slides > section.title-slide { padding-top: 0 !important; }
+    .reveal .title-slide > *:first-child { margin-top: 0 !important; }
+    .reveal .title-slide .title-logo {
+      width: 9em;
+      height: 9em;
+      margin: 0 auto 0.12em;
+      display: block;
+      max-width: 320px;
+      max-height: 320px;
+    }
+    .reveal .title-slide h1 { margin: 0 0 0.04em; font-size: 1.5em; color: var(--foreground); }
+    .reveal .title-slide .subtitle { margin: 0 0 0.05em; font-size: 0.82em; }
+    .reveal .title-slide .title-screenshot-wrap {
+      margin: 0.5em auto 0;
+      padding: 0;
+      line-height: 0;
+      display: inline-block;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 0 0 1px var(--border);
+      max-width: 94%;
+    }
+    .reveal .title-slide .title-screenshot-wrap img {
+      display: block;
+      width: auto;
+      max-width: 100%;
+      max-height: 24em;
+      object-fit: contain;
+      vertical-align: bottom;
+    }
+    /* Diagramm Backend/Frontend */
+    .reveal .diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.2rem;
+      margin: 0.35em 0;
+      flex-wrap: wrap;
+    }
+    .reveal .diagram-box {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 0.6rem 1rem;
+      min-width: 180px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .reveal .diagram-box.backend { border-color: var(--primary); background: var(--accent); }
+    .reveal .diagram-box.frontend { border-color: var(--border); background: var(--muted); }
+    .reveal .diagram-box h4 { margin: 0 0 0.25em; font-size: 0.9em; font-weight: 600; color: var(--foreground); }
+    .reveal .diagram-box p { margin: 0; font-size: 0.75em; color: var(--muted-foreground); }
+    .reveal .diagram-arrow { font-size: 0.78em; color: var(--muted-foreground); max-width: 100px; text-align: center; line-height: 1.35; }
+    .reveal .diagram-simple {
+      flex-direction: row;
+      justify-content: center;
+      gap: 2rem;
+      margin: 0.6em 0;
+    }
+    .reveal .diagram-simple .diagram-box { flex: 1; max-width: 380px; }
+    .reveal .diagram-arrow-between {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8em;
+      color: var(--primary);
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    /* Abschnitte */
+    .reveal .section-note { font-size: 0.78em; color: var(--muted-foreground); margin: 0.15em 0 0; }
+    .reveal .section-note-deployment {
+      margin-top: 0.5em;
+      padding-top: 0.35em;
+      border-top: 1px solid var(--border);
+      font-size: 0.78em;
+      color: var(--muted-foreground);
+    }
+    .reveal .section-note-deployment p { margin: 0.12em 0; }
+    .reveal .screenshot {
+      max-height: 20em;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      object-fit: contain;
+    }
+    .reveal .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      align-items: start;
+      margin-top: 0.15em;
+    }
+    .reveal .two-col .screenshot { max-height: 15em; }
+    /* Abschnitte */
+    .reveal .thanks { text-align: center; padding: 0.5em 0; }
+    .reveal .thanks h2 { border: none; color: var(--foreground); margin: 0; }
+    .reveal .thanks .subtitle { margin-top: 0.25em; }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <!-- Titelfolie: Logo + Screenshot -->
+      <section class="title-slide">
+        <img src="_static/logo.svg" alt="Schnappster" class="title-logo" width="300" height="300" />
+        <h1>Schnappster</h1>
+        <p class="subtitle">Kleinanzeigen.de Schnäppchen-Finder mit KI</p>
+        <div class="title-screenshot-wrap">
+          <img src="screenshots/schnappster_frontend_schnaeppchen.png" alt="Schnäppchen-Übersicht" />
+        </div>
+      </section>
+
+      <!-- Was ist Schnappster -->
+      <section>
+        <h2>Was ist Schnappster?</h2>
+        <p>Eine <strong>persönliche Web-App</strong>, die Kleinanzeigen.de-Suchergebnisse periodisch abruft, mit <strong>KI</strong> auf Schnäppchen prüft und Ergebnisse im <strong>Dashboard</strong> anzeigt.</p>
+        <p class="subtitle" style="margin-top: 0.6em;">Kurz: Automatischer Schnäppchen-Finder mit KI-Bewertung.</p>
+      </section>
+
+      <!-- Zielsetzung -->
+      <section>
+        <h2>Zielsetzung</h2>
+        <ul>
+          <li><strong>Suchaufträge</strong> definieren (Suchbegriff, Preisbereich, Intervall) und automatisch ausführen lassen.</li>
+          <li><strong>Neue Anzeigen</strong> erkennen, filtern (Preis, Blacklist, Verkäufer) und nur Relevantes behalten.</li>
+          <li><strong>KI-Bewertung:</strong> Einschätzung, ob etwas ein Schnäppchen ist (Vergleichspreise, Zustand) — <strong>Bargain-Score 0–10</strong>.</li>
+          <li><strong>Übersichtliche Oberfläche:</strong> Dashboard, Schnäppchen-Liste, Details, Einstellungen, Logs.</li>
+        </ul>
+      </section>
+
+      <!-- Backend vs Frontend -->
+      <section>
+        <h2>Backend und Frontend</h2>
+        <p class="subtitle">Zwei getrennte Teile — der Browser verbindet sie.</p>
+        <div class="diagram diagram-simple">
+          <div class="diagram-box frontend">
+            <h4>Frontend</h4>
+            <p>Next.js / React, TypeScript</p>
+            <p>UI: Listen, Formulare, Dashboard</p>
+            <p>Wird zu statischem HTML/JS gebaut</p>
+          </div>
+          <div class="diagram-arrow-between" aria-hidden="true">↔</div>
+          <div class="diagram-box backend">
+            <h4>Backend</h4>
+            <p>Python, FastAPI</p>
+            <p>API (JSON), Scraping, KI, Datenbank</p>
+            <p>Ein Prozess: <code>uv run start</code></p>
+          </div>
+        </div>
+        <p class="section-note"><strong>Kommunikation:</strong> Browser lädt die UI und ruft die API auf (REST/JSON).</p>
+      </section>
+
+      <!-- Technischer Überblick -->
+      <section>
+        <h2>Technischer Überblick</h2>
+        <div class="tech-overview">
+          <div class="tech-block">
+            <h4>Backend (Python)</h4>
+            <ul>
+              <li><strong>Basis:</strong> Python 3.13, FastAPI, SQLModel, uv</li>
+              <li><strong>Datenbank:</strong> SQLite (data/schnappster.db)</li>
+              <li><strong>Scraping:</strong> curl-cffi (HTTP), BeautifulSoup (HTML parsen), lxml (Parser)</li>
+              <li><strong>Scheduling:</strong> APScheduler (Scrape + Analyse im Hintergrund)</li>
+              <li><strong>KI:</strong> OpenAI-kompatible API (z. B. OpenRouter)</li>
+            </ul>
+          </div>
+          <div class="tech-block">
+            <h4>Frontend</h4>
+            <ul>
+              <li>Next.js 16, React 19, Tailwind v4, shadcn/ui</li>
+            </ul>
+          </div>
+          <div class="tech-block tech-block-deployment">
+            <h4>Deployment</h4>
+            <div class="deployment-mode">
+              <strong>Produktion</strong> <code>uv run start</code><br/>
+              Ein Server: FastAPI liefert API und Frontend (web/out/). Gleicher Origin.
+            </div>
+            <div class="deployment-mode">
+              <strong>Dev</strong> <code>uv run start --dev</code><br/>
+              Zwei Prozesse: Frontend :3000, Backend :8000. CORS.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Backend-Architektur -->
+      <section>
+        <h2>Backend-Architektur</h2>
+        <p class="subtitle">Schichten im Python-Projekt (von außen nach innen)</p>
+        <div class="arch-blocks">
+          <div class="arch-row">
+            <div class="arch-item">
+              <strong>app/core/</strong> — DB, Config (.env), APScheduler, Logging
+            </div>
+            <div class="arch-item">
+              <strong>app/models/</strong> — SQLModel-Tabellen + API-Schemas
+            </div>
+          </div>
+          <div class="arch-row">
+            <div class="arch-item">
+              <strong>app/scraper/</strong> — HTTP/HTML (curl-cffi, BeautifulSoup), keine Logik
+            </div>
+            <div class="arch-item">
+              <strong>app/services/</strong> — ScraperService, AIService, SettingsService
+            </div>
+          </div>
+          <div class="arch-row">
+            <div class="arch-item">
+              <strong>app/routes/</strong> — FastAPI-Router (api_router)
+            </div>
+            <div class="arch-item">
+              <strong>cli/</strong> — Einstiege: start, scrape, analyze, dbreset
+            </div>
+          </div>
+        </div>
+        <p class="section-note">Scraping und KI-Analyse laufen in getrennten Single-Worker-Queues (kein Überlappen).</p>
+      </section>
+
+      <!-- Ablauf Scraping → KI -->
+      <section>
+        <h2>Ablauf: Scraping → KI</h2>
+        <p class="subtitle">Zwei Phasen: ScraperService speichert neue Anzeigen, AIService wertet sie aus.</p>
+        <div class="flow-phases">
+          <div class="flow-phase">
+            <h4>Phase 1 — Scraping</h4>
+            <p>Für jeden fälligen Suchauftrag (AdSearch):</p>
+            <ol class="flow-phase-list">
+              <li>Suchseiten fetchen → Preview-Liste (external_id, URL) parsen.</li>
+              <li>Bekannte ausfiltern (external_id schon in DB für diesen AdSearch).</li>
+              <li>Detailseiten der <em>neuen</em> Previews parallel laden → ScrapedAdDetail.</li>
+              <li>Filtern: Preis (min/max), Blacklist-Keywords, Verkäufertyp, Mindest-Rating.</li>
+              <li>Neue Ads in DB speichern; bei neuen Ads wird <strong>Phase 2</strong> gequeued.</li>
+            </ol>
+          </div>
+          <div class="flow-phase">
+            <h4>Phase 2 — KI-Analyse</h4>
+            <p>Eigener Job (Analyzer-Queue, kein Überlappen mit Scrape):</p>
+            <ol class="flow-phase-list">
+              <li>Bis zu 10 unverarbeitete Ads (is_analyzed=false), älteste zuerst.</li>
+              <li>OpenAI-kompatible API: Bewertung (bargain_score 0–10), Kurztext, Begründung.</li>
+              <li>Bei verbleibendem Backlog: nächsten Analyze-Job in Queue stellen (wiederholt sich bis Backlog leer).</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <!-- Frontend in Kürze -->
+      <section>
+        <h2>Frontend in Kürze</h2>
+        <p class="subtitle">Next.js + React, statisch gebaut, eine klare Struktur.</p>
+        <div class="frontend-blocks">
+          <div class="frontend-block">
+            <strong>Stack</strong> — Next.js 16, React 19, Tailwind v4, shadcn/ui. Build: <strong>Static Export</strong> (web/out/).
+          </div>
+          <div class="frontend-block">
+            <strong>API & Typen</strong> — Alle Aufrufe in <code>web/lib/api.ts</code>, Typen in <code>web/lib/types.ts</code>.
+          </div>
+          <div class="frontend-block">
+            <strong>Layout</strong> — Routen unter <code>web/app/(app)/</code>, gemeinsame <strong>Sidebar</strong> für die App.
+          </div>
+          <div class="frontend-block">
+            <strong>Dynamische Routen</strong> — /ads/[id], /searches/[id]: FastAPI liefert eine Shell, der <strong>Client</strong> lädt die echten Daten per API.
+          </div>
+        </div>
+      </section>
+
+      <!-- Demo / Befehle -->
+      <section>
+        <h2>Demo & Befehle</h2>
+        <pre><code>uv run start [--skip-tests] [--dev] [--port PORT]  # Server starten
+uv run scrape [adsearch_id]                         # Scraping manuell
+uv run analyze [limit]                              # KI-Auswertung
+uv run dbreset                                      # DB löschen und neu anlegen
+uv run seed                                         # Beispieldaten einspielen
+uv run docs [--open]                                # Doku bauen (Präsentation, pdoc, …)
+uv run help                                         # Befehlsübersicht</code></pre>
+      </section>
+
+      <!-- Ende -->
+      <section class="thanks">
+        <h2>Danke</h2>
+        <p class="subtitle">Fragen?</p>
+      </section>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.2.0/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      center: true,
+      transition: 'slide',
+      transitionSpeed: 'default',
+      fragments: false,
+      showNotes: false,
+      margin: 0.04,
+      width: 1200,
+      height: 700,
+      minScale: 0.2,
+      maxScale: 1,
+      display: 'block'
+    });
+  </script>
+</body>
+</html>

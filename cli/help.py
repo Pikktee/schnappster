@@ -43,7 +43,7 @@ _COMMANDS = (
     ),
     (
         "docs \\[--open]",
-        "Dokumentation bauen (pdoc, Architektur, Frontend) nach docs/build/.",
+        "Dokumentation bauen (pdoc, Architektur, Frontend, Präsentation) nach docs/build/.",
         (("--open, -O", "Nach dem Bau im Browser öffnen"),),
     ),
     (
