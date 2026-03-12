@@ -4,9 +4,9 @@ from fastapi import APIRouter
 
 from app.routes.api.ads import router as ads_router
 from app.routes.api.adsearch import router as adsearch_router
-from app.routes.api.aianalysislogs import router as aianalysislogs_router
-from app.routes.api.errorlogs import router as errorlogs_router
-from app.routes.api.scraperuns import router as scraperuns_router
+from app.routes.api.logs_aianalysis import router as aianalysislogs_router
+from app.routes.api.logs_error import router as errorlogs_router
+from app.routes.api.logs_scraperun import router as scraperuns_router
 from app.routes.api.settings import router as settings_router
 from app.routes.api.version import router as version_router
 

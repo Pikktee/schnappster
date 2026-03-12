@@ -9,7 +9,7 @@ import logging
 from sqlmodel import Session, text
 
 from app.core import db_engine, setup_logging
-from app.models.errorlog import ErrorLog
+from app.models.logs_error import ErrorLog
 
 logger = logging.getLogger(__name__)
 

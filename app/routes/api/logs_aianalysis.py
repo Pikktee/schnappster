@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from sqlmodel import col, select
 
 from app.core.db import DbSession
-from app.models.aianalysislog import AIAnalysisLog, AIAnalysisLogRead
+from app.models.logs_aianalysis import AIAnalysisLog, AIAnalysisLogRead
 
 router = APIRouter(prefix="/aianalysislogs", tags=["AIAnalysisLogs"])
 

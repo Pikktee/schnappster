@@ -32,9 +32,9 @@ def _validate_search_url(url: str) -> str:
 
 if TYPE_CHECKING:  # Avoid linter error
     from app.models.ad import Ad
-    from app.models.errorlog import ErrorLog
-    from app.models.scraperun import ScrapeRun
-    from app.models.aianalysislog import AIAnalysisLog
+    from app.models.logs_error import ErrorLog
+    from app.models.logs_scraperun import ScrapeRun
+    from app.models.logs_aianalysis import AIAnalysisLog
 
 
 # ----------------------

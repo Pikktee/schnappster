@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from sqlmodel import col, select
 
 from app.core.db import DbSession
-from app.models.errorlog import ErrorLog, ErrorLogRead
+from app.models.logs_error import ErrorLog, ErrorLogRead
 
 router = APIRouter(prefix="/errorlogs", tags=["ErrorLogs"])
 

@@ -11,8 +11,8 @@ from app.core.background_jobs import BackgroundJobs, get_background_jobs
 from app.core.db import DbSession, db_engine
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearchUpdate
-from app.models.errorlog import ErrorLog
-from app.models.scraperun import ScrapeRun
+from app.models.logs_error import ErrorLog
+from app.models.logs_scraperun import ScrapeRun
 from app.scraper.httpclient import fetch_page_with_status
 from app.scraper.parser import parse_search_title
 from app.services.scraper import ScraperService

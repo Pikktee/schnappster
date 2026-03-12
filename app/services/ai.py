@@ -12,8 +12,8 @@ from sqlmodel import Session, select
 from app.core import config as app_config
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch
-from app.models.aianalysislog import AIAnalysisLog
-from app.models.errorlog import ErrorLog
+from app.models.logs_aianalysis import AIAnalysisLog
+from app.models.logs_error import ErrorLog
 from app.prompts import ADANALYZER_PROMPT
 from app.scraper.httpclient import fetch_binary
 from app.services.settings import SettingsService

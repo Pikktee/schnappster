@@ -8,7 +8,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:  # Avoid linter error
     from app.models.adsearch import AdSearch
-    from app.models.aianalysislog import AIAnalysisLog
+    from app.models.logs_aianalysis import AIAnalysisLog
 
 
 # ----------------------

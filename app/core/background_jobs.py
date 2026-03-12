@@ -12,7 +12,7 @@ from sqlmodel import Session, select
 
 from app.core.db import db_engine
 from app.models.ad import Ad
-from app.models.errorlog import ErrorLog
+from app.models.logs_error import ErrorLog
 from app.services.scraper import ScraperService
 from app.services.settings import SettingsService
 

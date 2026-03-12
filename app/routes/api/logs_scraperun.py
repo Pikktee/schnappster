@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from sqlmodel import col, select
 
 from app.core.db import DbSession
-from app.models.scraperun import ScrapeRun, ScrapeRunRead
+from app.models.logs_scraperun import ScrapeRun, ScrapeRunRead
 
 router = APIRouter(prefix="/scraperuns", tags=["ScrapeRuns"])
 
