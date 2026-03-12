@@ -6,10 +6,15 @@ flowchart TB
     subgraph startup [Beim App-Start]
         S0[initial_scrape]
         A0[initial_analyze]
+        C0[initial_cleanup]
     end
 
     subgraph interval [Alle 1 Min]
         S1[Scrape due searches]
+    end
+
+    subgraph cleanup [Cleanup]
+        C1[run_cleanup_old_ads alle 24h]
     end
 
     S1 --> N{Neue Ads?}

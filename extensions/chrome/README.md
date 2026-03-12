@@ -6,7 +6,7 @@ Fügt die aktuelle Kleinanzeigen-Suchergebnisseite per Klick als Suchauftrag in 
 
 1. Chrome öffnen und `chrome://extensions` aufrufen
 2. „Entwicklermodus“ aktivieren (oben rechts)
-3. „Entpackte Erweiterung laden“ wählen und den Ordner `chrome-extension` auswählen
+3. „Entpackte Erweiterung laden“ wählen und den Ordner `extensions/chrome` aus dem Schnappster-Projektverzeichnis auswählen
 
 ## Nutzung
 

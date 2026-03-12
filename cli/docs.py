@@ -1,4 +1,4 @@
-"""Build documentation: pdoc (Backend-Code), Architektur, Frontend-Übersicht.
+"""Build documentation: pdoc (Backend-Code), Architektur, Frontend, Chrome Extension.
 
 Usage:
     uv run docs           # build docs into docs/build
@@ -21,12 +21,13 @@ STATIC_PREFIX = "_static"
 
 
 def _nav_html(active: str | None) -> str:
-    """Build navigation HTML for doc pages (Start, Backend, Frontend, Architektur)."""
+    """Build navigation HTML for doc pages (Start, Backend, Frontend, Architektur, Chrome Extension)."""
     items = [
         ("index.html", "Start", None),
         ("app.html", "Backend (Referenz)", "code"),
         ("frontend.html", "Frontend", "frontend"),
         ("architecture.html", "Architektur", "arch"),
+        ("extension.html", "Chrome Extension", "extension"),
     ]
     parts = []
     for href, label, key in items:
@@ -138,6 +139,7 @@ def main() -> None:
     build_dir = docs_dir / "build"
     arch_dir = docs_dir / "architecture"
     frontend_dir = docs_dir / "frontend"
+    extension_dir = docs_dir / "extension"
     static_dir = docs_dir / "_static"
     pdoc_templates = docs_dir / "templates" / "pdoc"
 
@@ -210,7 +212,21 @@ def main() -> None:
         (build_dir / "frontend.html").write_text(page, encoding="utf-8")
         print("Generated frontend.html")
 
-    # 5. Startseite (Übersicht mit Kacheln): 1. Backend, 2. Frontend, 3. Architektur
+    # 5. Chrome Extension
+    extension_md = extension_dir / "EXTENSION.md" if extension_dir.exists() else None
+    if extension_md and extension_md.exists():
+        raw = extension_md.read_text(encoding="utf-8")
+        html_body = _markdown_to_html(raw, image_prefix="")
+        page = _doc_page(
+            "Chrome Extension",
+            html_body,
+            active="extension",
+            back_link=True,
+        )
+        (build_dir / "extension.html").write_text(page, encoding="utf-8")
+        print("Generated extension.html")
+
+    # 6. Startseite (Übersicht mit Kacheln): Backend, Frontend, Architektur, Chrome Extension
     cards = []
     cards.append(
         '<a href="app.html" class="doc-card">'
@@ -229,17 +245,23 @@ def main() -> None:
             "<h2>Architektur</h2>"
             "<p>Systemüberblick, Backend-Schichten, Produktion vs. Development.</p></a>"
         )
+    if (build_dir / "extension.html").exists():
+        cards.append(
+            '<a href="extension.html" class="doc-card">'
+            "<h2>Chrome Extension</h2>"
+            "<p>Kleinanzeigen-Suchergebnisseite per Klick als Suchauftrag in Schnappster hinzufügen.</p></a>"
+        )
     body = (
         "<h1>Dokumentation</h1>"
-        '<p class="doc-intro">Übersicht über Backend-Code, Frontend und Architektur.</p>'
+        '<p class="doc-intro">Übersicht über Backend-Code, Frontend, Architektur und Chrome Extension.</p>'
         '<div class="doc-cards">' + "".join(cards) + "</div>"
     )
     index_html = _doc_page("Dokumentation", body, active=None)
     (build_dir / "index.html").write_text(index_html, encoding="utf-8")
     print("Updated index.html")
 
-    # 6. Back-Link + doc.css in alle pdoc-Seiten injizieren
-    skip = {"index.html", "architecture.html", "frontend.html"}
+    # 7. Back-Link + doc.css in alle pdoc-Seiten injizieren
+    skip = {"index.html", "architecture.html", "frontend.html", "extension.html"}
     for html_path in build_dir.rglob("*.html"):
         if html_path.name in skip:
             continue
