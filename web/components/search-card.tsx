@@ -16,7 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import type { AdSearch } from "@/lib/types"
-import { timeAgo, truncateUrl } from "@/lib/format"
+import { timeAgo, truncateUrl, formatScrapeInterval } from "@/lib/format"
 
 interface SearchCardProps {
   search: AdSearch
@@ -109,7 +109,7 @@ export function SearchCard({ search, onDelete, isDeleting }: SearchCardProps) {
                 className={`size-3 shrink-0 ${search.is_active ? "text-emerald-500" : "text-muted-foreground/60"}`}
                 aria-hidden
               />
-              <span>Alle {search.scrape_interval_minutes} Min.</span>
+              <span>{formatScrapeInterval(search.scrape_interval_minutes)}</span>
             </span>
             <span className="flex items-center gap-1.5">
               <Clock className="size-3 shrink-0 opacity-70" aria-hidden />

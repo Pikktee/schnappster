@@ -68,6 +68,22 @@ export function getAdImageUrls(ad: { image_url?: string | null; image_urls?: str
   return parseImageUrls(ad.image_urls ?? null)
 }
 
+/**
+ * Formatiert scrape_interval_minutes lesbar: Minuten, Stunden oder Tage.
+ * z.B. 30 → "alle 30 Minuten", 60 → "alle 60 Minuten", 360 → "alle 6 Stunden", 1440 → "täglich"
+ */
+export function formatScrapeInterval(minutes: number): string {
+  if (minutes >= 1440 && minutes % 1440 === 0) {
+    const days = minutes / 1440
+    return days === 1 ? "täglich" : `alle ${days} Tage`
+  }
+  if (minutes > 60 && minutes % 60 === 0) {
+    const hours = minutes / 60
+    return hours === 1 ? "alle 1 Stunde" : `alle ${hours} Stunden`
+  }
+  return minutes === 1 ? "alle 1 Minute" : `alle ${minutes} Minuten`
+}
+
 export function truncateUrl(url: string, maxLength = 50): string {
   try {
     const parsed = new URL(url)

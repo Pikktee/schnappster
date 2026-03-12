@@ -50,7 +50,7 @@ import { ExternalLink } from "@/components/external-link"
 import { EmptyState } from "@/components/empty-state"
 import { fetchSearch, fetchAds, updateSearch, deleteSearch } from "@/lib/api"
 import type { Ad, AdSearch } from "@/lib/types"
-import { formatPrice, timeAgo, truncateUrl } from "@/lib/format"
+import { formatPrice, formatScrapeInterval, timeAgo, truncateUrl } from "@/lib/format"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ContentReveal } from "@/components/content-reveal"
@@ -257,7 +257,7 @@ export function SearchDetailPage() {
                 <Clock className="size-3.5 text-muted-foreground" />
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Intervall</span>
               </div>
-              <p className="text-foreground font-medium">Alle {search.scrape_interval_minutes} Min.</p>
+              <p className="text-foreground font-medium">{formatScrapeInterval(search.scrape_interval_minutes)}</p>
             </div>
 
             {/* Price Range */}
