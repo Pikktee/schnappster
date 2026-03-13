@@ -22,7 +22,9 @@ def list_ads(
     limit: int = 24,
     offset: int = 0,
 ):
-    """Gibt paginierte Anzeigen mit optionalen Filtern (adsearch_id, is_analyzed, min_score) und Sortierung zurück."""
+    """Gibt paginierte Anzeigen mit optionalen Filtern
+    (adsearch_id, is_analyzed, min_score) und Sortierung zurück.
+    """
     query = select(Ad)
 
     if adsearch_id is not None:

@@ -30,7 +30,9 @@ def get_telegram_configured(session: DbSession):
 
 @router.get("/{key}", response_model=AppSettingsRead)
 def read_setting(key: str, session: DbSession):
-    """Gibt den Wert für einen Einstellungsschlüssel zurück; 404 wenn Schlüssel nicht unterstützt."""
+    """Gibt den Wert für einen Einstellungsschlüssel zurück; 404 wenn Schlüssel nicht
+    unterstützt.
+    """
     service = SettingsService(session)
     try:
         value = service.get(key)
@@ -43,7 +45,9 @@ def read_setting(key: str, session: DbSession):
 
 @router.put("/{key}", response_model=AppSettingsRead)
 def update_setting(key: str, data: AppSettingsUpdate, session: DbSession):
-    """Aktualisiert eine Einstellung; validiert gegen Regeln (z. B. erlaubte Werte); 422 bei ungültigem Wert."""
+    """Aktualisiert eine Einstellung; validiert gegen Regeln (z. B. erlaubte Werte); 422 bei
+    ungültigem Wert.
+    """
     service = SettingsService(session)
     try:
         service.set(key, data.value)
