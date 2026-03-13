@@ -13,7 +13,9 @@ from app.routes import api_router, frontend_router, mount_frontend
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Start: Logging einrichten, DB initialisieren, Hintergrund-Jobs starten; Ende: Jobs stoppen."""
+    """Start: Logging einrichten, DB initialisieren, Hintergrund-Jobs starten;
+    Ende: Jobs stoppen.
+    """
     setup_logging()
     init_db()
 
