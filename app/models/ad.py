@@ -11,9 +11,9 @@ if TYPE_CHECKING:  # Linter-Fehler vermeiden
     from app.models.logs_aianalysis import AIAnalysisLog
 
 
-# ----------------------
+# ------------------------
 # --- Datenbanktabelle ---
-# ----------------------
+# ------------------------
 class Ad(SQLModel, table=True):
     """Datenbanktabelle für Anzeigen (Kleinanzeigen)."""
 
