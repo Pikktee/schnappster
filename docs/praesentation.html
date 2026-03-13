@@ -334,10 +334,17 @@
       <section>
         <h2>Zielsetzung</h2>
         <ul>
-          <li><strong>Suchaufträge</strong> definieren (Suchbegriff, Preisbereich, Intervall) und automatisch ausführen lassen.</li>
-          <li><strong>Neue Anzeigen</strong> erkennen, filtern (Preis, Blacklist, Verkäufer) und nur Relevantes behalten.</li>
-          <li><strong>KI-Bewertung:</strong> Einschätzung, ob etwas ein Schnäppchen ist (Vergleichspreise, Zustand) — <strong>Bargain-Score 0–10</strong>.</li>
-          <li><strong>Übersichtliche Oberfläche:</strong> Dashboard, Schnäppchen-Liste, Details, Einstellungen, Logs.</li>
+          <li><strong>Suchaufträge definieren:</strong>
+            <ul>
+              <li>URL der Kleinanzeigen-Ergebnisliste</li>
+              <li>Filterungsmöglichkeiten (Min/Max-Preis, Blacklist-Schlüsselwörter)</li>
+              <li>Einstellung des Scraper-Intervals.</li>
+            </ul>
+          </li>
+          <li><strong>Periodisches Scraping</strong> der Kleinanzeigen-Ergebnislisten im Hintergrund.</li>
+          <li><strong>KI-Bewertung:</strong> Gescrapte Anzeigen sollen an ein KI-Textmodell gesendet werden. Das Textmodell liefert die Einschätzung zurück, ob die Anzeige ein Schnäppchen ist (Bargain-Score von 0–10).</li>
+          <li><strong>Web-Frontend</strong> mit Dashboard, Schnäppchen-Liste, Verwaltung der Suchaufträge, Einstellungen, Logs.</li>
+          <li><strong>Benachrichtigungen:</strong> Gefundene Schnäppchen werden automatisch an einen Telegram-Bot gesendet.</li>
         </ul>
       </section>
 
