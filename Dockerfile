@@ -27,6 +27,7 @@ COPY README.md ./
 RUN uv sync --frozen --no-dev
 
 # Frontend bauen
+COPY pyproject.toml ./    # ← Cache-Buster: invalidiert bei Version-Bump
 COPY web/ ./web/
 RUN cd web && npm ci && npm run build
 
