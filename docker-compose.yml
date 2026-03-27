@@ -1,0 +1,20 @@
+services:
+  schnappster:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: schnappster
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - sqlite_data:/app/data
+    networks:
+      - proxy-net
+
+volumes:
+  sqlite_data:
+
+networks:
+  proxy-net:
+    external: true
