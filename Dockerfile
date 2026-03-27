@@ -6,8 +6,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libcurl4-openssl-dev \
     libssl-dev \
-    nodejs \
-    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # Node.js 20 via NodeSource (npm aus apt ist zu alt für Next.js 16)
@@ -20,14 +18,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-# Python-Abhängigkeiten zuerst (cached layer bei Code-Änderungen)
-COPY pyproject.toml ./
-COPY uv.lock* ./
-COPY README.md ./
+# Python-Abhängigkeiten + Frontend-Quellen zusammen kopieren.
+# pyproject.toml vor web/ stellt sicher dass ein Version-Bump
+# den Frontend-Build-Cache invalidiert.
+COPY pyproject.toml uv.lock* README.md ./
 RUN uv sync --frozen --no-dev
 
-# Frontend bauen
-COPY pyproject.toml ./    # ← Cache-Buster: invalidiert bei Version-Bump
 COPY web/ ./web/
 RUN cd web && npm ci && npm run build
 
