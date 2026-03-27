@@ -20,15 +20,30 @@ def run(cmd: str, capture: bool = False) -> str:
     return result.stdout.strip() if capture else ""
 
 
-def get_latest_tag() -> tuple[int, int, int]:
-    tags = run("git tag --list 'v*' --sort=-version:refname", capture=True)
-    if not tags:
+def get_version_from_pyproject() -> tuple[int, int, int]:
+    pyproject = Path("pyproject.toml")
+    if not pyproject.exists():
         return (0, 0, 0)
-    latest = tags.splitlines()[0]
-    m = re.match(r"v(\d+)\.(\d+)\.(\d+)", latest)
+    content = pyproject.read_text()
+    m = re.search(r'^version\s*=\s*"(\d+)\.(\d+)\.(\d+)"', content, re.MULTILINE)
     if not m:
         return (0, 0, 0)
     return int(m.group(1)), int(m.group(2)), int(m.group(3))
+
+
+def get_current_version() -> tuple[int, int, int]:
+    """Nimmt das neueste Git-Tag, fällt auf pyproject.toml zurück wenn keins existiert."""
+    tags = run("git tag --list 'v*' --sort=-version:refname", capture=True)
+    if tags:
+        latest = tags.splitlines()[0]
+        m = re.match(r"v(\d+)\.(\d+)\.(\d+)", latest)
+        if m:
+            return int(m.group(1)), int(m.group(2)), int(m.group(3))
+    # Kein Tag vorhanden – aus pyproject.toml lesen
+    version = get_version_from_pyproject()
+    if any(version):
+        print(f"ℹ️  Kein Git-Tag gefunden, nutze Version aus pyproject.toml: {version[0]}.{version[1]}.{version[2]}")
+    return version
 
 
 def bump(major: int, minor: int, patch: int, part: str) -> tuple[int, int, int]:
@@ -78,10 +93,11 @@ def main() -> None:
         if input().strip().lower() != "y":
             sys.exit(0)
 
-    current = get_latest_tag()
+    current = get_current_version()
     new = bump(*current, part)
-    old_tag = f"v{current[0]}.{current[1]}.{current[2]}" if any(current) else "(kein Tag)"
+    old_version = f"{current[0]}.{current[1]}.{current[2]}"
     new_version = f"{new[0]}.{new[1]}.{new[2]}"
+    old_tag = f"v{old_version}" if any(current) else "(kein Tag)"
     new_tag = f"v{new_version}"
 
     print(f"\n🏷️  {old_tag} → {new_tag}")
