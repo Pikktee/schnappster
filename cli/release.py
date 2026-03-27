@@ -119,7 +119,7 @@ def main() -> None:
     run(f'git tag -a {new_tag} -m "Release {new_tag}"')
     run(f"git push origin {new_tag}")
 
-    print(f"\n✅ {new_tag} gepusht. T640 deployt in ~2 Minuten.")
+    print(f"\n✅ {new_tag} gepusht.")
 
 
 if __name__ == "__main__":
