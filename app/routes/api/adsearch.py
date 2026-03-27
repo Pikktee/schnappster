@@ -183,7 +183,6 @@ def trigger_scrape(adsearch_id: int, session: DbSession):
 
     return {"status": "scrape_triggered"}
 
-
 # ---------------
 # --- Hilfsfunktionen ---
 # ---------------
@@ -209,3 +208,4 @@ def _validate_search_url_reachable(url: str) -> str | None:
             detail=f"Die Seite konnte nicht abgerufen werden (HTTP {status}). Bitte URL prüfen.",
         )
     return parse_search_title(html)
+

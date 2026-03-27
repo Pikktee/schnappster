@@ -17,6 +17,7 @@ class Config(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "google/gemini-2.0-flash-001"
     openai_base_url: str = "https://openrouter.ai/api/v1"
+    ai_parallel_jobs: int = 5  # Anzahl paralleler KI-Anfragen pro Analyse-Lauf
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 

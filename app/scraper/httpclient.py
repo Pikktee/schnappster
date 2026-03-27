@@ -1,16 +1,38 @@
 """HTTP-Client: HTML und Binärdaten mit Begrenzung der Parallelität und Verzögerungen (curl_cffi)."""
 
 import asyncio
+import os
 import random
 
 from curl_cffi.requests import AsyncSession as CffiAsyncSession
 
-# Maximale gleichzeitige Anfragen
-MAX_CONCURRENT = 3
 
-# Minimale und maximale Pause zwischen Anfragen (Sekunden)
-DELAY_MIN = 0.5
-DELAY_MAX = 2.0
+def _int_env(name: str, default: int) -> int:
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    try:
+        return int(val)
+    except ValueError:
+        return default
+
+
+def _float_env(name: str, default: float) -> float:
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    try:
+        return float(val)
+    except ValueError:
+        return default
+
+
+# Maximale gleichzeitige Anfragen (env: SCRAPE_MAX_CONCURRENT)
+MAX_CONCURRENT = _int_env("SCRAPE_MAX_CONCURRENT", 6)
+
+# Minimale und maximale Pause zwischen Anfragen in Sekunden (env: SCRAPE_DELAY_MIN, SCRAPE_DELAY_MAX)
+DELAY_MIN = _float_env("SCRAPE_DELAY_MIN", 0.25)
+DELAY_MAX = _float_env("SCRAPE_DELAY_MAX", 1.0)
 
 
 # ---------------------------------------------------------------------------
