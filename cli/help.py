@@ -47,7 +47,12 @@ _COMMANDS = (
         (("--open, -O", "Nach dem Bau im Browser öffnen"),),
     ),
     (
-        "pack-extension \\[patch|minor|major] \\[--output-dir PFAD] \\[--output PFAD]",
+        "release \\[major|minor|patch]",
+        "Projektversion bumpen, committen, pushen und Git-Tag erstellen.",
+        (("\\[major|minor|patch]", "Standard: patch"),),
+    ),
+    (
+        "release-chrome-extension \\[patch|minor|major] \\[--output-dir PFAD] \\[--output PFAD]",
         "Chrome-Extension packen und Manifest-Version automatisch erhöhen.",
         (
             ("\\[patch|minor|major]", "Standard: patch (letzte Zahl erhöhen)"),

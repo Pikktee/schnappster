@@ -1,10 +1,10 @@
 """Pack the Chrome extension into a store-ready ZIP archive.
 
 Usage:
-    uv run pack-extension
-    uv run pack-extension minor
-    uv run pack-extension --output-dir extensions/dist
-    uv run pack-extension --output extensions/dist/custom.zip
+    uv run release-chrome-extension
+    uv run release-chrome-extension minor
+    uv run release-chrome-extension --output-dir extensions/dist
+    uv run release-chrome-extension --output extensions/dist/custom.zip
 """
 
 from __future__ import annotations
