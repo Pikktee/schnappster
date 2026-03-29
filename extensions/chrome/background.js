@@ -21,11 +21,7 @@ const ENABLED_ICON_PATHS = {
   48: "icons/icon48.png",
   128: "icons/icon128.png",
 };
-const DISABLED_ICON_PATHS = {
-  16: "icons/icon16-disabled.png",
-  48: "icons/icon48-disabled.png",
-  128: "icons/icon128-disabled.png",
-};
+const DISABLED_ICON_PATHS = ENABLED_ICON_PATHS;
 
 function getBaseUrl() {
   return new Promise((resolve) => {

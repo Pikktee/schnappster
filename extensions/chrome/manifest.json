@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Schnappster – Suchauftrag hinzufügen",
-  "version": "1.0.1",
-  "description": "Kleinanzeigen-Suchauftrag per Klick zu Schnappster hinzufügen",
+  "version": "1.0.3",
+  "description": "Inoffizielles Tool: Kleinanzeigen-Suchauftrag per Klick zu Schnappster hinzufügen",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -15,6 +15,7 @@
     "scripting"
   ],
   "host_permissions": [
+    "https://kleinanzeigen.de/*",
     "https://www.kleinanzeigen.de/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
