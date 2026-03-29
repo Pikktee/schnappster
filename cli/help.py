@@ -47,9 +47,13 @@ _COMMANDS = (
         (("--open, -O", "Nach dem Bau im Browser öffnen"),),
     ),
     (
-        "pack-extension \\[--output PFAD]",
-        "Chrome-Extension als ZIP für den Web Store packen.",
-        (("--output, -o", "Optionaler ZIP-Ausgabepfad"),),
+        "pack-extension \\[patch|minor|major] \\[--output-dir PFAD] \\[--output PFAD]",
+        "Chrome-Extension packen und Manifest-Version automatisch erhöhen.",
+        (
+            ("\\[patch|minor|major]", "Standard: patch (letzte Zahl erhöhen)"),
+            ("--output-dir, -d", "Optionaler Ausgabeordner (Standard: extensions/dist)"),
+            ("--output, -o", "Optionaler exakter ZIP-Pfad (überschreibt --output-dir)"),
+        ),
     ),
     (
         "help",

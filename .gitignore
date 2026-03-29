@@ -54,4 +54,7 @@ dist-ssr
 web/next-env.d.ts
 .playwright-mcp/
 extensions/chrome/*.zip
+!extensions/dist/
+extensions/dist/*
+!extensions/dist/.gitkeep
 
