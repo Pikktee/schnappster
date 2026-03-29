@@ -47,6 +47,11 @@ _COMMANDS = (
         (("--open, -O", "Nach dem Bau im Browser öffnen"),),
     ),
     (
+        "pack-extension \\[--output PFAD]",
+        "Chrome-Extension als ZIP für den Web Store packen.",
+        (("--output, -o", "Optionaler ZIP-Ausgabepfad"),),
+    ),
+    (
         "help",
         "Diese Übersicht.",
         (),

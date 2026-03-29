@@ -11,8 +11,8 @@
   "permissions": ["storage", "notifications", "tabs", "scripting"],
   "host_permissions": [
     "https://www.kleinanzeigen.de/*",
-    "http://localhost:*/*",
-    "http://127.0.0.1:*/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
     "http://schnappster.home/*",
     "https://schnappster.home/*"
   ],

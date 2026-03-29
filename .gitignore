@@ -53,4 +53,5 @@ dist-ssr
 *.local
 web/next-env.d.ts
 .playwright-mcp/
+extensions/chrome/*.zip
 
