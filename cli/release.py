@@ -107,11 +107,12 @@ def main() -> None:
         print("Abgebrochen.")
         sys.exit(0)
 
-    # pyproject.toml aktualisieren
+    # Versionsdateien aktualisieren
     update_pyproject_version(new_version)
+    run("uv lock")
 
     # Version-Bump committen
-    run("git add pyproject.toml")
+    run("git add pyproject.toml uv.lock")
     run(f'git commit -m "chore: bump version to {new_tag}"')
     run("git push origin main")
 
