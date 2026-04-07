@@ -84,45 +84,9 @@ Regeln auf denselben Daten → eigene Klasse.
 | `routes/` | Integrationstests | Vitest + Hono Test-Client | kein externer Server nötig |
 | `web/` | Komponententests | React Testing Library | isolierte UI-Tests |
 
-**Domain-Tests** sind der größte Hebel — reine Geschäftslogik ohne DB oder HTTP:
-
-```typescript
-// api/tests/domain/vacation-policy.test.ts
-describe('VacationPolicy', () => {
-  it('lehnt ab wenn >30% des Teams abwesend', () => {
-    const team = { members: ['a', 'b', 'c'] }
-    const existing = [{ userId: 'a', from: '2026-07-01', to: '2026-07-14' }]
-    const policy = new VacationPolicy(team, existing)
-
-    const result = policy.canApprove({ from: '2026-07-05', to: '2026-07-10' })
-    expect(result.allowed).toBe(false)
-  })
-})
-```
-
-**Route-Tests** — Hono hat einen eingebauten Test-Helper, kein Server-Start nötig:
-
-```typescript
-// api/tests/routes/vacations.test.ts
-it('erstellt einen Urlaubsantrag', async () => {
-  const res = await app.request('/api/vacations', {
-    method: 'POST',
-    body: JSON.stringify({ from: '2026-07-01', to: '2026-07-14' }),
-    headers: { 'Content-Type': 'application/json' },
-  })
-  expect(res.status).toBe(201)
-})
-```
-
-**Frontend-Tests** — Komponenten isoliert testen:
-
-```typescript
-// web/__tests__/planner-view.test.tsx
-it('zeigt Urlaubseinträge an', () => {
-  render(<PlannerView vacations={mockVacations} />)
-  expect(screen.getByText('Urlaub: 01.07 – 14.07')).toBeInTheDocument()
-})
-```
+**Domain-Tests** sind der größte Hebel — reine Geschäftslogik ohne DB oder HTTP.
+Route-Tests nutzen Honos eingebauten Test-Helper (kein Server-Start nötig).
+Frontend-Tests mit React Testing Library für isolierte Komponententests.
 
 ---
 
