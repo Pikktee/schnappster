@@ -63,76 +63,6 @@ Frontend, API und perspektivisch Mobile App nutzen dieselben Typen.
 
 ---
 
-## Umsetzungsreihenfolge
-
-### Phase 1: Monorepo + API-Grundgerüst
-
-1. Workspace-Root initialisieren: `package.json` mit `workspaces: ["api", "web", "shared"]`
-2. `shared/` anlegen: `package.json` mit Name `@jahresplaner/shared`, `types/` und `schemas/` Verzeichnisse
-3. `api/` anlegen: Hono-Server in `api/src/index.ts`, Drizzle mit SQLite in `api/src/db/`
-4. Drizzle-Schema definieren in `api/src/db/schema.ts` (Teams, Users, Planungseinträge)
-5. Erste Route erstellen: `GET /api/health` → `{ status: "ok" }`
-6. Vitest einrichten in `api/`, erster Test für Health-Route
-7. `npm run dev` Skript im Root das `api` dev-server startet
-
-### Phase 2: Auth
-
-1. Better-Auth in `api/` integrieren: `npm install better-auth` in `api/`
-2. Better-Auth konfigurieren in `api/src/lib/auth.ts`:
-   - E-Mail + Passwort aktivieren
-   - Drizzle-Adapter anbinden
-   - SMTP für Passwort-Reset konfigurieren
-3. Auth-Middleware in `api/src/middleware/auth.ts`:
-   - `requireAuth` — eingeloggter User
-   - `requireRole('admin')` — Rollenprüfung
-4. Auth-Routen testen: Registration, Login, Logout, Passwort-Reset
-
-### Phase 3: Frontend
-
-1. Next.js in `web/` initialisieren: `npx create-next-app@latest` mit App Router
-2. API-Proxy konfigurieren in `web/next.config.ts`: `/api` → `http://localhost:4000`
-3. Auth-Client in `web/lib/auth.ts`: Better-Auth Client-SDK
-4. Login-Seite in `web/app/(auth)/login/page.tsx`
-5. App-Layout in `web/app/(app)/layout.tsx`: Navigation, User-Menü, Logout
-6. Typsicherer API-Client in `web/lib/api-client.ts`: importiert Typen aus `@jahresplaner/shared`
-7. `npm run dev` Skript im Root erweitern: `api` + `web` parallel starten
-
-### Phase 4: Rollen + Geschäftslogik
-
-1. Rollen implementieren: Admin, Team-Lead, Mitarbeiter
-2. Domain-Klassen in `api/src/domain/` mit Unit-Tests in `api/tests/domain/`
-3. Routes in `api/src/routes/` — dünn, nur Verdrahtung zu Domain-Klassen
-
-### Phase 5: Features
-
-Planungsfunktionen, Team-Zuordnungen, Kalender-Views — je nach fachlichen Anforderungen.
-
-### Phase 6: Deployment
-
-1. Dockerfile je für `api/` und `web/`
-2. `docker-compose.yml` im Root mit Caddy als Reverse Proxy
-3. Caddy leitet `/api/*` an Hono (:4000), alles andere an Next.js (:3000)
-
-**Lokale Entwicklung:** Kein Docker nötig. `npm run dev` im Root startet beide
-Dev-Server parallel (Hono + Next.js) mit Hot Reload. Next.js proxied `/api`
-automatisch an den lokalen Hono-Server.
-
----
-
-## Auth — Migrationspfad
-
-```
-Phase 1 (jetzt):   E-Mail + Passwort (Better-Auth)
-                    Passwort-Reset via Firmen-SMTP
-                    Rollen: Admin, Team-Lead, Mitarbeiter
-
-Phase 2 (später):  + Microsoft 365 / Azure AD SSO   (ein Config-Block in Better-Auth)
-                   + Google Workspace SSO            (ein Config-Block in Better-Auth)
-                   Bestehende Accounts bleiben, werden automatisch verknüpft
-```
-
----
-
 ## Geschäftslogik isolieren
 
 Geschäftsregeln gehören weder in Routes noch in DB-Queries — sie werden in eigenen
@@ -430,3 +360,59 @@ Realtime, kein Storage — nur Auth + DB + API.
 - Kein Versions-Chaos zwischen Frontend und API
 
 Separate Repos lohnen sich erst wenn getrennte Teams unabhängig deployen müssen.
+
+---
+
+## Umsetzungsreihenfolge
+
+### Phase 1: Monorepo + API-Grundgerüst
+
+1. Workspace-Root initialisieren: `package.json` mit `workspaces: ["api", "web", "shared"]`
+2. `shared/` anlegen: `package.json` mit Name `@jahresplaner/shared`, `types/` und `schemas/` Verzeichnisse
+3. `api/` anlegen: Hono-Server in `api/src/index.ts`, Drizzle mit SQLite in `api/src/db/`
+4. Drizzle-Schema definieren in `api/src/db/schema.ts` (Teams, Users, Planungseinträge)
+5. Erste Route erstellen: `GET /api/health` → `{ status: "ok" }`
+6. Vitest einrichten in `api/`, erster Test für Health-Route
+7. `npm run dev` Skript im Root das `api` dev-server startet
+
+### Phase 2: Auth
+
+1. Better-Auth in `api/` integrieren: `npm install better-auth` in `api/`
+2. Better-Auth konfigurieren in `api/src/lib/auth.ts`:
+   - E-Mail + Passwort aktivieren
+   - Drizzle-Adapter anbinden
+   - SMTP für Passwort-Reset konfigurieren
+3. Auth-Middleware in `api/src/middleware/auth.ts`:
+   - `requireAuth` — eingeloggter User
+   - `requireRole('admin')` — Rollenprüfung
+4. Auth-Routen testen: Registration, Login, Logout, Passwort-Reset
+
+### Phase 3: Frontend
+
+1. Next.js in `web/` initialisieren: `npx create-next-app@latest` mit App Router
+2. API-Proxy konfigurieren in `web/next.config.ts`: `/api` → `http://localhost:4000`
+3. Auth-Client in `web/lib/auth.ts`: Better-Auth Client-SDK
+4. Login-Seite in `web/app/(auth)/login/page.tsx`
+5. App-Layout in `web/app/(app)/layout.tsx`: Navigation, User-Menü, Logout
+6. Typsicherer API-Client in `web/lib/api-client.ts`: importiert Typen aus `@jahresplaner/shared`
+7. `npm run dev` Skript im Root erweitern: `api` + `web` parallel starten
+
+### Phase 4: Rollen + Geschäftslogik
+
+1. Rollen implementieren: Admin, Team-Lead, Mitarbeiter
+2. Domain-Klassen in `api/src/domain/` mit Unit-Tests in `api/tests/domain/`
+3. Routes in `api/src/routes/` — dünn, nur Verdrahtung zu Domain-Klassen
+
+### Phase 5: Features
+
+Planungsfunktionen, Team-Zuordnungen, Kalender-Views — je nach fachlichen Anforderungen.
+
+### Phase 6: Deployment
+
+1. Dockerfile je für `api/` und `web/`
+2. `docker-compose.yml` im Root mit Caddy als Reverse Proxy
+3. Caddy leitet `/api/*` an Hono (:4000), alles andere an Next.js (:3000)
+
+**Lokale Entwicklung:** Kein Docker nötig. `npm run dev` im Root startet beide
+Dev-Server parallel (Hono + Next.js) mit Hot Reload. Next.js proxied `/api`
+automatisch an den lokalen Hono-Server.
