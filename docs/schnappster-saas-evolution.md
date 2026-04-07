@@ -133,8 +133,6 @@ Die bestehende CLAUDE.md um folgende Abschnitte erweitern:
   Jobs dürfen sich nicht überlappen
 - `AppSettings`-Tabelle für globale runtime-konfigurierbare Einstellungen (Admin)
 - `UserSettings`-Tabelle für benutzerspezifische Einstellungen (Telegram Chat-ID, Benachrichtigungen)
-- `InviteCode`-Tabelle für Einladungscodes — Validierung vor Account-Anlage
-- `require_invite_code` AppSettings-Key steuert ob Registrierung offen oder nur per Code möglich ist
 - Konto-Löschung: Cascade-Delete aller User-Daten via Service-Role, danach Supabase Auth User löschen — Haupt-Admin kann sich nicht löschen (API gibt 403)
 - Telegram Bot-Token in `.env` — Chat-ID je User in `UserSettings`
 - Avatar kommt als URL aus der Supabase Auth Session (OAuth-Provider) — kein eigenes Storage
@@ -222,7 +220,7 @@ Die Auth-Screens liegen in einer eigenen Route-Group `(auth)` — ohne Sidebar, 
 | Screen | Route | Beschreibung |
 |---|---|---|
 | **Login** | `/login` | Social-Login-Buttons + E-Mail/Passwort-Formular |
-| **Registrierung** | `/register` | E-Mail/Passwort + optionales Einladungscode-Feld |
+| **Registrierung** | `/register` | E-Mail/Passwort-Formular + Social-Login |
 | **Passwort vergessen** | `/forgot-password` | E-Mail eingeben → Reset-Link per E-Mail |
 | **Passwort zurücksetzen** | `/reset-password` | Neues Passwort setzen (via Supabase-Reset-Token in URL) |
 
@@ -240,9 +238,10 @@ Nicht eingeloggte User werden bei jedem App-Aufruf automatisch zu `/login` weite
 
 ### Registrierungs-Screen (`/register`)
 
-- Social-Login-Buttons (Google, Facebook) — nur anzeigen wenn Einladungscode nicht erforderlich **oder** Code bereits in URL (`?invite=CODE`)
+- Social-Login-Buttons (Google, Facebook) (volle Breite)
+- Divider: „oder"
 - Formular: E-Mail + Passwort + Passwort bestätigen
-- Wenn `require_invite_code` aktiv: Pflichtfeld „Einladungscode" (wird aus `?invite=`-Parameter vorab befüllt)
+- Button: „Registrieren" (primary, volle Breite)
 - Link: „Bereits ein Konto? Jetzt anmelden" → `/login`
 
 ### Passwort vergessen / zurücksetzen
@@ -275,52 +274,6 @@ Am Ende der Settings-Page als eigenständiger **Danger Zone**-Abschnitt:
 - **Bestätigung:** shadcn/ui `AlertDialog` — Titel „Konto wirklich löschen?", Bestätigungs-Button erst klickbar nach Eingabe des Wortes `löschen` in ein Textfeld
 - **Backend-Logik:** Cascade-Delete aller User-Daten (AdSearches, Ads, UserSettings) → anschließend Supabase Auth User löschen via Service-Role
 - **Schutz Haupt-Admin:** Der primäre Admin-Account (definiert über `is_primary_admin`-Flag oder feste E-Mail in `.env`) kann sich nicht selbst löschen — API gibt `403` zurück, Frontend zeigt stattdessen informativen Hinweis
-
----
-
-## Einladungscodes
-
-### Konzept
-
-Registrierung kann auf eingeladene Nutzer beschränkt werden. Das Verhalten ist per AppSettings flexibel steuerbar:
-
-| Setting | Wert | Effekt |
-|---|---|---|
-| `require_invite_code` | `true` | Registrierung nur mit gültigem Code möglich |
-| `require_invite_code` | `false` | Offene Registrierung (kein Code nötig) |
-
-### InviteCode-Tabelle
-
-```python
-class InviteCode(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    code: str                      # zufälliger Token, unique (z.B. 8 alphanumerische Zeichen)
-    created_by: uuid.UUID          # admin user_id
-    used_by: uuid.UUID | None      # user_id des Registrierten
-    used_at: datetime | None
-    expires_at: datetime | None    # None = kein Ablaufdatum
-    is_active: bool = True
-```
-
-### Registrierungsflows mit Code
-
-**E-Mail/Passwort-Registrierung:**
-1. User ruft `/register?invite=CODE` auf — Code wird ins Formular übernommen
-2. Backend validiert Code vor Anlage des Accounts
-3. Bei Erfolg: Code als `used_by` + `used_at` markieren
-
-**OAuth-Registrierung (Google/Facebook):**
-- Code wird in der Browser-Session gespeichert (`sessionStorage`) bevor der OAuth-Redirect startet
-- Nach OAuth-Callback: Code-Validierung via FastAPI-Webhook oder eigener Supabase-Auth-Hook
-- Bei ungültigem Code: Account wird deaktiviert, Fehlermeldung
-
-### Admin-Verwaltung (Phase 4)
-
-Im Admin-Bereich:
-- Codes einzeln oder als Batch generieren (mit optionalem Ablaufdatum)
-- Liste aller Codes: Status (offen / verwendet / abgelaufen / deaktiviert), Erstellt-Datum, Verwendet-von
-- Einzelne Codes deaktivieren
-- Direktlink kopieren: `https://schnappster.app/register?invite=CODE`
 
 ---
 
@@ -375,9 +328,9 @@ Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
 
 ## Umsetzungsreihenfolge
 
-1. **Phase 1 — Backend: Auth & Multi-Tenancy:** SQLite → PostgreSQL, `owner_id` auf AdSearch + Ad, Supabase OAuth (Google + Facebook), RLS-Policies, Admin-Rolle, zwei DB-Sessions (`get_db_session` / `get_admin_session`), `UserSettings`-Tabelle, `InviteCode`-Tabelle
-2. **Phase 2 — Frontend: Auth-Screens:** Login, Registrierung (mit Einladungscode-Support), Passwort vergessen, Passwort zurücksetzen — im Schnappster-UX-Stil (`(auth)`-Route-Group, ohne Sidebar)
+1. **Phase 1 — Backend: Auth & Multi-Tenancy:** SQLite → PostgreSQL, `owner_id` auf AdSearch + Ad, Supabase OAuth (Google + Facebook), RLS-Policies, Admin-Rolle, zwei DB-Sessions (`get_db_session` / `get_admin_session`), `UserSettings`-Tabelle
+2. **Phase 2 — Frontend: Auth-Screens:** Login, Registrierung, Passwort vergessen, Passwort zurücksetzen — im Schnappster-UX-Stil (`(auth)`-Route-Group, ohne Sidebar)
 3. **Phase 3 — Account-Management:** Benutzerprofil-Seite (Name, Avatar, E-Mail), Passwort ändern, Konto löschen (Danger Zone) — auf der User-Settings-Page
-4. **Phase 4 — Admin-Bereich:** Log-Bereich absichern (`require_admin`), App-Settings-Route absichern (`require_invite_code` toggle), Einladungscode-Verwaltung, Manuell Scrape/Analyze auslösen, System-Statistiken
+4. **Phase 4 — Admin-Bereich:** Log-Bereich absichern (`require_admin`), App-Settings-Route absichern, Manuell Scrape/Analyze auslösen, System-Statistiken
 5. **Phase 5 — Betrieb:** Benachrichtigungen (Telegram, Web Push, E-Mail), Rate-Limiting, Monitoring (Sentry)
 6. **Phase 6 — Payments (perspektivisch):** Stripe-Subscriptions, Webhooks, Feature-Gates
