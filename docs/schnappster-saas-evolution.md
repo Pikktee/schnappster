@@ -4,9 +4,10 @@
 
 Schnappster ist aktuell eine Single-User-App ohne Authentifizierung. Die
 Weiterentwicklung macht die App mehrbenutzerfähig: Nutzer können sich per
-Google oder Facebook einloggen, sehen nur ihre eigenen Suchen und Schnäppchen,
-und Administratoren verwalten die Plattform. Ziel ist ein bezahlter Dienst
-im Internet.
+Google oder Facebook einloggen und sehen nur ihre eigenen Suchen und Schnäppchen.
+Admins haben dieselbe Datenisolierung, zusätzlich aber Zugriff auf Logs,
+App-Settings und Betriebsfunktionen. Perspektivisch soll die App als
+bezahlter Dienst angeboten werden (Payments vorerst nicht im Scope).
 
 ---
 
@@ -18,9 +19,8 @@ im Internet.
 |---|---|---|
 | **Datenbank** | PostgreSQL (via Supabase) | Ersetzt SQLite. Multi-User-fähig, concurrent writes, skalierbar |
 | **Auth** | Supabase Auth | Google- und Facebook-OAuth eingebaut, User-Management-Dashboard, Passwort-Reset, E-Mail-Verifikation |
-| **Datenisolierung** | PostgreSQL Row Level Security (RLS) | DB-seitige Zugriffskontrolle — jeder User sieht nur seine eigenen Daten, unabhängig vom Applikationscode |
-| **Payments** | Stripe | Subscription-Management, Webhooks für Plan-Status, Industriestandard für SaaS |
-| **Rollen** | Admin / User | Admin: voller Zugriff. User: nur eigene Daten. Erster User wird automatisch Admin |
+| **Datenisolierung** | PostgreSQL Row Level Security (RLS) | DB-seitige Zugriffskontrolle — jeder User sieht nur seine eigenen Daten, gilt für User und Admin gleichermaßen |
+| **Rollen** | Admin / User | Gleiche Datenisolierung für beide. Admins haben zusätzlich Zugriff auf Logs, App-Settings, Statistiken und Admin-Funktionen. User-Verwaltung läuft über Supabase-Dashboard |
 
 ### Unverändert
 
@@ -82,12 +82,6 @@ SQLite ist single-writer — bei mehreren gleichzeitigen Usern die Suchen auslö
 kommt es zu Write-Locks. PostgreSQL ist für concurrent access gebaut.
 Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
 
-### Warum Stripe?
-
-Industriestandard für SaaS-Payments. Alternativen (Lemon Squeezy, Paddle) sind
-einfacher bei EU-Steuerhandling, aber weniger flexibel. Stripe bietet Webhooks
-die direkt mit FastAPI integrierbar sind.
-
 ---
 
 ## Hinweise für Vibe-Coding
@@ -96,7 +90,6 @@ die direkt mit FastAPI integrierbar sind.
 
 - **FastAPI, SQLModel, Next.js, shadcn/ui** — Claude kennt diese Stacks sehr gut
 - **RLS-Policies** — SQL-basiert, Claude generiert zuverlässige Policies
-- **Stripe-Grundmuster** — Webhooks, Subscriptions, Customer-Objekte kennt Claude gut
 - **pytest + FastAPI TestClient** — bewährtes Pattern, Claude folgt es zuverlässig
 
 ### Worauf man achten muss
@@ -203,5 +196,6 @@ Nutze immer context7 wenn du Code für supabase-py oder Stripe generierst.
 ## Umsetzungsreihenfolge
 
 1. **Phase 1 — Auth & Multi-Tenancy:** SQLite → PostgreSQL, `owner_id` auf AdSearch + Ad, Supabase OAuth (Google + Facebook), RLS-Policies, Admin-Rolle, zwei DB-Sessions (`get_db_session` / `get_admin_session`)
-2. **Phase 2 — Payments:** Stripe-Subscriptions, Webhooks → User-Plan in DB, Feature-Gates (max. Suchen pro Plan)
+2. **Phase 2 — Admin-Bereich:** Log-Bereich absichern (`require_admin`), App-Settings-Route absichern, Manuell Scrape/Analyze auslösen, System-Statistiken
 3. **Phase 3 — Betrieb:** Rate-Limiting, Monitoring (Sentry), Transactional E-Mails
+4. **Phase 4 — Payments (perspektivisch):** Stripe-Subscriptions, Webhooks, Feature-Gates
