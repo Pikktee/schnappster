@@ -108,7 +108,6 @@ generiert Claude oft Code ohne Tests und mit inkonsistentem Stil.
 
 ## Projekt
 Firmeninterner Jahresplaner. API-First Monorepo mit Hono (API), Next.js (Web), shared (Typen).
-Nutze immer context7 wenn du Code für Better-Auth, Hono oder Drizzle generierst.
 
 ## Befehle
 - `npm run dev` — startet API + Web parallel
@@ -116,59 +115,40 @@ Nutze immer context7 wenn du Code für Better-Auth, Hono oder Drizzle generierst
 - `npm run lint` — Linting
 - `npm run build` — Production Build
 
-## Geschäftslogik
-- Geschäftsregeln gehören weder in Routes noch in DB-Queries — eigene Klassen
-  in `api/src/domain/`, ohne DB- oder HTTP-Abhängigkeit, testbar mit simplen Objekten
-- Faustregel: eine einzelne Regel → eigene Funktion; mehrere zusammengehörige
-  Regeln auf denselben Daten → eigene Klasse
+## MCP
+Nutze immer context7 wenn du Code für Better-Auth, Hono oder Drizzle generierst.
+
+## Architektur
+- Geschäftsregeln in eigene Klassen in `api/src/domain/` — ohne DB- oder HTTP-Abhängigkeit
+- Faustregel: eine Regel → Funktion; mehrere zusammengehörige Regeln → Klasse
 - Routes sind dünn: validieren, Domain aufrufen, Response zurückgeben
-- Keine DB-Imports in `domain/`-Dateien
 - Shared Types in `shared/` — keine Typ-Duplikate zwischen api und web
 
 ## Tests
-
-| Schicht | Testtyp | Tool |
-|---|---|---|
-| `domain/` | Unit-Tests | Vitest |
-| `routes/` | Integrationstests | Vitest + Hono Test-Client |
-| `web/` | Komponententests | React Testing Library |
-
-- Domain-Tests sind der größte Hebel — reine Geschäftslogik ohne DB oder HTTP
-- Route-Tests nutzen Honos eingebauten Test-Helper (kein Server-Start nötig)
-- Jede neue Domain-Klasse braucht Unit-Tests
-- Jede neue Route braucht mindestens einen Happy-Path-Integrationstest
+- Jede neue Domain-Klasse braucht Unit-Tests (Vitest)
+- Jede neue Route braucht mindestens einen Happy-Path-Integrationstest (Hono Test-Client)
 - Tests VOR der Implementierung schreiben wenn die Anforderung klar ist
 - `npm test` muss vor jedem Commit grün sein
-- Keine gemockten Implementierungsdetails — teste Verhalten, nicht Interna
+- Teste Verhalten, nicht Interna — keine gemockten Implementierungsdetails
 
 ## Code-Stil
-- Funktionen und Variablen: sprechende Namen, keine Abkürzungen
-  (`getActiveTeamMembers`, nicht `getATM`)
-- Funktionen maximal 20 Zeilen — darüber hinaus aufteilen
-- Maximal 2 Ebenen Einrückung pro Funktion (kein tief verschachteltes if/for/try)
+- Sprechende Namen, keine Abkürzungen (`getActiveTeamMembers`, nicht `getATM`)
+- Funktionen maximal 20 Zeilen
+- Maximal 2 Ebenen Einrückung (kein tief verschachteltes if/for/try)
 - Early Return statt verschachtelter if-Blöcke
-- Keine auskommentierten Code-Blöcke — löschen statt kommentieren
-- Keine Magic Numbers — Konstanten mit sprechenden Namen
+- Keine auskommentierten Code-Blöcke, keine Magic Numbers
+- Kommentare nur WARUM, nicht WAS — kein Kommentar ist besser als ein trivialer
 
-## TypeScript-Konventionen
-- `strict: true` in tsconfig.json — immer
-- Kein `any` — stattdessen `unknown` und Type Guards
-- Kein `as` Type-Casting — stattdessen Type Guards oder Zod-Parsing
-- `type` statt `interface` (konsistenter, kann Unions/Intersections)
-- Keine TypeScript-Enums — stattdessen Union-Typen:
-  `type Role = 'admin' | 'team-lead' | 'user'`
-- Zod-Schema als Single Source of Truth — Typen daraus ableiten:
-  `type Vacation = z.infer<typeof vacationSchema>`
-- Explizite Return-Typen nur bei exportierten Funktionen, intern inferieren lassen
-- Ergebnisse mit Discriminated Unions statt Exceptions:
-  `{ ok: true, data: Vacation } | { ok: false, reason: string }`
-- Typ-Imports explizit markieren: `import type { Vacation } from ...`
-- Import-Sortierung: externe Packages → interne Packages → relative Imports
-
-## Kommentare
-- Nur kommentieren WARUM, nicht WAS
-- Kein Kommentar ist besser als ein trivialer Kommentar
-- JSDoc nur für öffentliche API-Funktionen in shared/
+## TypeScript
+- `strict: true` — immer
+- Kein `any` (→ `unknown` + Type Guards), kein `as` (→ Type Guards oder Zod)
+- `type` statt `interface`
+- Keine Enums — Union-Typen: `type Role = 'admin' | 'team-lead' | 'user'`
+- Zod-Schema als Single Source of Truth: `type Vacation = z.infer<typeof vacationSchema>`
+- Explizite Return-Typen nur bei exportierten Funktionen
+- Discriminated Unions statt Exceptions: `{ ok: true, data } | { ok: false, reason }`
+- Typ-Imports markieren: `import type { Vacation } from ...`
+- Import-Sortierung: extern → intern → relativ
 ```
 
 </details>
