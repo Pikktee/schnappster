@@ -148,6 +148,28 @@ Die bestehende CLAUDE.md um folgende Abschnitte erweitern:
 - RLS-Policies separat in Supabase testen (außerhalb von pytest)
 - Fixtures für User-Context und Service-Context getrennt halten
 - `uv run pytest` muss vor jedem Commit grün sein
+- Teste Verhalten, nicht Implementierungsdetails — kein Mocken interner Methoden
+- Neue Services und Filterfunktionen brauchen Unit-Tests (wie bestehende `test_scraper_filters.py`)
+
+## Code-Stil
+
+- Funktionen und Variablen: sprechende Namen, keine Abkürzungen (`get_active_searches`, nicht `get_as`)
+- Funktionen maximal ~20 Zeilen — größere Logik in Hilfsmethoden auslagern
+- Early Return statt verschachtelter if-Blöcke
+- Keine auskommentierten Code-Blöcke — löschen statt auskommentieren
+- Keine Magic Numbers — Konstanten mit sprechenden Namen (`MAX_ADS_PER_RUN = 10`)
+- Kommentare nur WARUM, nicht WAS
+
+## Python & FastAPI Konventionen
+
+- Vollständige Type Hints überall — Pyright ist konfiguriert, kein `Any` ohne Begründung
+- Kein `# type: ignore` außer wo absolut unvermeidbar
+- Routes sind dünn: Request validieren → Service aufrufen → Response zurückgeben
+- Services via `Depends()` injizieren, nicht in Routes instanziieren
+- HTTP-Statuscodes explizit setzen (`status_code=201`, `status_code=204`)
+- Pydantic/SQLModel-Schemas für alle Request- und Response-Typen — kein `dict`
+- Exceptions als `HTTPException` mit sprechendem `detail`-Text
+- Async wo sinnvoll — IO-bound Operationen (HTTP, DB) async, CPU-bound sync
 
 ## Bestehende Konventionen (nicht ändern)
 
