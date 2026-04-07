@@ -35,55 +35,6 @@ bezahlter Dienst angeboten werden (Payments vorerst nicht im Scope).
 
 ---
 
-## Begründungen und Vergleiche
-
-### Warum Supabase?
-
-| Kriterium | Supabase | Pure Postgres + Authlib | PocketBase | Keycloak |
-|---|---|---|---|---|
-| **Auth eingebaut** | ✅ komplett | ❌ selbst bauen (~300 Zeilen) | ✅ komplett | ✅ komplett |
-| **Social Login** | ✅ Google, Facebook, etc. | ⚠️ Authlib (~100 Zeilen) | ✅ | ✅ |
-| **User-Management-UI** | ✅ Dashboard | ❌ eigene Admin-Routen | ✅ | ✅ |
-| **Passwort-Reset** | ✅ automatisch | ❌ selbst + E-Mail-Service | ✅ | ✅ |
-| **RLS** | ✅ nativ integriert | ✅ manuell konfigurieren | ❌ nicht vorhanden | ❌ |
-| **Datenbank** | PostgreSQL | PostgreSQL | SQLite (begrenzt) | eigene DB nötig |
-| **Gewicht** | mittel (managed) | keins | leicht (1 Binary) | schwer (Java, viel RAM) |
-| **Vendor-Lock-in** | mittel (self-host möglich) | keiner | niedrig | niedrig |
-| **Skalierung** | ✅ PostgreSQL | ✅ PostgreSQL | ❌ SQLite-Locks | ✅ |
-
-**Entscheidung Supabase** weil:
-- Auth + DB + RLS aus einer Hand — minimaler Integrationsaufwand
-- Managed Free Tier zum Start, Self-Hosting bei Bedarf möglich
-- RLS als Sicherheitsnetz gegen Datenlecks (vergessene WHERE-Klauseln)
-- User-Management-Dashboard spart eigene Admin-Routen
-- PocketBase scheidet aus wegen SQLite (concurrent writes bei vielen Usern)
-- Keycloak ist für eine App dieser Größe überdimensioniert
-
-### Warum RLS?
-
-**Pro:**
-- Datenisolierung auf DB-Ebene — kein vergessenes `WHERE owner_id = ?` kann zu Datenlecks führen
-- Funktioniert unabhängig vom Zugriffspfad (API, Admin-Tool, Reporting)
-- Bei Supabase quasi kostenlos mitgeliefert
-
-**Contra:**
-- Komplexere Szenarien (Sharing, Org-Hierarchien) erfordern Join-Tabellen
-- Debugging von Policies kann aufwendig sein
-- Hintergrundprozesse (Scraper, Analyzer) laufen mit Service-Role und umgehen RLS — dort braucht es eigene Python-Logik
-
-**Praktische Umsetzung:**
-- API-Routen (User-Requests): nur RLS, kein WHERE nötig
-- Hintergrundprozesse (Scraper): Service-Role + explizite Python-Logik
-- Admin-Routen: Service-Role + `require_admin` Dependency
-
-### Warum PostgreSQL statt SQLite?
-
-SQLite ist single-writer — bei mehreren gleichzeitigen Usern die Suchen auslösen
-kommt es zu Write-Locks. PostgreSQL ist für concurrent access gebaut.
-Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
-
----
-
 ## Hinweise für Vibe-Coding
 
 ### Was hervorragend funktioniert
@@ -96,7 +47,6 @@ Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
 
 - **`supabase-py`** — der Python-Client ist weniger verbreitet als der JS-Client. Bei neueren Features gegen offizielle Doku prüfen. **Context7 nutzen.**
 - **RLS + Service-Role-Trennung** — immer explizit kommunizieren ob ein Code-Block im User-Context (RLS aktiv) oder Service-Context (RLS bypassed) laufen soll. Sonst generiert Claude entweder unnötige WHERE-Klauseln oder lässt nötige Checks weg.
-- **Stripe API-Versionen** — Stripe ändert regelmäßig die API. Aktuelle Stripe-Doku beim Implementieren von Webhooks als Kontext mitgeben. **Context7 nutzen.**
 - **APScheduler + Multi-Tenancy** — Background-Jobs kennen keinen User-Context. Claude generiert hier leicht Code der RLS voraussetzt aber nicht bekommt. Explizit darauf hinweisen dass Jobs mit Service-Role laufen und `owner_id` explizit setzen müssen.
 
 ### Context7 MCP-Server einrichten
@@ -140,7 +90,7 @@ Die bestehende CLAUDE.md um folgende Abschnitte erweitern:
 ### Umgebungen
 
 - **Unit-Tests (pytest):** Supabase-Auth mocken (`app.dependency_overrides[get_current_user]`),
-  In-Memory-PostgreSQL oder lokales PostgreSQL — schnell, kein Netzwerk, CI-fähig
+  lokales PostgreSQL — schnell, kein Netzwerk, CI-fähig
 - **Integrationstests:** Supabase lokal via Docker (`npx supabase start`) —
   RLS-Policies und volle Supabase-Features testbar
 - **Staging:** Eigenes Supabase-Projekt (`schnappster-dev`) — isoliert von Produktion
@@ -175,10 +125,9 @@ Die bestehende CLAUDE.md um folgende Abschnitte erweitern:
 - Exceptions als `HTTPException` mit sprechendem `detail`-Text
 - Async wo sinnvoll — IO-bound Operationen (HTTP, DB) async, CPU-bound sync
 
-## Bestehende Konventionen (nicht ändern)
+## Konventionen
 
-- Schema-Änderungen: `uv run dbreset` (kein Alembic)
-- DB-Pfad immer über `get_app_root()` — nie relative Pfade
+- Schema-Änderungen: Supabase-Migrations (`supabase migration new`) — kein `uv run dbreset` mehr
 - SQLModel-Muster: Tabellen-Definition + Read/Create/Update-Schemas in derselben Datei
 - Background-Jobs: ScraperService und AIService haben je eine Single-Worker-Queue —
   Jobs dürfen sich nicht überlappen
@@ -281,7 +230,7 @@ Die Auth-Screens liegen in einer eigenen Route-Group `(auth)` — ohne Sidebar, 
 
 Aufbau (von oben nach unten innerhalb der Card):
 1. **Social Login:** „Mit Google anmelden" + „Mit Facebook anmelden" (volle Breite)
-2. **Divider:** „oder" 
+2. **Divider:** „oder"
 3. **Formular:** E-Mail + Passwort
 4. **Link:** „Passwort vergessen?" → `/forgot-password` (rechts ausgerichtet, `text-link`)
 5. **Button:** „Anmelden" (primary, volle Breite)
@@ -310,7 +259,7 @@ Nicht eingeloggte User werden bei jedem App-Aufruf automatisch zu `/login` weite
 
 ### Passwort ändern (User-Settings-Page)
 
-Eigener Abschnitt innerhalb der Benutzereinstellungen-Seite — **nur sichtbar für E-Mail/Passwort-User**, ausgeblendet bei reinen OAuth-Accounts (erkennbar an fehlender `email` Identität mit Passwort in Supabase Auth).
+Eigener Abschnitt innerhalb der Benutzereinstellungen-Seite — **nur sichtbar für E-Mail/Passwort-User**, ausgeblendet bei reinen OAuth-Accounts (erkennbar an fehlender Passwort-Identität in Supabase Auth).
 
 - Felder: Neues Passwort + Bestätigen
 - Kein „altes Passwort"-Feld (Supabase Auth erlaubt direkte Änderung nach Login)
@@ -323,9 +272,9 @@ Am Ende der Settings-Page als eigenständiger **Danger Zone**-Abschnitt:
 - Separierte Card mit rotem Akzent (`border-destructive/30`, `CardTitle` in `text-destructive`)
 - Beschreibungstext: „Dein Konto und alle gespeicherten Daten (Suchen, Schnäppchen) werden unwiderruflich gelöscht."
 - Button: „Konto löschen" (`variant="destructive"`, outline-style um versehentliche Klicks zu vermeiden)
-- **Bestätigung:** shadcn/ui `AlertDialog` — Titel „Konto wirklich löschen?", Bestätigungs-Button erst klickbar nach Eingabe des Wortes `löschen` in ein Textfeld (Sicherheitsstufe)
+- **Bestätigung:** shadcn/ui `AlertDialog` — Titel „Konto wirklich löschen?", Bestätigungs-Button erst klickbar nach Eingabe des Wortes `löschen` in ein Textfeld
 - **Backend-Logik:** Cascade-Delete aller User-Daten (AdSearches, Ads, UserSettings) → anschließend Supabase Auth User löschen via Service-Role
-- **Schutz Haupt-Admin:** Der erste Admin-Account (definiert über `is_primary_admin`-Flag oder feste E-Mail in `.env`) kann sich nicht selbst löschen — API gibt `403` zurück, Frontend zeigt stattdessen informativen Hinweis
+- **Schutz Haupt-Admin:** Der primäre Admin-Account (definiert über `is_primary_admin`-Flag oder feste E-Mail in `.env`) kann sich nicht selbst löschen — API gibt `403` zurück, Frontend zeigt stattdessen informativen Hinweis
 
 ---
 
@@ -345,11 +294,11 @@ Registrierung kann auf eingeladene Nutzer beschränkt werden. Das Verhalten ist 
 ```python
 class InviteCode(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    code: str          # zufälliger Token, unique (z.B. 8 alphanumerische Zeichen)
-    created_by: uuid.UUID      # admin user_id
-    used_by: uuid.UUID | None  # user_id des Registrierten
+    code: str                      # zufälliger Token, unique (z.B. 8 alphanumerische Zeichen)
+    created_by: uuid.UUID          # admin user_id
+    used_by: uuid.UUID | None      # user_id des Registrierten
     used_at: datetime | None
-    expires_at: datetime | None  # None = kein Ablaufdatum
+    expires_at: datetime | None    # None = kein Ablaufdatum
     is_active: bool = True
 ```
 
@@ -361,11 +310,11 @@ class InviteCode(SQLModel, table=True):
 3. Bei Erfolg: Code als `used_by` + `used_at` markieren
 
 **OAuth-Registrierung (Google/Facebook):**
-- Code wird in der Browser-Session gespeichert (z.B. `sessionStorage`) bevor der OAuth-Redirect startet
+- Code wird in der Browser-Session gespeichert (`sessionStorage`) bevor der OAuth-Redirect startet
 - Nach OAuth-Callback: Code-Validierung via FastAPI-Webhook oder eigener Supabase-Auth-Hook
 - Bei ungültigem Code: Account wird deaktiviert, Fehlermeldung
 
-### Admin-Verwaltung (Phase 2)
+### Admin-Verwaltung (Phase 4)
 
 Im Admin-Bereich:
 - Codes einzeln oder als Batch generieren (mit optionalem Ablaufdatum)
@@ -375,11 +324,60 @@ Im Admin-Bereich:
 
 ---
 
+## Begründungen und Vergleiche
+
+### Warum Supabase?
+
+| Kriterium | Supabase | Pure Postgres + Authlib | PocketBase | Keycloak |
+|---|---|---|---|---|
+| **Auth eingebaut** | ✅ komplett | ❌ selbst bauen (~300 Zeilen) | ✅ komplett | ✅ komplett |
+| **Social Login** | ✅ Google, Facebook, etc. | ⚠️ Authlib (~100 Zeilen) | ✅ | ✅ |
+| **User-Management-UI** | ✅ Dashboard | ❌ eigene Admin-Routen | ✅ | ✅ |
+| **Passwort-Reset** | ✅ automatisch | ❌ selbst + E-Mail-Service | ✅ | ✅ |
+| **RLS** | ✅ nativ integriert | ✅ manuell konfigurieren | ❌ nicht vorhanden | ❌ |
+| **Datenbank** | PostgreSQL | PostgreSQL | SQLite (begrenzt) | eigene DB nötig |
+| **Gewicht** | mittel (managed) | keins | leicht (1 Binary) | schwer (Java, viel RAM) |
+| **Vendor-Lock-in** | mittel (self-host möglich) | keiner | niedrig | niedrig |
+| **Skalierung** | ✅ PostgreSQL | ✅ PostgreSQL | ❌ SQLite-Locks | ✅ |
+
+**Entscheidung Supabase** weil:
+- Auth + DB + RLS aus einer Hand — minimaler Integrationsaufwand
+- Managed Free Tier zum Start, Self-Hosting bei Bedarf möglich
+- RLS als Sicherheitsnetz gegen Datenlecks (vergessene WHERE-Klauseln)
+- User-Management-Dashboard spart eigene Admin-Routen für User-CRUD
+- PocketBase scheidet aus wegen SQLite (concurrent writes bei vielen Usern)
+- Keycloak ist für eine App dieser Größe überdimensioniert
+
+### Warum RLS?
+
+**Pro:**
+- Datenisolierung auf DB-Ebene — kein vergessenes `WHERE owner_id = ?` kann zu Datenlecks führen
+- Funktioniert unabhängig vom Zugriffspfad (API, Admin-Tool, Reporting)
+- Bei Supabase quasi kostenlos mitgeliefert
+
+**Contra:**
+- Komplexere Szenarien (Sharing, Org-Hierarchien) erfordern Join-Tabellen
+- Debugging von Policies kann aufwendig sein
+- Hintergrundprozesse (Scraper, Analyzer) laufen mit Service-Role und umgehen RLS — dort braucht es eigene Python-Logik
+
+**Praktische Umsetzung:**
+- API-Routen (User-Requests): nur RLS, kein WHERE nötig
+- Hintergrundprozesse (Scraper): Service-Role + explizite Python-Logik
+- Admin-Routen: Service-Role + `require_admin` Dependency
+
+### Warum PostgreSQL statt SQLite?
+
+SQLite ist single-writer — bei mehreren gleichzeitigen Usern die Suchen auslösen
+kommt es zu Write-Locks. PostgreSQL ist für concurrent access gebaut.
+Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
+
+---
+
 ## Umsetzungsreihenfolge
 
-1. **Phase 1 — Auth & Multi-Tenancy:** SQLite → PostgreSQL, `owner_id` auf AdSearch + Ad, Supabase OAuth (Google + Facebook), RLS-Policies, Admin-Rolle, zwei DB-Sessions (`get_db_session` / `get_admin_session`), `UserSettings`-Tabelle (Profil + Benachrichtigungseinstellungen), `InviteCode`-Tabelle
-2. **Phase 1b — Auth-Screens:** Login, Registrierung (mit Einladungscode-Support), Passwort vergessen, Passwort zurücksetzen — im Schnappster-UX-Stil (`(auth)`-Route-Group, ohne Sidebar)
-3. **Phase 1c — Account-Management:** Passwort ändern + Konto löschen (Danger Zone) auf der User-Settings-Page
-4. **Phase 2 — Admin-Bereich:** Log-Bereich absichern (`require_admin`), App-Settings-Route absichern (`require_invite_code` toggle), Einladungscode-Verwaltung, Manuell Scrape/Analyze auslösen, System-Statistiken
-5. **Phase 3 — Betrieb:** Benachrichtigungen (Telegram, Web Push, E-Mail), Rate-Limiting, Monitoring (Sentry)
-6. **Phase 4 — Payments (perspektivisch):** Stripe-Subscriptions, Webhooks, Feature-Gates
+1. **Phase 1 — Backend: Auth & Multi-Tenancy:** SQLite → PostgreSQL, `owner_id` auf AdSearch + Ad, Supabase OAuth (Google + Facebook), RLS-Policies, Admin-Rolle, zwei DB-Sessions (`get_db_session` / `get_admin_session`), `UserSettings`-Tabelle, `InviteCode`-Tabelle
+2. **Phase 2 — Frontend: Auth-Screens:** Login, Registrierung (mit Einladungscode-Support), Passwort vergessen, Passwort zurücksetzen — im Schnappster-UX-Stil (`(auth)`-Route-Group, ohne Sidebar)
+3. **Phase 3 — Account-Management:** Benutzerprofil-Seite (Name, Avatar, E-Mail), Passwort ändern, Konto löschen (Danger Zone) — auf der User-Settings-Page
+4. **Phase 4 — Admin-Bereich:** Log-Bereich absichern (`require_admin`), App-Settings-Route absichern (`require_invite_code` toggle), Einladungscode-Verwaltung, Manuell Scrape/Analyze auslösen, System-Statistiken
+5. **Phase 5 — Betrieb:** Benachrichtigungen (Telegram, Web Push, E-Mail), Rate-Limiting, Monitoring (Sentry)
+6. **Phase 6 — Payments (perspektivisch):** Stripe-Subscriptions, Webhooks, Feature-Gates
