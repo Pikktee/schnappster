@@ -73,8 +73,10 @@ Frontend, API und perspektivisch Mobile App nutzen dieselben Typen.
 
 ### Worauf man achten muss
 
-- **Better-Auth** — jung (2024), Claude kennt die Library nur begrenzt. Wird möglicherweise veraltete API-Patterns vorschlagen oder auf Auth.js-Muster zurückfallen. **Immer gegen offizielle Doku prüfen.**
-- **Hono** — besser als Better-Auth was Claude-Wissen angeht, aber bei neueren Features gegenprüfen
+- **Better-Auth** — jung (2024), Claude kennt die Library nur begrenzt. Wird möglicherweise veraltete API-Patterns vorschlagen oder auf Auth.js-Muster zurückfallen.
+- **Hono** — besser als Better-Auth was Claude-Wissen angeht, aber bei neueren Features unsicher.
+
+Für beide Libraries **Context7 nutzen** (siehe unten) — damit arbeitet Claude mit aktueller Doku statt mit veraltetem Trainingswissen.
 
 ### Context7 MCP-Server einrichten
 
