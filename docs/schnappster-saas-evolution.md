@@ -92,24 +92,83 @@ die direkt mit FastAPI integrierbar sind.
 
 ## Hinweise für Vibe-Coding
 
-### Was gut funktioniert
+### Was hervorragend funktioniert
 
-- **FastAPI, SQLModel, Next.js, shadcn/ui** — Claude kennt diese Stacks hervorragend. Sehr zuverlässiges Vibe-Coding.
-- **Supabase-Integration** — gut dokumentiert, Claude hat solide Trainingsdaten dafür.
-- **RLS-Policies** — SQL-basiert, Claude generiert zuverlässige Policies.
+- **FastAPI, SQLModel, Next.js, shadcn/ui** — Claude kennt diese Stacks sehr gut
+- **RLS-Policies** — SQL-basiert, Claude generiert zuverlässige Policies
+- **Stripe-Grundmuster** — Webhooks, Subscriptions, Customer-Objekte kennt Claude gut
+- **pytest + FastAPI TestClient** — bewährtes Pattern, Claude folgt es zuverlässig
 
-### Worauf man achten sollte
+### Worauf man achten muss
 
-- **Supabase Python-Client (`supabase-py`)** — weniger verbreitet als der JS-Client. Claude kennt die API, aber bei neueren Features gegenprüfen.
-- **RLS + Service-Role-Trennung** — klar kommunizieren ob ein Code-Block im User-Context (RLS aktiv) oder Service-Context (RLS umgangen) läuft. Sonst generiert Claude möglicherweise unnötige WHERE-Klauseln oder lässt nötige Checks weg.
-- **Stripe-Webhooks** — Claude kennt die Grundmuster gut, aber Stripe ändert regelmäßig API-Versionen. Aktuelle Stripe-Doku als Kontext mitgeben.
+- **`supabase-py`** — der Python-Client ist weniger verbreitet als der JS-Client. Bei neueren Features gegen offizielle Doku prüfen. **Context7 nutzen.**
+- **RLS + Service-Role-Trennung** — immer explizit kommunizieren ob ein Code-Block im User-Context (RLS aktiv) oder Service-Context (RLS bypassed) laufen soll. Sonst generiert Claude entweder unnötige WHERE-Klauseln oder lässt nötige Checks weg.
+- **Stripe API-Versionen** — Stripe ändert regelmäßig die API. Aktuelle Stripe-Doku beim Implementieren von Webhooks als Kontext mitgeben. **Context7 nutzen.**
+- **APScheduler + Multi-Tenancy** — Background-Jobs kennen keinen User-Context. Claude generiert hier leicht Code der RLS voraussetzt aber nicht bekommt. Explizit darauf hinweisen dass Jobs mit Service-Role laufen und `owner_id` explizit setzen müssen.
 
-### Empfohlene MCP-Erweiterungen
+### Context7 MCP-Server einrichten
 
-- **Context7** (`@upstash/context7-mcp`) — aktuelle Bibliotheks-Dokumentation bei Bedarf in den Kontext laden. Besonders nützlich für Supabase-spezifische Fragen.
+```json
+// .claude/settings.json
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    }
+  }
+}
+```
 
-### Umsetzungsreihenfolge
+### CLAUDE.md erweitern
 
-1. **Phase 1 — Auth & Multi-Tenancy:** SQLite → PostgreSQL, User-Modell, Supabase OAuth, RLS-Policies, Admin-Rolle
-2. **Phase 2 — Payments:** Stripe-Subscriptions, Webhooks, Feature-Gates (max. Suchen pro Plan)
+Die bestehende CLAUDE.md um folgende Abschnitte erweitern:
+
+<details>
+<summary>Ergänzungen für die CLAUDE.md anzeigen</summary>
+
+```markdown
+## Multi-Tenancy
+
+- Alle User-Daten tragen `owner_id` (UUID aus Supabase Auth)
+- API-Routen laufen im User-Context — RLS filtert automatisch, kein WHERE nötig
+- Hintergrundprozesse (Scraper, Analyzer) laufen mit Service-Role — RLS ist bypassed,
+  `owner_id` muss explizit in alle Queries und Inserts gesetzt werden
+- Admin-Routen: Service-Role + `require_admin` Dependency
+
+## Zwei DB-Verbindungen
+
+- `get_db_session()` — User-Context, RLS aktiv (für API-Routen)
+- `get_admin_session()` — Service-Role, RLS bypassed (für Background-Jobs, Admin)
+- Niemals Service-Role-Key im Frontend oder in API-Routen die User-Input verarbeiten
+
+## Tests
+
+- Supabase Auth in Tests mocken: JWT mit Test-User-ID faken, nicht echte Supabase-Instanz
+- RLS-Policies separat in Supabase testen (außerhalb von pytest)
+- Fixtures für User-Context und Service-Context getrennt halten
+- `uv run pytest` muss vor jedem Commit grün sein
+
+## Bestehende Konventionen (nicht ändern)
+
+- Schema-Änderungen: `uv run dbreset` (kein Alembic)
+- DB-Pfad immer über `get_app_root()` — nie relative Pfade
+- SQLModel-Muster: Tabellen-Definition + Read/Create/Update-Schemas in derselben Datei
+- Background-Jobs: ScraperService und AIService haben je eine Single-Worker-Queue —
+  Jobs dürfen sich nicht überlappen
+- `AppSettings`-Tabelle für runtime-konfigurierbare Einstellungen
+- API-Keys (`OPENAI_API_KEY`, `SUPABASE_URL`, `STRIPE_SECRET_KEY` etc.) nur in `.env`
+
+## MCP
+Nutze immer context7 wenn du Code für supabase-py oder Stripe generierst.
+```
+
+</details>
+
+---
+
+## Umsetzungsreihenfolge
+
+1. **Phase 1 — Auth & Multi-Tenancy:** SQLite → PostgreSQL, `owner_id` auf AdSearch + Ad, Supabase OAuth (Google + Facebook), RLS-Policies, Admin-Rolle, zwei DB-Sessions (`get_db_session` / `get_admin_session`)
+2. **Phase 2 — Payments:** Stripe-Subscriptions, Webhooks → User-Plan in DB, Feature-Gates (max. Suchen pro Plan)
 3. **Phase 3 — Betrieb:** Rate-Limiting, Monitoring (Sentry), Transactional E-Mails
