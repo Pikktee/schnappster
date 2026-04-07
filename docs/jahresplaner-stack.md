@@ -139,24 +139,23 @@ Frontend, Backend und perspektivisch Mobile App leben in einem Repository:
 
 ```
 jahresplaner/
-  packages/
-    api/            ← Hono + Better-Auth + Drizzle
-      src/
-        routes/     ← HTTP-Handler (dünn)
-        domain/     ← Geschäftslogik-Klassen
-        db/         ← Drizzle-Schema, Migrations
-        middleware/  ← Auth, Error-Handling
-        lib/        ← Hilfsfunktionen, SMTP
-      tests/
-    web/            ← Next.js (reiner UI-Layer)
-      app/          ← App Router, Seiten + Layouts
-      components/   ← UI-Primitives + Feature-Komponenten
-      lib/          ← API-Client, Auth-Client
-      hooks/        ← useVacations(), useTeam(), etc.
-    shared/         ← API-Vertrag (nur Typen + Zod-Schemas)
-      types/
-      schemas/
-    mobile/         ← React Native (perspektivisch)
+  api/              ← Hono + Better-Auth + Drizzle
+    src/
+      routes/       ← HTTP-Handler (dünn)
+      domain/       ← Geschäftslogik-Klassen
+      db/           ← Drizzle-Schema, Migrations
+      middleware/    ← Auth, Error-Handling
+      lib/          ← Hilfsfunktionen, SMTP
+    tests/
+  web/              ← Next.js (reiner UI-Layer)
+    app/            ← App Router, Seiten + Layouts
+    components/     ← UI-Primitives + Feature-Komponenten
+    lib/            ← API-Client, Auth-Client
+    hooks/          ← useVacations(), useTeam(), etc.
+  shared/           ← API-Vertrag (nur Typen + Zod-Schemas)
+    types/
+    schemas/
+  mobile/           ← React Native (perspektivisch)
   package.json      ← Workspace-Root
   docker-compose.yml
 ```
@@ -186,14 +185,14 @@ https://jahresplaner.firma.de/api  →  Hono    (:4000)
 # docker-compose.yml
 services:
   api:
-    build: ./packages/api
+    build: ./api
     ports: ["4000:4000"]
     environment:
       - DATABASE_URL=file:./data/db.sqlite
       - BETTER_AUTH_SECRET=...
       - SMTP_HOST=mail.firma.de
   web:
-    build: ./packages/web
+    build: ./web
     ports: ["3000:3000"]
     environment:
       - NEXT_PUBLIC_API_URL=https://jahresplaner.firma.de/api
@@ -204,6 +203,10 @@ services:
 
 `docker compose up` — drei Container, ein Befehl. API und Frontend unabhängig
 deploybar, skalierbar, und bei Fehlern voneinander isoliert.
+
+**Lokale Entwicklung:** Kein Docker nötig. `npm run dev` im Root startet beide
+Dev-Server parallel (Hono + Next.js) mit Hot Reload. Next.js proxied `/api`
+automatisch an den lokalen Hono-Server.
 
 ---
 
