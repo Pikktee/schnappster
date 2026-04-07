@@ -27,7 +27,6 @@ Komplett self-hosted, keine externen Managed-Services.
 | Komponente | Technologie | Beschreibung |
 |---|---|---|
 | **Framework** | [Next.js](https://nextjs.org) | Reiner UI-Layer, keine eigene API-Logik. Austauschbar ohne API-Änderungen |
-| **UI-Komponenten** | [shadcn/ui](https://ui.shadcn.com) + Tailwind CSS | Kopierbare, anpassbare Komponenten auf Radix UI-Basis |
 | **API-Anbindung** | fetch / SWR | Kommunikation gegen Hono-API via `NEXT_PUBLIC_API_URL` |
 
 ### Deployment
@@ -138,7 +137,7 @@ Realtime, kein Storage — nur Auth + DB + API.
 
 ### Was hervorragend funktioniert
 
-- **Next.js, TypeScript, Tailwind, shadcn/ui** — Claude kennt diese Stacks sehr gut. Zuverlässigstes Vibe-Coding-Erlebnis.
+- **Next.js, TypeScript, Tailwind** — Claude kennt diese Stacks sehr gut. Zuverlässigstes Vibe-Coding-Erlebnis.
 - **Drizzle** — Schema-Definitionen und Queries sind vorhersagbar, Claude generiert zuverlässigen Code.
 - **PostgreSQL / SQLite** — seit Jahrzehnten stabil, keinerlei Probleme.
 
