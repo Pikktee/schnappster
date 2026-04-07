@@ -213,11 +213,6 @@ deploybar, skalierbar, und bei Fehlern voneinander isoliert.
 Dev-Server parallel (Hono + Next.js) mit Hot Reload. Next.js proxied `/api`
 automatisch an den lokalen Hono-Server.
 
-**CORS:** Kein Problem — weder lokal noch in Produktion. Der Browser spricht immer
-nur mit einer Origin (lokal: Next.js-Proxy auf `:3000`, Produktion: Caddy auf einer
-Domain). CORS-Konfiguration in Hono ist erst nötig wenn eine Mobile App später direkt
-gegen die API spricht.
-
 ---
 
 ## Geschäftslogik isolieren
@@ -363,6 +358,21 @@ inkonsistentem Stil. Empfohlener Inhalt:
 - Routes sind dünn: validieren, Domain aufrufen, Response zurückgeben
 - Keine DB-Imports in `domain/`-Dateien
 - Shared Types in `shared/` — keine Typ-Duplikate zwischen api und web
+
+## TypeScript-Konventionen
+- `strict: true` in tsconfig.json — immer
+- Kein `any` — stattdessen `unknown` und Type Guards
+- Kein `as` Type-Casting — stattdessen Type Guards oder Zod-Parsing
+- `type` statt `interface` (konsistenter, kann Unions/Intersections)
+- Keine TypeScript-Enums — stattdessen Union-Typen:
+  `type Role = 'admin' | 'team-lead' | 'user'`
+- Zod-Schema als Single Source of Truth — Typen daraus ableiten:
+  `type Vacation = z.infer<typeof vacationSchema>`
+- Explizite Return-Typen nur bei exportierten Funktionen, intern inferieren lassen
+- Ergebnisse mit Discriminated Unions statt Exceptions:
+  `{ ok: true, data: Vacation } | { ok: false, reason: string }`
+- Typ-Imports explizit markieren: `import type { Vacation } from ...`
+- Import-Sortierung: externe Packages → interne Packages → relative Imports
 
 ## Kommentare
 - Nur kommentieren WARUM, nicht WAS
