@@ -182,20 +182,77 @@ Die bestehende CLAUDE.md um folgende Abschnitte erweitern:
 - SQLModel-Muster: Tabellen-Definition + Read/Create/Update-Schemas in derselben Datei
 - Background-Jobs: ScraperService und AIService haben je eine Single-Worker-Queue —
   Jobs dürfen sich nicht überlappen
-- `AppSettings`-Tabelle für runtime-konfigurierbare Einstellungen
-- API-Keys (`OPENAI_API_KEY`, `SUPABASE_URL`, `STRIPE_SECRET_KEY` etc.) nur in `.env`
+- `AppSettings`-Tabelle für globale runtime-konfigurierbare Einstellungen (Admin)
+- `UserSettings`-Tabelle für benutzerspezifische Einstellungen (Telegram Chat-ID, Benachrichtigungen)
+- Telegram Bot-Token in `.env` — Chat-ID je User in `UserSettings`
+- Avatar kommt als URL aus der Supabase Auth Session (OAuth-Provider) — kein eigenes Storage
+- API-Keys (`OPENAI_API_KEY`, `SUPABASE_URL` etc.) nur in `.env`
 
 ## MCP
-Nutze immer context7 wenn du Code für supabase-py oder Stripe generierst.
+Nutze immer context7 wenn du Code für supabase-py generierst.
 ```
 
 </details>
 
 ---
 
+## Benutzerprofil & Benachrichtigungen
+
+### Benutzerprofil
+
+Jeder User hat ein Profil mit:
+
+| Feld | Quelle | Beschreibung |
+|---|---|---|
+| **Name** | OAuth-Provider (editierbar) | Anzeigename, initial aus Google/Facebook übernommen |
+| **Avatar** | OAuth-Provider (automatisch) | Profilbild von Google/Facebook — kein Upload |
+| **E-Mail** | Supabase Auth (read-only) | Aus der Auth-Session, nicht änderbar |
+
+Der Avatar wird direkt vom OAuth-Provider bezogen (URL aus der Supabase Auth Session) — kein Upload, kein Speichern im eigenen Storage.
+
+### Benachrichtigungen
+
+Benachrichtigungskanäle pro Benutzer:
+
+| Kanal | Beschreibung |
+|---|---|
+| **Telegram** | Geteilter Bot-Token in `.env` (Admin konfiguriert den Bot), User trägt seine eigene Chat-ID ein |
+| **Web Push** | Browser-Push-Benachrichtigungen |
+| **E-Mail** | An die aus Supabase Auth bekannte E-Mail-Adresse |
+
+Benachrichtigungseinstellungen:
+- **Kanal-Auswahl:** Telegram / Web Push / E-Mail (mehrere kombinierbar)
+- **Mindest-Score:** Schwellwert 0–10 — nur Schnäppchen ab diesem `bargain_score` werden gemeldet
+- **Modus:** `instant` (sofort bei neuem Fund) oder `daily_summary` (einmal täglich zusammengefasst)
+
+### UserSettings-Tabelle
+
+```python
+class UserSettings(SQLModel, table=True):
+    user_id: uuid.UUID          # FK → Supabase auth.uid, Primary Key
+    display_name: str | None    # Anzeigename (initial aus OAuth übernommen)
+    telegram_chat_id: str | None
+    notify_telegram: bool = False
+    notify_email: bool = False
+    notify_web_push: bool = False
+    notify_min_score: int = 5   # 0–10
+    notify_mode: str = "instant"  # "instant" | "daily_summary"
+```
+
+### Trennung: UserSettings vs. AppSettings
+
+| Einstellung | Wo | Wer |
+|---|---|---|
+| Telegram Bot-Token | `.env` | Admin (globale Konfiguration) |
+| Telegram Chat-ID | `UserSettings` | User (persönliche Einstellung) |
+| Globale Filter-Regeln, Scraper-Einstellungen | `AppSettings` | Admin |
+| Benachrichtigungskanal, Mindest-Score, Modus | `UserSettings` | User |
+
+---
+
 ## Umsetzungsreihenfolge
 
-1. **Phase 1 — Auth & Multi-Tenancy:** SQLite → PostgreSQL, `owner_id` auf AdSearch + Ad, Supabase OAuth (Google + Facebook), RLS-Policies, Admin-Rolle, zwei DB-Sessions (`get_db_session` / `get_admin_session`)
+1. **Phase 1 — Auth & Multi-Tenancy:** SQLite → PostgreSQL, `owner_id` auf AdSearch + Ad, Supabase OAuth (Google + Facebook), RLS-Policies, Admin-Rolle, zwei DB-Sessions (`get_db_session` / `get_admin_session`), `UserSettings`-Tabelle (Profil + Benachrichtigungseinstellungen)
 2. **Phase 2 — Admin-Bereich:** Log-Bereich absichern (`require_admin`), App-Settings-Route absichern, Manuell Scrape/Analyze auslösen, System-Statistiken
-3. **Phase 3 — Betrieb:** Rate-Limiting, Monitoring (Sentry), Transactional E-Mails
+3. **Phase 3 — Betrieb:** Benachrichtigungen (Telegram, Web Push, E-Mail), Rate-Limiting, Monitoring (Sentry)
 4. **Phase 4 — Payments (perspektivisch):** Stripe-Subscriptions, Webhooks, Feature-Gates
