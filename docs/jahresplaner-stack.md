@@ -115,9 +115,10 @@ Kompensiert Wissenslücken bei neuen Libraries. Claude holt gezielt aktuelle Dok
 }
 ```
 
-### CLAUDE.md ins Repo-Root legen
+### CLAUDE.md erweitern
 
-Die CLAUDE.md steuert Codequalität, Architektur und Teststrategie. Ohne sie
+Die bestehende CLAUDE.md im Repo-Root um folgende Abschnitte erweitern.
+Diese steuern Codequalität, Architektur und Teststrategie — ohne sie
 generiert Claude oft Code ohne Tests und mit inkonsistentem Stil.
 
 <details>
