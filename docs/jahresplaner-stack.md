@@ -23,6 +23,26 @@ Komplett self-hosted, keine externen Managed-Services.
 | **E-Mail** | Firmen-SMTP | Passwort-Reset und Benachrichtigungen über bestehende Firmen-Mailinfrastruktur |
 | **Tests** | [Vitest](https://vitest.dev) | Test-Runner, schneller als Jest, natives TypeScript |
 
+<details>
+<summary>Zukunftssicherheit und Verbreitung der Kernbibliotheken</summary>
+
+**Hono** — 25.000+ GitHub Stars, 400k+ wöchentliche npm Downloads. Erstellt von Yusuke Wada,
+der 2023 von Cloudflare eingestellt wurde und Hono in Vollzeit weiterentwickelt. Cloudflare
+nutzt Hono intern in eigenen Produkten (D1, Workers Logs, KV, Queues). Zero Dependencies.
+
+**Better-Auth** — 27.000+ GitHub Stars, 150k+ wöchentliche Downloads. Y Combinator Spring 2025,
+$5M Seed-Funding von Peak XV Partners (ehemals Sequoia India). Offiziell empfohlen von Next.js,
+Nuxt und Astro. In Produktion bei YC-Companies und Open-Source-Projekten (Dokploy, Folo, Zero).
+
+**Drizzle** — 33.000+ GitHub Stars. Das gesamte Drizzle-Kernteam wurde 2026 von PlanetScale
+übernommen — Enterprise-Backing und Vollzeit-Entwicklung gesichert. In Produktion bei Replit,
+Sentry, Figma und Databricks. Astro DB basiert auf Drizzle. Lizenzpartnerschaften mit Neon und Turso.
+
+**Vitest** — 16.000+ GitHub Stars. Teil des Vite-Ökosystems, gesponsert von Vercel und Chromatic.
+2–5x schneller als Jest. De-facto-Standard für Tests in Vite-basierten Projekten.
+
+</details>
+
 ### Frontend
 
 | Komponente | Technologie | Beschreibung |
