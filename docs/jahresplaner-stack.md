@@ -140,11 +140,25 @@ Frontend, Backend und perspektivisch Mobile App leben in einem Repository:
 ```
 jahresplaner/
   packages/
-    api/          ← Hono + Better-Auth + Drizzle
-    web/          ← Next.js
-    shared/       ← Typen, Validierung (zod-Schemas)
-    mobile/       ← React Native (perspektivisch)
-  package.json    ← Workspace-Root
+    api/            ← Hono + Better-Auth + Drizzle
+      src/
+        routes/     ← HTTP-Handler (dünn)
+        domain/     ← Geschäftslogik-Klassen
+        db/         ← Drizzle-Schema, Migrations
+        middleware/  ← Auth, Error-Handling
+        lib/        ← Hilfsfunktionen, SMTP
+      tests/
+    web/            ← Next.js (reiner UI-Layer)
+      app/          ← App Router, Seiten + Layouts
+      components/   ← UI-Primitives + Feature-Komponenten
+      lib/          ← API-Client, Auth-Client
+      hooks/        ← useVacations(), useTeam(), etc.
+    shared/         ← API-Vertrag (nur Typen + Zod-Schemas)
+      types/
+      schemas/
+    mobile/         ← React Native (perspektivisch)
+  package.json      ← Workspace-Root
+  docker-compose.yml
 ```
 
 **Warum Monorepo?**
@@ -156,6 +170,40 @@ jahresplaner/
 - Kein Versions-Chaos zwischen Frontend und API
 
 Separate Repos lohnen sich erst wenn getrennte Teams unabhängig deployen müssen.
+
+---
+
+## Deployment
+
+Zwei separate Prozesse hinter einem Reverse Proxy (Caddy), eine Domain:
+
+```
+https://jahresplaner.firma.de      →  Next.js (:3000)
+https://jahresplaner.firma.de/api  →  Hono    (:4000)
+```
+
+```yaml
+# docker-compose.yml
+services:
+  api:
+    build: ./packages/api
+    ports: ["4000:4000"]
+    environment:
+      - DATABASE_URL=file:./data/db.sqlite
+      - BETTER_AUTH_SECRET=...
+      - SMTP_HOST=mail.firma.de
+  web:
+    build: ./packages/web
+    ports: ["3000:3000"]
+    environment:
+      - NEXT_PUBLIC_API_URL=https://jahresplaner.firma.de/api
+  caddy:
+    image: caddy:2
+    ports: ["443:443"]
+```
+
+`docker compose up` — drei Container, ein Befehl. API und Frontend unabhängig
+deploybar, skalierbar, und bei Fehlern voneinander isoliert.
 
 ---
 
