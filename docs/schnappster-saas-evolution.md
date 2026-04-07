@@ -277,6 +277,234 @@ Am Ende der Settings-Page als eigenständiger **Danger Zone**-Abschnitt:
 
 ---
 
+## Supabase-Integration: Schritt für Schritt
+
+### Zwei Projekte, drei Umgebungen
+
+| Umgebung | Supabase-Projekt | Zweck |
+|---|---|---|
+| Lokale Entwicklung | `schnappster-dev` | Entwicklung gegen echte Online-DB, kein Docker nötig |
+| Integrationstests | `schnappster-dev` | Tests gegen dev-DB (RLS-Policies, Auth-Flows) |
+| Unit-Tests | — | Supabase gemockt, läuft offline ohne Netzwerk |
+| Produktion | `schnappster-prod` | Live-Betrieb |
+
+Lokale Entwicklung nutzt die Online-dev-DB direkt — kein lokaler Docker-Stack, kein `npx supabase start`. Supabase-Features (RLS, Auth, E-Mail) funktionieren sofort.
+
+---
+
+### Schritt 1 — Supabase-Projekte anlegen
+
+1. [supabase.com](https://supabase.com) → Dashboard → **New Project**
+2. Projekt `schnappster-dev` anlegen (Region wählen, DB-Passwort notieren)
+3. Projekt `schnappster-prod` anlegen (gleiche Region)
+
+Für **jedes** Projekt folgende Werte notieren (Settings → API und Settings → Database):
+
+| Wert | Wo zu finden |
+|---|---|
+| **Project URL** | Settings → API → Project URL |
+| **anon key** | Settings → API → Project API keys |
+| **service_role key** | Settings → API → Project API keys (geheim — nie ins Frontend oder Repo) |
+| **Database URL** | Settings → Database → Connection string → URI (mit `[YOUR-PASSWORD]` ersetzen) |
+
+---
+
+### Schritt 2 — Umgebungsvariablen konfigurieren
+
+`.env` (lokale Entwicklung, nicht ins Repo):
+```env
+# Supabase dev-Projekt
+SUPABASE_URL=https://<dev-ref>.supabase.co
+SUPABASE_ANON_KEY=<dev-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<dev-service-role-key>
+DATABASE_URL=postgresql://postgres:<password>@db.<dev-ref>.supabase.co:5432/postgres
+```
+
+Produktion (Server-Umgebungsvariablen oder Secrets-Manager):
+```env
+SUPABASE_URL=https://<prod-ref>.supabase.co
+SUPABASE_ANON_KEY=<prod-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<prod-service-role-key>
+DATABASE_URL=postgresql://postgres:<password>@db.<prod-ref>.supabase.co:5432/postgres
+```
+
+`.env` in `.gitignore` eintragen — `SUPABASE_SERVICE_ROLE_KEY` darf das Repo nie verlassen.
+
+---
+
+### Schritt 3 — Python-Abhängigkeiten
+
+```bash
+uv add supabase asyncpg
+```
+
+- `supabase` — supabase-py für Auth-Operationen (JWT-Validierung, User-Management)
+- `asyncpg` — asynchroner PostgreSQL-Treiber für SQLAlchemy
+
+> **Hinweis:** supabase-py hat weniger Community-Coverage als der JS-Client. Für die aktuelle API immer **Context7** verwenden.
+
+---
+
+### Schritt 4 — DB-Engine auf PostgreSQL umstellen
+
+`app/core/db.py` anpassen:
+
+- `DATABASE_URL` aus Pydantic Settings lesen (statt SQLite-Pfad via `get_app_root()`)
+- SQLAlchemy-Engine mit PostgreSQL-URL und `asyncpg`-Treiber erstellen
+- `create_all(engine)` entfernt — Tabellen werden via Supabase-Migrations angelegt (Schritt 5)
+
+Der SQLite-spezifische Code (`data/schnappster.db`, `get_app_root()`) fällt komplett weg.
+
+---
+
+### Schritt 5 — DB-Schema migrieren
+
+**Einmalig — dev-Projekt:**
+
+Im Supabase Dashboard → **SQL Editor** das neue Schema anlegen:
+
+```sql
+-- owner_id-Spalten hinzufügen (referenzieren Supabase auth.users)
+ALTER TABLE ad_search ADD COLUMN owner_id UUID REFERENCES auth.users(id);
+ALTER TABLE ad ADD COLUMN owner_id UUID REFERENCES auth.users(id);
+
+-- UserSettings-Tabelle anlegen
+CREATE TABLE user_settings (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id),
+    display_name TEXT,
+    telegram_chat_id TEXT,
+    notify_telegram BOOLEAN DEFAULT FALSE,
+    notify_email BOOLEAN DEFAULT FALSE,
+    notify_web_push BOOLEAN DEFAULT FALSE,
+    notify_min_score INTEGER DEFAULT 5,
+    notify_mode TEXT DEFAULT 'instant'
+);
+```
+
+Dasselbe SQL anschließend im prod-Projekt ausführen.
+
+Zukünftige Schema-Änderungen: SQL-Datei in `migrations/` ablegen → dev testen → prod deployen.
+
+---
+
+### Schritt 6 — RLS Policies einrichten
+
+Im SQL Editor (dev zuerst, dann prod):
+
+```sql
+-- RLS aktivieren
+ALTER TABLE ad_search ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ad ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+
+-- Policies: jeder User sieht und verändert nur seine eigenen Daten
+CREATE POLICY "users_own_searches" ON ad_search
+    FOR ALL USING (auth.uid() = owner_id) WITH CHECK (auth.uid() = owner_id);
+
+CREATE POLICY "users_own_ads" ON ad
+    FOR ALL USING (auth.uid() = owner_id) WITH CHECK (auth.uid() = owner_id);
+
+CREATE POLICY "users_own_settings" ON user_settings
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+```
+
+Testen im SQL Editor mit `SET LOCAL role = authenticated; SET LOCAL request.jwt.claims = '{"sub": "<uuid>"}';` vor einer SELECT-Abfrage.
+
+---
+
+### Schritt 7 — OAuth-Provider aktivieren
+
+**Google:**
+1. [console.cloud.google.com](https://console.cloud.google.com) → Credentials → OAuth 2.0 Client ID erstellen
+2. Authorized redirect URIs: `https://<dev-ref>.supabase.co/auth/v1/callback` (+ prod-URL)
+3. Supabase Dashboard → Authentication → Providers → Google → Client ID + Secret eintragen
+
+**Facebook:**
+1. [developers.facebook.com](https://developers.facebook.com) → App erstellen → Facebook Login aktivieren
+2. Valid OAuth Redirect URIs: `https://<dev-ref>.supabase.co/auth/v1/callback`
+3. Supabase Dashboard → Authentication → Providers → Facebook → App ID + Secret eintragen
+
+**Site URL konfigurieren** (Authentication → URL Configuration):
+- Site URL: `http://localhost:3000` (dev) bzw. `https://schnappster.app` (prod)
+- Redirect URLs: beide URLs eintragen
+
+---
+
+### Schritt 8 — FastAPI: JWT-Validierung und `get_current_user`
+
+```python
+# app/core/auth.py — schematisch, aktuellen Code mit Context7 generieren
+from supabase import create_client
+
+supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    response = supabase.auth.get_user(token)
+    if not response.user:
+        raise HTTPException(status_code=401, detail="Nicht autorisiert")
+    return response.user  # enthält id, email, user_metadata
+
+async def require_admin(user = Depends(get_current_user)):
+    if user.app_metadata.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin-Zugriff erforderlich")
+    return user
+```
+
+---
+
+### Schritt 9 — Zwei DB-Sessions implementieren
+
+**User-Context (`get_db_session`):** JWT-Claims werden als PostgreSQL-Session-Variable gesetzt → `auth.uid()` gibt die User-ID zurück → RLS filtert automatisch.
+
+**Admin-Context (`get_admin_session`):** Verbindung mit `SUPABASE_SERVICE_ROLE_KEY` → RLS ist bypassed → `owner_id` in alle Queries und Inserts explizit schreiben.
+
+> Für die konkrete Implementierung mit asyncpg + SQLAlchemy Events (SET LOCAL request.jwt.claims) **Context7 verwenden** — supabase-py ändert hier regelmäßig die empfohlene API.
+
+---
+
+### Schritt 10 — Admin-Rolle vergeben
+
+Der erste Admin wird manuell über den Supabase SQL Editor zugewiesen:
+
+```sql
+-- App-Metadaten setzen (nicht vom User überschreibbar)
+UPDATE auth.users
+SET raw_app_meta_data = raw_app_meta_data || '{"role": "admin"}'::jsonb
+WHERE email = 'admin@example.com';
+```
+
+Das JWT enthält danach `app_metadata.role = "admin"` — FastAPI prüft das in `require_admin`.
+
+Weitere Admins: gleicher SQL-Befehl, oder eigenes Admin-Interface in Phase 4.
+
+---
+
+### Schritt 11 — Unit-Tests: Supabase mocken
+
+Unit-Tests laufen vollständig offline — kein Netzwerk, keine Dev-DB:
+
+```python
+# tests/conftest.py
+from fastapi.testclient import TestClient
+from app.main import app
+from app.core.auth import get_current_user
+
+@pytest.fixture
+def mock_user():
+    return SimpleNamespace(id="test-uuid-1234", email="test@test.com",
+                           app_metadata={"role": "user"})
+
+@pytest.fixture(autouse=True)
+def override_auth(mock_user):
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    yield
+    app.dependency_overrides.clear()
+```
+
+Für DB-Assertions in Unit-Tests: lokales PostgreSQL oder `pytest-postgresql` (in-process PostgreSQL-Instanz). Für RLS-Tests: dev-DB via Integrationstest.
+
+---
+
 ## Begründungen und Vergleiche
 
 ### Warum Supabase?
@@ -326,11 +554,100 @@ Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
 
 ---
 
-## Umsetzungsreihenfolge
+## Detaillierter Umsetzungsplan
 
-1. **Phase 1 — Backend: Auth & Multi-Tenancy:** SQLite → PostgreSQL, `owner_id` auf AdSearch + Ad, Supabase OAuth (Google + Facebook), RLS-Policies, Admin-Rolle, zwei DB-Sessions (`get_db_session` / `get_admin_session`), `UserSettings`-Tabelle
-2. **Phase 2 — Frontend: Auth-Screens:** Login, Registrierung, Passwort vergessen, Passwort zurücksetzen — im Schnappster-UX-Stil (`(auth)`-Route-Group, ohne Sidebar)
-3. **Phase 3 — Account-Management:** Benutzerprofil-Seite (Name, Avatar, E-Mail), Passwort ändern, Konto löschen (Danger Zone) — auf der User-Settings-Page
-4. **Phase 4 — Admin-Bereich:** Log-Bereich absichern (`require_admin`), App-Settings-Route absichern, Manuell Scrape/Analyze auslösen, System-Statistiken
-5. **Phase 5 — Betrieb:** Benachrichtigungen (Telegram, Web Push, E-Mail), Rate-Limiting, Monitoring (Sentry)
-6. **Phase 6 — Payments (perspektivisch):** Stripe-Subscriptions, Webhooks, Feature-Gates
+### Phase 1 — Backend: Auth & Multi-Tenancy
+
+**Supabase-Setup (einmalig, manuell):**
+- Projekte `schnappster-dev` und `schnappster-prod` auf supabase.com anlegen
+- OAuth-Provider aktivieren: Google + Facebook (Redirect URLs konfigurieren)
+- `.env` mit dev-Credentials befüllen
+
+**Backend-Migration:**
+- `uv add supabase asyncpg`
+- `app/core/db.py`: SQLite-Engine durch PostgreSQL-Engine ersetzen (`DATABASE_URL` aus Settings)
+- Pydantic Settings um `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` erweitern
+- `app/core/auth.py`: `get_current_user` + `require_admin` Dependencies implementieren (supabase-py, **Context7 nutzen**)
+- `get_db_session()` (User-Context, RLS aktiv) und `get_admin_session()` (Service-Role) implementieren
+
+**DB-Schema:**
+- `owner_id UUID` auf `AdSearch` und `Ad` ergänzen (SQL Editor im dev-Projekt)
+- `UserSettings`-Tabelle anlegen
+- RLS aktivieren und Policies für alle User-Tabellen setzen
+- Hintergrundjobs (ScraperService, AIService) auf `get_admin_session` + explizites `owner_id` umstellen
+
+**Tests:**
+- `conftest.py`: `get_current_user` Override für Unit-Tests, separates Admin-Fixture
+- Bestehende Tests auf PostgreSQL-kompatible Fixtures umstellen
+- `uv run pytest` muss grün sein
+
+---
+
+### Phase 2 — Frontend: Auth-Screens
+
+**Route-Group `(auth)` anlegen** (`web/app/(auth)/`):
+- Gemeinsames Layout ohne Sidebar: `gradient-subtle`-Hintergrund, Logo + `Card max-w-sm` zentriert
+- `/login`: Social-Login-Buttons (Google, Facebook) + E-Mail/Passwort-Formular + „Passwort vergessen?"-Link
+- `/register`: Social-Login-Buttons + E-Mail/Passwort/Bestätigen-Formular + Link zu `/login`
+- `/forgot-password`: E-Mail-Feld, neutrale Bestätigungsmeldung nach Absenden
+- `/reset-password`: Neues Passwort + Bestätigen, Token aus URL via Supabase JS SDK verarbeiten
+
+**Auth-State im Frontend:**
+- Supabase JS Client (`@supabase/supabase-js`) einrichten
+- Auth-Context oder Hook (`useSession`) für Session-State
+- Middleware: nicht eingeloggte User → Redirect zu `/login`
+- Nach Login → Redirect zur App
+
+---
+
+### Phase 3 — Account-Management
+
+**User-Settings-Page erweitern** (bestehende `/settings` umbauen für Multi-User):
+- Benutzerprofil-Abschnitt: Name (editierbar), Avatar (aus OAuth, read-only), E-Mail (read-only)
+- Passwort-ändern-Abschnitt (nur bei E-Mail/Passwort-Accounts sichtbar): Neues Passwort + Bestätigen
+- Benachrichtigungs-Einstellungen: Telegram Chat-ID, Kanal-Auswahl, Mindest-Score (Slider 0–10), Modus
+- **Danger Zone:** Konto löschen — `AlertDialog` mit Eingabebestätigung (`löschen` eintippen)
+
+**Backend:**
+- `GET /users/me` + `PATCH /users/me` — Profil lesen und aktualisieren
+- `GET /users/me/settings` + `PATCH /users/me/settings` — UserSettings
+- `DELETE /users/me` — Cascade-Delete: AdSearches → Ads → UserSettings → Supabase Auth User (Service-Role); Haupt-Admin geschützt (403)
+- `POST /users/me/change-password` — via Supabase Auth API
+
+---
+
+### Phase 4 — Admin-Bereich
+
+**Bestehende Routen absichern:**
+- Logs-Route: `require_admin` Dependency hinzufügen
+- App-Settings-Route: `require_admin` Dependency hinzufügen
+
+**Neue Admin-Routen:**
+- `POST /admin/scrape` — Manuell Scrape auslösen (für eine oder alle AdSearches)
+- `POST /admin/analyze` — Manuell AI-Analyse auslösen
+- `GET /admin/stats` — System-Statistiken: User-Anzahl, Ad-Anzahl, letzte Scrape-Zeit, Analyzer-Backlog
+
+**Frontend (Admin-Bereich in Sidebar):**
+- Admin-Sektion in der Sidebar (nur sichtbar für Admins)
+- Logs-Seite: bereits vorhanden, jetzt nur noch für Admins zugänglich
+- Admin-Dashboard: Statistiken, manuelle Trigger-Buttons
+
+---
+
+### Phase 5 — Betrieb
+
+**Benachrichtigungen:**
+- Telegram: nach jedem Analyze-Run für User mit `notify_telegram = true` und `bargain_score >= notify_min_score` — via Bot-Token aus `.env`, Chat-ID aus `UserSettings`
+- E-Mail: Supabase Transactional Emails oder eigener SMTP (Resend empfohlen)
+- Web Push: VAPID-Keys generieren, Service Worker im Frontend, `PushSubscription` in `UserSettings` speichern
+
+**Betrieb:**
+- Rate-Limiting auf Auth-Routen (FastAPI `slowapi` oder Supabase-seitig)
+- Monitoring: Sentry für Python-Backend und Next.js-Frontend
+
+---
+
+### Phase 6 — Payments (perspektivisch)
+
+- Stripe-Subscriptions, Webhooks, Feature-Gates
+- Wird erst geplant wenn Phase 5 abgeschlossen
