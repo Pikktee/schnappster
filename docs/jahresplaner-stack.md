@@ -63,33 +63,6 @@ Frontend, API und perspektivisch Mobile App nutzen dieselben Typen.
 
 ---
 
-## Geschäftslogik isolieren
-
-Geschäftsregeln gehören weder in Routes noch in DB-Queries — sie werden in eigenen
-Klassen gekapselt. Reine Funktionen/Klassen ohne DB- oder HTTP-Abhängigkeit,
-testbar mit simplen Objekten.
-
-**Faustregel:** Eine einzelne Regel → eigene Funktion. Mehrere zusammengehörige
-Regeln auf denselben Daten → eigene Klasse.
-
----
-
-## Tests
-
-### Strategie nach Schicht
-
-| Schicht | Testtyp | Tool | Aufwand |
-|---|---|---|---|
-| `domain/` | Unit-Tests | Vitest | kein Setup, schnell, höchste Abdeckung |
-| `routes/` | Integrationstests | Vitest + Hono Test-Client | kein externer Server nötig |
-| `web/` | Komponententests | React Testing Library | isolierte UI-Tests |
-
-**Domain-Tests** sind der größte Hebel — reine Geschäftslogik ohne DB oder HTTP.
-Route-Tests nutzen Honos eingebauten Test-Helper (kein Server-Start nötig).
-Frontend-Tests mit React Testing Library für isolierte Komponententests.
-
----
-
 ## CLAUDE.md — Codequalität und Tests sicherstellen
 
 Die CLAUDE.md ist die wichtigste Datei für Vibe-Coding-Qualität. Claude hält sich
@@ -108,7 +81,29 @@ Firmeninterner Jahresplaner. API-First Monorepo mit Hono (API), Next.js (Web), s
 - `npm run lint` — Linting
 - `npm run build` — Production Build
 
+## Geschäftslogik
+- Geschäftsregeln gehören weder in Routes noch in DB-Queries — eigene Klassen
+  in `api/src/domain/`, ohne DB- oder HTTP-Abhängigkeit, testbar mit simplen Objekten
+- Faustregel: eine einzelne Regel → eigene Funktion; mehrere zusammengehörige
+  Regeln auf denselben Daten → eigene Klasse
+- Routes sind dünn: validieren, Domain aufrufen, Response zurückgeben
+- Keine DB-Imports in `domain/`-Dateien
+- Shared Types in `shared/` — keine Typ-Duplikate zwischen api und web
+
 ## Tests
+
+### Strategie nach Schicht
+
+| Schicht | Testtyp | Tool |
+|---|---|---|
+| `domain/` | Unit-Tests | Vitest |
+| `routes/` | Integrationstests | Vitest + Hono Test-Client |
+| `web/` | Komponententests | React Testing Library |
+
+Domain-Tests sind der größte Hebel — reine Geschäftslogik ohne DB oder HTTP.
+Route-Tests nutzen Honos eingebauten Test-Helper (kein Server-Start nötig).
+
+### Regeln
 - Jede neue Domain-Klasse braucht Unit-Tests
 - Jede neue Route braucht mindestens einen Happy-Path-Integrationstest
 - Tests VOR der Implementierung schreiben wenn die Anforderung klar ist
@@ -123,12 +118,6 @@ Firmeninterner Jahresplaner. API-First Monorepo mit Hono (API), Next.js (Web), s
 - Early Return statt verschachtelter if-Blöcke
 - Keine auskommentierten Code-Blöcke — löschen statt kommentieren
 - Keine Magic Numbers — Konstanten mit sprechenden Namen
-
-## Architektur
-- Geschäftslogik gehört in `api/src/domain/`-Klassen, nicht in Routes
-- Routes sind dünn: validieren, Domain aufrufen, Response zurückgeben
-- Keine DB-Imports in `domain/`-Dateien
-- Shared Types in `shared/` — keine Typ-Duplikate zwischen api und web
 
 ## TypeScript-Konventionen
 - `strict: true` in tsconfig.json — immer
