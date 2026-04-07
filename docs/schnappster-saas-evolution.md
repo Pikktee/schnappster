@@ -184,8 +184,12 @@ Die bestehende CLAUDE.md um folgende Abschnitte erweitern:
   Jobs dürfen sich nicht überlappen
 - `AppSettings`-Tabelle für globale runtime-konfigurierbare Einstellungen (Admin)
 - `UserSettings`-Tabelle für benutzerspezifische Einstellungen (Telegram Chat-ID, Benachrichtigungen)
+- `InviteCode`-Tabelle für Einladungscodes — Validierung vor Account-Anlage
+- `require_invite_code` AppSettings-Key steuert ob Registrierung offen oder nur per Code möglich ist
+- Konto-Löschung: Cascade-Delete aller User-Daten via Service-Role, danach Supabase Auth User löschen — Haupt-Admin kann sich nicht löschen (API gibt 403)
 - Telegram Bot-Token in `.env` — Chat-ID je User in `UserSettings`
 - Avatar kommt als URL aus der Supabase Auth Session (OAuth-Provider) — kein eigenes Storage
+- Passwort-Änderung über Supabase Auth API — kein altes Passwort nötig (User ist eingeloggt)
 - API-Keys (`OPENAI_API_KEY`, `SUPABASE_URL` etc.) nur in `.env`
 
 ## MCP
@@ -250,9 +254,132 @@ class UserSettings(SQLModel, table=True):
 
 ---
 
+## Auth-Screens & Account-Management
+
+### UX-Stil der Auth-Screens
+
+Die Auth-Screens liegen in einer eigenen Route-Group `(auth)` — ohne Sidebar, aber mit identischer visueller Sprache wie die App:
+
+- **Hintergrund:** `gradient-subtle` (minimal amber-getönter Off-White-Hintergrund)
+- **Theme-Farbe:** Amber (`#F59E0B`) — primärer Button, Focus-Ring
+- **Font:** Lexend (wie die App)
+- **Card:** shadcn/ui `Card` — `max-w-sm`, zentriert vertikal/horizontal
+- **Logo:** Schnappster-Branding + Icon oberhalb der Card
+- **Sprache:** Deutsch
+- **Feedback:** `toast.error` bei Fehlern, Success → direkt weiterleiten (kein separater Toast)
+
+### Screen-Übersicht
+
+| Screen | Route | Beschreibung |
+|---|---|---|
+| **Login** | `/login` | Social-Login-Buttons + E-Mail/Passwort-Formular |
+| **Registrierung** | `/register` | E-Mail/Passwort + optionales Einladungscode-Feld |
+| **Passwort vergessen** | `/forgot-password` | E-Mail eingeben → Reset-Link per E-Mail |
+| **Passwort zurücksetzen** | `/reset-password` | Neues Passwort setzen (via Supabase-Reset-Token in URL) |
+
+### Login-Screen (`/login`)
+
+Aufbau (von oben nach unten innerhalb der Card):
+1. **Social Login:** „Mit Google anmelden" + „Mit Facebook anmelden" (volle Breite)
+2. **Divider:** „oder" 
+3. **Formular:** E-Mail + Passwort
+4. **Link:** „Passwort vergessen?" → `/forgot-password` (rechts ausgerichtet, `text-link`)
+5. **Button:** „Anmelden" (primary, volle Breite)
+6. **Footer-Link:** „Noch kein Konto? Jetzt registrieren" → `/register`
+
+Nicht eingeloggte User werden bei jedem App-Aufruf automatisch zu `/login` weitergeleitet.
+
+### Registrierungs-Screen (`/register`)
+
+- Social-Login-Buttons (Google, Facebook) — nur anzeigen wenn Einladungscode nicht erforderlich **oder** Code bereits in URL (`?invite=CODE`)
+- Formular: E-Mail + Passwort + Passwort bestätigen
+- Wenn `require_invite_code` aktiv: Pflichtfeld „Einladungscode" (wird aus `?invite=`-Parameter vorab befüllt)
+- Link: „Bereits ein Konto? Jetzt anmelden" → `/login`
+
+### Passwort vergessen / zurücksetzen
+
+**Forgot-Password (`/forgot-password`):**
+- E-Mail-Feld + Button „Reset-Link anfordern"
+- Nach Absenden immer dieselbe neutrale Bestätigung: „Falls ein Account mit dieser E-Mail existiert, wurde eine E-Mail verschickt." (kein User-Enumeration)
+- Supabase Auth versendet die E-Mail automatisch
+
+**Reset-Password (`/reset-password`):**
+- Supabase fügt Token als URL-Parameter an — Supabase JS SDK verarbeitet ihn automatisch beim Seitenaufruf
+- Formular: Neues Passwort + Bestätigen
+- Nach Erfolg: Weiterleitung zu `/login` mit Toast: „Passwort wurde geändert"
+
+### Passwort ändern (User-Settings-Page)
+
+Eigener Abschnitt innerhalb der Benutzereinstellungen-Seite — **nur sichtbar für E-Mail/Passwort-User**, ausgeblendet bei reinen OAuth-Accounts (erkennbar an fehlender `email` Identität mit Passwort in Supabase Auth).
+
+- Felder: Neues Passwort + Bestätigen
+- Kein „altes Passwort"-Feld (Supabase Auth erlaubt direkte Änderung nach Login)
+- Button: „Passwort ändern"
+
+### Konto löschen (User-Settings-Page)
+
+Am Ende der Settings-Page als eigenständiger **Danger Zone**-Abschnitt:
+
+- Separierte Card mit rotem Akzent (`border-destructive/30`, `CardTitle` in `text-destructive`)
+- Beschreibungstext: „Dein Konto und alle gespeicherten Daten (Suchen, Schnäppchen) werden unwiderruflich gelöscht."
+- Button: „Konto löschen" (`variant="destructive"`, outline-style um versehentliche Klicks zu vermeiden)
+- **Bestätigung:** shadcn/ui `AlertDialog` — Titel „Konto wirklich löschen?", Bestätigungs-Button erst klickbar nach Eingabe des Wortes `löschen` in ein Textfeld (Sicherheitsstufe)
+- **Backend-Logik:** Cascade-Delete aller User-Daten (AdSearches, Ads, UserSettings) → anschließend Supabase Auth User löschen via Service-Role
+- **Schutz Haupt-Admin:** Der erste Admin-Account (definiert über `is_primary_admin`-Flag oder feste E-Mail in `.env`) kann sich nicht selbst löschen — API gibt `403` zurück, Frontend zeigt stattdessen informativen Hinweis
+
+---
+
+## Einladungscodes
+
+### Konzept
+
+Registrierung kann auf eingeladene Nutzer beschränkt werden. Das Verhalten ist per AppSettings flexibel steuerbar:
+
+| Setting | Wert | Effekt |
+|---|---|---|
+| `require_invite_code` | `true` | Registrierung nur mit gültigem Code möglich |
+| `require_invite_code` | `false` | Offene Registrierung (kein Code nötig) |
+
+### InviteCode-Tabelle
+
+```python
+class InviteCode(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    code: str          # zufälliger Token, unique (z.B. 8 alphanumerische Zeichen)
+    created_by: uuid.UUID      # admin user_id
+    used_by: uuid.UUID | None  # user_id des Registrierten
+    used_at: datetime | None
+    expires_at: datetime | None  # None = kein Ablaufdatum
+    is_active: bool = True
+```
+
+### Registrierungsflows mit Code
+
+**E-Mail/Passwort-Registrierung:**
+1. User ruft `/register?invite=CODE` auf — Code wird ins Formular übernommen
+2. Backend validiert Code vor Anlage des Accounts
+3. Bei Erfolg: Code als `used_by` + `used_at` markieren
+
+**OAuth-Registrierung (Google/Facebook):**
+- Code wird in der Browser-Session gespeichert (z.B. `sessionStorage`) bevor der OAuth-Redirect startet
+- Nach OAuth-Callback: Code-Validierung via FastAPI-Webhook oder eigener Supabase-Auth-Hook
+- Bei ungültigem Code: Account wird deaktiviert, Fehlermeldung
+
+### Admin-Verwaltung (Phase 2)
+
+Im Admin-Bereich:
+- Codes einzeln oder als Batch generieren (mit optionalem Ablaufdatum)
+- Liste aller Codes: Status (offen / verwendet / abgelaufen / deaktiviert), Erstellt-Datum, Verwendet-von
+- Einzelne Codes deaktivieren
+- Direktlink kopieren: `https://schnappster.app/register?invite=CODE`
+
+---
+
 ## Umsetzungsreihenfolge
 
-1. **Phase 1 — Auth & Multi-Tenancy:** SQLite → PostgreSQL, `owner_id` auf AdSearch + Ad, Supabase OAuth (Google + Facebook), RLS-Policies, Admin-Rolle, zwei DB-Sessions (`get_db_session` / `get_admin_session`), `UserSettings`-Tabelle (Profil + Benachrichtigungseinstellungen)
-2. **Phase 2 — Admin-Bereich:** Log-Bereich absichern (`require_admin`), App-Settings-Route absichern, Manuell Scrape/Analyze auslösen, System-Statistiken
-3. **Phase 3 — Betrieb:** Benachrichtigungen (Telegram, Web Push, E-Mail), Rate-Limiting, Monitoring (Sentry)
-4. **Phase 4 — Payments (perspektivisch):** Stripe-Subscriptions, Webhooks, Feature-Gates
+1. **Phase 1 — Auth & Multi-Tenancy:** SQLite → PostgreSQL, `owner_id` auf AdSearch + Ad, Supabase OAuth (Google + Facebook), RLS-Policies, Admin-Rolle, zwei DB-Sessions (`get_db_session` / `get_admin_session`), `UserSettings`-Tabelle (Profil + Benachrichtigungseinstellungen), `InviteCode`-Tabelle
+2. **Phase 1b — Auth-Screens:** Login, Registrierung (mit Einladungscode-Support), Passwort vergessen, Passwort zurücksetzen — im Schnappster-UX-Stil (`(auth)`-Route-Group, ohne Sidebar)
+3. **Phase 1c — Account-Management:** Passwort ändern + Konto löschen (Danger Zone) auf der User-Settings-Page
+4. **Phase 2 — Admin-Bereich:** Log-Bereich absichern (`require_admin`), App-Settings-Route absichern (`require_invite_code` toggle), Einladungscode-Verwaltung, Manuell Scrape/Analyze auslösen, System-Statistiken
+5. **Phase 3 — Betrieb:** Benachrichtigungen (Telegram, Web Push, E-Mail), Rate-Limiting, Monitoring (Sentry)
+6. **Phase 4 — Payments (perspektivisch):** Stripe-Subscriptions, Webhooks, Feature-Gates
