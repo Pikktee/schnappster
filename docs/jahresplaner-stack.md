@@ -63,17 +63,50 @@ Frontend, API und perspektivisch Mobile App nutzen dieselben Typen.
 
 ---
 
-## CLAUDE.md — Codequalität und Tests sicherstellen
+## Hinweise für Vibe-Coding
 
-Die CLAUDE.md ist die wichtigste Datei für Vibe-Coding-Qualität. Claude hält sich
-an diese Regeln — ohne sie generiert Claude oft Code ohne Tests und mit
-inkonsistentem Stil. Diese CLAUDE.md ins Repo-Root legen:
+### Was hervorragend funktioniert
+
+- **Next.js, TypeScript, Tailwind** — Claude kennt diese Stacks sehr gut
+- **Drizzle** — Schema-Definitionen und Queries sind vorhersagbar
+- **PostgreSQL / SQLite** — seit Jahrzehnten stabil
+
+### Worauf man achten muss
+
+- **Better-Auth** — jung (2024), Claude kennt die Library nur begrenzt. Wird möglicherweise veraltete API-Patterns vorschlagen oder auf Auth.js-Muster zurückfallen. **Immer gegen offizielle Doku prüfen.**
+- **Hono** — besser als Better-Auth was Claude-Wissen angeht, aber bei neueren Features gegenprüfen
+
+### Context7 MCP-Server einrichten
+
+Kompensiert Wissenslücken bei neuen Libraries. Claude holt gezielt aktuelle Doku
+(nicht alles, nur was relevant ist):
+
+```json
+// .claude/settings.json
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    }
+  }
+}
+```
+
+### CLAUDE.md ins Repo-Root legen
+
+Die CLAUDE.md steuert Codequalität, Architektur und Teststrategie. Ohne sie
+generiert Claude oft Code ohne Tests und mit inkonsistentem Stil.
+
+<details>
+<summary>Vollständige CLAUDE.md anzeigen</summary>
 
 ```markdown
 # CLAUDE.md
 
 ## Projekt
 Firmeninterner Jahresplaner. API-First Monorepo mit Hono (API), Next.js (Web), shared (Typen).
+Nutze immer context7 wenn du Code für Better-Auth, Hono oder Drizzle generierst.
 
 ## Befehle
 - `npm run dev` — startet API + Web parallel
@@ -92,18 +125,14 @@ Firmeninterner Jahresplaner. API-First Monorepo mit Hono (API), Next.js (Web), s
 
 ## Tests
 
-### Strategie nach Schicht
-
 | Schicht | Testtyp | Tool |
 |---|---|---|
 | `domain/` | Unit-Tests | Vitest |
 | `routes/` | Integrationstests | Vitest + Hono Test-Client |
 | `web/` | Komponententests | React Testing Library |
 
-Domain-Tests sind der größte Hebel — reine Geschäftslogik ohne DB oder HTTP.
-Route-Tests nutzen Honos eingebauten Test-Helper (kein Server-Start nötig).
-
-### Regeln
+- Domain-Tests sind der größte Hebel — reine Geschäftslogik ohne DB oder HTTP
+- Route-Tests nutzen Honos eingebauten Test-Helper (kein Server-Start nötig)
 - Jede neue Domain-Klasse braucht Unit-Tests
 - Jede neue Route braucht mindestens einen Happy-Path-Integrationstest
 - Tests VOR der Implementierung schreiben wenn die Anforderung klar ist
@@ -138,44 +167,9 @@ Route-Tests nutzen Honos eingebauten Test-Helper (kein Server-Start nötig).
 - Nur kommentieren WARUM, nicht WAS
 - Kein Kommentar ist besser als ein trivialer Kommentar
 - JSDoc nur für öffentliche API-Funktionen in shared/
-
-## MCP
-Nutze immer context7 wenn du Code für Better-Auth, Hono oder Drizzle generierst.
 ```
 
----
-
-## Hinweise für Vibe-Coding
-
-### Was hervorragend funktioniert
-
-- **Next.js, TypeScript, Tailwind** — Claude kennt diese Stacks sehr gut. Zuverlässigstes Vibe-Coding-Erlebnis.
-- **Drizzle** — Schema-Definitionen und Queries sind vorhersagbar, Claude generiert zuverlässigen Code.
-- **PostgreSQL / SQLite** — seit Jahrzehnten stabil, keinerlei Probleme.
-
-### Worauf man achten muss
-
-- **Better-Auth** — jung (2024), Claude's Trainingsdaten kennen die Library nur begrenzt. Claude wird möglicherweise veraltete API-Patterns vorschlagen oder auf Auth.js-Muster zurückfallen. **Immer gegen offizielle Doku prüfen.**
-- **Hono** — besser als Better-Auth was Claude-Wissen angeht, aber bei neueren Features oder Edge Cases gegenprüfen.
-
-### Empfohlene MCP-Erweiterungen
-
-**Context7** (`@upstash/context7-mcp`) kompensiert das Wissenslücken-Problem bei neuen Libraries. Einrichtung:
-
-```json
-// .claude/settings.json
-{
-  "mcpServers": {
-    "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"]
-    }
-  }
-}
-```
-
-Nutzung: `"use context7"` in die Nachricht schreiben — Claude holt dann gezielt
-die aktuelle Doku der betroffenen Library (nicht alles, nur was relevant ist).
+</details>
 
 ---
 
