@@ -21,8 +21,13 @@ Komplett self-hosted, keine externen Managed-Services.
 | **ORM** | [Drizzle](https://orm.drizzle.team) | Typsicheres ORM. Unterstützt SQLite und PostgreSQL mit identischer API — DB-Wechsel ist ein Import-Austausch |
 | **Datenbank** | SQLite → PostgreSQL | SQLite zum Start (einfach, keine Server-Infrastruktur), PostgreSQL bei wachsender Last |
 | **E-Mail** | Firmen-SMTP | Passwort-Reset und Benachrichtigungen über bestehende Firmen-Mailinfrastruktur |
+| **Tests** | [Vitest](https://vitest.dev) | Test-Runner, schneller als Jest, natives TypeScript |
 
 ### Frontend
+
+| Komponente | Technologie | Beschreibung |
+|---|---|---|
+| **Tests** | [React Testing Library](https://testing-library.com) | Komponententests, nutzerzentriert |
 
 | Komponente | Technologie | Beschreibung |
 |---|---|---|
@@ -208,6 +213,11 @@ deploybar, skalierbar, und bei Fehlern voneinander isoliert.
 Dev-Server parallel (Hono + Next.js) mit Hot Reload. Next.js proxied `/api`
 automatisch an den lokalen Hono-Server.
 
+**CORS:** Kein Problem — weder lokal noch in Produktion. Der Browser spricht immer
+nur mit einer Origin (lokal: Next.js-Proxy auf `:3000`, Produktion: Caddy auf einer
+Domain). CORS-Konfiguration in Hono ist erst nötig wenn eine Mobile App später direkt
+gegen die API spricht.
+
 ---
 
 ## Geschäftslogik isolieren
@@ -268,6 +278,97 @@ app.post('/api/vacations', async (c) => {
 
 Kein volles DDD/Hexagonal-Framework nötig — nur diese saubere Trennung. Wächst die
 Komplexität, kann daraus schrittweise eine formale Domänenschicht werden.
+
+---
+
+## Tests
+
+### Strategie nach Schicht
+
+| Schicht | Testtyp | Tool | Aufwand |
+|---|---|---|---|
+| `domain/` | Unit-Tests | Vitest | kein Setup, schnell, höchste Abdeckung |
+| `routes/` | Integrationstests | Vitest + Hono Test-Client | kein externer Server nötig |
+| `web/` | Komponententests | React Testing Library | isolierte UI-Tests |
+
+**Domain-Tests** sind der größte Hebel — reine Geschäftslogik ohne DB oder HTTP:
+
+```typescript
+// api/tests/domain/vacation-policy.test.ts
+describe('VacationPolicy', () => {
+  it('lehnt ab wenn >30% des Teams abwesend', () => {
+    const team = { members: ['a', 'b', 'c'] }
+    const existing = [{ userId: 'a', from: '2026-07-01', to: '2026-07-14' }]
+    const policy = new VacationPolicy(team, existing)
+
+    const result = policy.canApprove({ from: '2026-07-05', to: '2026-07-10' })
+    expect(result.allowed).toBe(false)
+  })
+})
+```
+
+**Route-Tests** — Hono hat einen eingebauten Test-Helper, kein Server-Start nötig:
+
+```typescript
+// api/tests/routes/vacations.test.ts
+it('erstellt einen Urlaubsantrag', async () => {
+  const res = await app.request('/api/vacations', {
+    method: 'POST',
+    body: JSON.stringify({ from: '2026-07-01', to: '2026-07-14' }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+  expect(res.status).toBe(201)
+})
+```
+
+**Frontend-Tests** — Komponenten isoliert testen:
+
+```typescript
+// web/__tests__/planner-view.test.tsx
+it('zeigt Urlaubseinträge an', () => {
+  render(<PlannerView vacations={mockVacations} />)
+  expect(screen.getByText('Urlaub: 01.07 – 14.07')).toBeInTheDocument()
+})
+```
+
+---
+
+## CLAUDE.md — Codequalität und Tests sicherstellen
+
+Die CLAUDE.md ist die wichtigste Datei für Vibe-Coding-Qualität. Claude hält sich
+an diese Regeln — ohne sie generiert Claude oft Code ohne Tests und mit
+inkonsistentem Stil. Empfohlener Inhalt:
+
+```markdown
+# CLAUDE.md
+
+## Tests
+- Jede neue Domain-Klasse braucht Unit-Tests
+- Jede neue Route braucht mindestens einen Happy-Path-Integrationstest
+- Tests VOR der Implementierung schreiben wenn die Anforderung klar ist
+- `npm test` muss vor jedem Commit grün sein
+- Keine gemockten Implementierungsdetails — teste Verhalten, nicht Interna
+
+## Code-Stil
+- Funktionen und Variablen: sprechende Namen, keine Abkürzungen
+  (`getActiveTeamMembers`, nicht `getATM`)
+- Funktionen maximal 20 Zeilen — darüber hinaus aufteilen
+- Maximal 2 Ebenen Einrückung pro Funktion (kein tief verschachteltes if/for/try)
+- Early Return statt verschachtelter if-Blöcke
+- Keine auskommentierten Code-Blöcke — löschen statt kommentieren
+- Keine Magic Numbers — Konstanten mit sprechenden Namen
+
+## Architektur
+- Geschäftslogik gehört in `domain/`-Klassen, nicht in Routes
+- Routes sind dünn: validieren, Domain aufrufen, Response zurückgeben
+- Keine DB-Imports in `domain/`-Dateien
+- Shared Types in `shared/` — keine Typ-Duplikate zwischen api und web
+
+## Kommentare
+- Nur kommentieren WARUM, nicht WAS
+- Kein Kommentar ist besser als ein trivialer Kommentar
+- JSDoc nur für öffentliche API-Funktionen in shared/
+```
 
 ---
 
