@@ -16,31 +16,23 @@ Komplett self-hosted, keine externen Managed-Services.
 | Komponente | Technologie | Beschreibung |
 |---|---|---|
 | **Sprache** | TypeScript | Shared Types zwischen API und Frontend — kein manuelles Synchronisieren von Datenmodellen |
+| **API-Framework** | [Hono](https://hono.dev) | Ultraleichtes (~14kb) API-Framework. Läuft auf Node.js, Bun oder Deno. Typsicher, schnell, minimalistisch |
+| **Auth** | [Better-Auth](https://better-auth.com) | Self-hosted Auth-Library. E-Mail+Passwort, später SSO (Microsoft/Google) ohne Architekturumbau |
+| **ORM** | [Drizzle](https://orm.drizzle.team) | Typsicheres ORM. Unterstützt SQLite und PostgreSQL mit identischer API — DB-Wechsel ist ein Import-Austausch |
 | **Datenbank** | SQLite → PostgreSQL | SQLite zum Start (einfach, keine Server-Infrastruktur), PostgreSQL bei wachsender Last |
 | **E-Mail** | Firmen-SMTP | Passwort-Reset und Benachrichtigungen über bestehende Firmen-Mailinfrastruktur |
+| **Tests** | [Vitest](https://vitest.dev) | Test-Runner, schneller als Jest, natives TypeScript |
 
-**[Hono](https://hono.dev)** — API-Framework · ultraleicht (~14kb), typsicher, läuft auf Node.js/Bun/Deno
 <details>
-<summary>Zukunftssicherheit</summary>
-25k+ GitHub Stars, 400k+ wöchentliche Downloads. Entwickler Yusuke Wada wurde 2023 von Cloudflare eingestellt — Vollzeit-Entwicklung. Cloudflare nutzt Hono intern in D1, Workers Logs, KV und Queues.
-</details>
+<summary>Zukunftssicherheit der Kernbibliotheken</summary>
 
-**[Better-Auth](https://better-auth.com)** — Auth · self-hosted, E-Mail+Passwort jetzt, SSO (Microsoft/Google) später ohne Umbau
-<details>
-<summary>Zukunftssicherheit</summary>
-27k+ GitHub Stars, 150k+ wöchentliche Downloads. Y Combinator Spring 2025, $5M Seed von Peak XV (ehemals Sequoia India). Empfohlen von Next.js, Nuxt und Astro. In Produktion bei YC-Companies und OSS-Projekten (Dokploy, Folo, Zero).
-</details>
+| Bibliothek | Stars | Backing | Genutzt von |
+|---|---|---|---|
+| **Hono** | 25k+ | Cloudflare (Entwickler in Vollzeit angestellt) | Cloudflare intern (D1, KV, Queues) |
+| **Better-Auth** | 27k+ | Y Combinator, $5M Seed (Peak XV / Sequoia) | Dokploy, Folo, Zero; empfohlen von Next.js, Nuxt, Astro |
+| **Drizzle** | 33k+ | PlanetScale (Kernteam übernommen, 2026) | Replit, Sentry, Figma, Databricks; Astro DB basiert auf Drizzle |
+| **Vitest** | 16k+ | Vercel, Chromatic (Sponsoring) | De-facto-Standard im Vite-Ökosystem, 2–5x schneller als Jest |
 
-**[Drizzle](https://orm.drizzle.team)** — ORM · typsicher, SQLite und PostgreSQL mit identischer API, DB-Wechsel ist ein Import-Austausch
-<details>
-<summary>Zukunftssicherheit</summary>
-33k+ GitHub Stars. Kernteam wurde 2026 von PlanetScale übernommen — Enterprise-Backing gesichert. In Produktion bei Replit, Sentry, Figma und Databricks. Astro DB basiert auf Drizzle.
-</details>
-
-**[Vitest](https://vitest.dev)** — Tests · schneller als Jest, natives TypeScript, Teil des Vite-Ökosystems
-<details>
-<summary>Zukunftssicherheit</summary>
-16k+ GitHub Stars. Gesponsert von Vercel und Chromatic. 2–5x schneller als Jest. De-facto-Standard für Tests in Vite-basierten Projekten.
 </details>
 
 ### Frontend
