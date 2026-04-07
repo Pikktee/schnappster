@@ -67,7 +67,7 @@ Frontend, API und perspektivisch Mobile App nutzen dieselben Typen.
 
 ### Was hervorragend funktioniert
 
-- **Next.js, TypeScript, Tailwind** — Claude kennt diese Stacks sehr gut
+- **Next.js, TypeScript** — Claude kennt diese Stacks sehr gut
 - **Drizzle** — Schema-Definitionen und Queries sind vorhersagbar
 - **PostgreSQL / SQLite** — seit Jahrzehnten stabil
 
