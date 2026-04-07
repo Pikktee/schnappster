@@ -72,56 +72,6 @@ testbar mit simplen Objekten.
 **Faustregel:** Eine einzelne Regel → eigene Funktion. Mehrere zusammengehörige
 Regeln auf denselben Daten → eigene Klasse.
 
-```typescript
-// domain/vacation-policy.ts — kennt keine DB, kein HTTP
-export class VacationPolicy {
-  constructor(
-    private team: Team,
-    private existingVacations: Vacation[]
-  ) {}
-
-  canApprove(request: VacationRequest): Result {
-    if (this.exceedsTeamCapacity(request)) {
-      return { allowed: false, reason: 'Zu viele gleichzeitig abwesend' }
-    }
-    if (this.exceedsIndividualBudget(request)) {
-      return { allowed: false, reason: 'Urlaubskontingent erschöpft' }
-    }
-    if (this.conflictsWithFreeze(request)) {
-      return { allowed: false, reason: 'Urlaubssperre in diesem Zeitraum' }
-    }
-    return { allowed: true }
-  }
-
-  private exceedsTeamCapacity(request: VacationRequest): boolean {
-    const concurrent = this.existingVacations.filter(v => overlaps(v, request))
-    return concurrent.length / this.team.members.length > 0.3
-  }
-
-  private exceedsIndividualBudget(request: VacationRequest): boolean { ... }
-  private conflictsWithFreeze(request: VacationRequest): boolean { ... }
-}
-```
-
-```typescript
-// Route — dünn, nur Verdrahtung
-app.post('/api/vacations', async (c) => {
-  const data = await c.req.json()
-  const team = await teamRepo.getWithMembers(data.teamId)
-  const existing = await vacationRepo.getForPeriod(data.teamId, data.from, data.to)
-
-  const policy = new VacationPolicy(team, existing)
-  const result = policy.canApprove(data)
-  if (!result.allowed) return c.json({ error: result.reason }, 400)
-
-  await vacationRepo.create(data)
-  return c.json({ ok: true })
-})
-```
-
-Kein volles DDD/Hexagonal-Framework nötig — nur diese saubere Trennung. Wächst die
-Komplexität, kann daraus schrittweise eine formale Domänenschicht werden.
-
 ---
 
 ## Tests
