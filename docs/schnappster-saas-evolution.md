@@ -144,9 +144,20 @@ Die bestehende CLAUDE.md um folgende Abschnitte erweitern:
 
 ## Tests
 
-- Supabase Auth in Tests mocken: JWT mit Test-User-ID faken, nicht echte Supabase-Instanz
-- RLS-Policies separat in Supabase testen (außerhalb von pytest)
-- Fixtures für User-Context und Service-Context getrennt halten
+### Umgebungen
+
+- **Unit-Tests (pytest):** Supabase-Auth mocken (`app.dependency_overrides[get_current_user]`),
+  In-Memory-PostgreSQL oder lokales PostgreSQL — schnell, kein Netzwerk, CI-fähig
+- **Integrationstests:** Supabase lokal via Docker (`npx supabase start`) —
+  RLS-Policies und volle Supabase-Features testbar
+- **Staging:** Eigenes Supabase-Projekt (`schnappster-dev`) — isoliert von Produktion
+- **Produktion:** `schnappster-prod` — wird nie für Tests verwendet
+
+### Regeln
+
+- Supabase-Auth in Unit-Tests immer mocken — nie gegen Remote-DB testen
+- RLS-Policies in der lokalen Supabase-Instanz testen, nicht in pytest
+- Fixtures für User-Context und Admin-Context getrennt halten
 - `uv run pytest` muss vor jedem Commit grün sein
 - Teste Verhalten, nicht Implementierungsdetails — kein Mocken interner Methoden
 - Neue Services und Filterfunktionen brauchen Unit-Tests (wie bestehende `test_scraper_filters.py`)
