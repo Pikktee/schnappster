@@ -133,6 +133,93 @@ Realtime, kein Storage — nur Auth + DB + API.
 
 ---
 
+## Repo-Struktur: Monorepo
+
+Frontend, Backend und perspektivisch Mobile App leben in einem Repository:
+
+```
+jahresplaner/
+  packages/
+    api/          ← Hono + Better-Auth + Drizzle
+    web/          ← Next.js
+    shared/       ← Typen, Validierung (zod-Schemas)
+    mobile/       ← React Native (perspektivisch)
+  package.json    ← Workspace-Root
+```
+
+**Warum Monorepo?**
+- Shared Types zwischen API und Frontend — der Hauptvorteil von TypeScript geht
+  verloren wenn die Typen in getrennten Repos liegen
+- Vibe-Coding: Claude muss API und Frontend gleichzeitig sehen um konsistente
+  Änderungen zu machen. Bei getrennten Repos fehlt der Kontext
+- Eine Änderung, ein Commit — API-Endpoint + Frontend-Call + Typen gehören zusammen
+- Kein Versions-Chaos zwischen Frontend und API
+
+Separate Repos lohnen sich erst wenn getrennte Teams unabhängig deployen müssen.
+
+---
+
+## Geschäftslogik isolieren
+
+Geschäftsregeln gehören weder in Routes noch in DB-Queries — sie werden in eigenen
+Klassen gekapselt. Reine Funktionen/Klassen ohne DB- oder HTTP-Abhängigkeit,
+testbar mit simplen Objekten.
+
+**Faustregel:** Eine einzelne Regel → eigene Funktion. Mehrere zusammengehörige
+Regeln auf denselben Daten → eigene Klasse.
+
+```typescript
+// domain/vacation-policy.ts — kennt keine DB, kein HTTP
+export class VacationPolicy {
+  constructor(
+    private team: Team,
+    private existingVacations: Vacation[]
+  ) {}
+
+  canApprove(request: VacationRequest): Result {
+    if (this.exceedsTeamCapacity(request)) {
+      return { allowed: false, reason: 'Zu viele gleichzeitig abwesend' }
+    }
+    if (this.exceedsIndividualBudget(request)) {
+      return { allowed: false, reason: 'Urlaubskontingent erschöpft' }
+    }
+    if (this.conflictsWithFreeze(request)) {
+      return { allowed: false, reason: 'Urlaubssperre in diesem Zeitraum' }
+    }
+    return { allowed: true }
+  }
+
+  private exceedsTeamCapacity(request: VacationRequest): boolean {
+    const concurrent = this.existingVacations.filter(v => overlaps(v, request))
+    return concurrent.length / this.team.members.length > 0.3
+  }
+
+  private exceedsIndividualBudget(request: VacationRequest): boolean { ... }
+  private conflictsWithFreeze(request: VacationRequest): boolean { ... }
+}
+```
+
+```typescript
+// Route — dünn, nur Verdrahtung
+app.post('/api/vacations', async (c) => {
+  const data = await c.req.json()
+  const team = await teamRepo.getWithMembers(data.teamId)
+  const existing = await vacationRepo.getForPeriod(data.teamId, data.from, data.to)
+
+  const policy = new VacationPolicy(team, existing)
+  const result = policy.canApprove(data)
+  if (!result.allowed) return c.json({ error: result.reason }, 400)
+
+  await vacationRepo.create(data)
+  return c.json({ ok: true })
+})
+```
+
+Kein volles DDD/Hexagonal-Framework nötig — nur diese saubere Trennung. Wächst die
+Komplexität, kann daraus schrittweise eine formale Domänenschicht werden.
+
+---
+
 ## Hinweise für Vibe-Coding
 
 ### Was hervorragend funktioniert
