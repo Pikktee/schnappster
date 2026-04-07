@@ -193,9 +193,10 @@ Fehler im API-Response wird direkt im Frontend-Code sichtbar, ohne manuelle Sync
 | **Frontend-unabhängig** | ✅ eigenständig | ✅ | ✅ | ❌ Next.js gebunden |
 | **Verbreitung** | wachsend | sehr hoch | hoch | hoch |
 
-**Entscheidung Hono** weil: echte API-Trennung vom Frontend (Handy-App später möglich),
-ultraleicht, native Better-Auth-Integration. Express ist veraltet im API-Design,
-Next.js Route Handlers koppeln API ans Frontend.
+**Entscheidung Hono** weil: echte API-Trennung vom Frontend — die API ist unabhängig
+nutzbar (Automatisierungen, MCP-Server, perspektivisch Mobile App). Ultraleicht,
+native Better-Auth-Integration. Express ist veraltet im API-Design, Next.js Route
+Handlers koppeln API ans Frontend.
 
 ### Warum Better-Auth statt Auth.js / Clerk / Logto / Supabase Auth?
 
