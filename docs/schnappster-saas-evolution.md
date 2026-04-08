@@ -645,7 +645,7 @@ Caddy besorgt TLS-Zertifikate von Let's Encrypt automatisch — kein Certbot, ke
 |---|---|---|---|---|
 | **Eigener T640** | kostenlos | sehr viel | lokal/Büro | Entwicklung, Hobby, Testen |
 | **Oracle Cloud Free Tier** | kostenlos | 4 ARM-Cores, 24 GB RAM | EU verfügbar | Produktion gratis |
-| **Hetzner CX22** | ~€5/mo | 2 vCPU, 4 GB | DE (DSGVO) | Produktion, zuverlässig |
+| **Hetzner CX33** | ~€7/mo | 4 vCPU, 8 GB | DE (DSGVO) | Produktion, zuverlässig |
 | **Railway / Render** | ~€15–30/mo | managed | US-Server | Zero-Ops, kein Serverbetrieb |
 
 **Oracle Cloud Free Tier** ist die stärkste kostenlose Option — die Always-Free-ARM-Instanzen (Ampere A1) sind dauerhaft gratis, keine Kreditkarte nach Ablauf. Achtung: Signup kann Kreditkarte zur Verifikation verlangen. Ressourcen (4 Cores, 24 GB) sind für Schnappster weit überdimensioniert.
