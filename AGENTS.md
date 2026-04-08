@@ -1,6 +1,4 @@
-# AGENTS.md
-
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+# AGENTS.md / CLAUDE.md (symlink)
 
 ## What is Schnappster?
 
@@ -13,11 +11,17 @@ A personal web app that periodically scrapes Kleinanzeigen.de search results, an
 Package manager is `uv`. All Python entry points are defined in `pyproject.toml`.
 
 ```bash
-uv run start          # Start FastAPI server (also runs tests first)
-uv run start --skip-tests  # Start without running tests
+uv run start              # Start FastAPI server (runs tests first, builds frontend)
+uv run start --skip-tests # Start without running tests
+uv run start --dev        # Dev mode: Next.js on :3000 (hot reload) + backend on :8000
+uv run start --port 8080  # Custom port
 uv run scrape [adsearch_id]  # Manually trigger a scrape
 uv run analyze [limit]       # Manually trigger AI analysis
 uv run dbreset               # Drop and recreate DB (no Alembic – use this for schema changes)
+uv run docs [show]           # Generate API docs (pdoc), optionally open in browser
+uv run seed                  # Seed database with sample data
+uv run release               # Create a release
+uv run release-chrome-extension  # Package Chrome extension to extensions/dist/
 
 uv run pytest                # Run all tests
 uv run pytest tests/test_parser.py  # Run a single test file
@@ -34,7 +38,17 @@ npm run build   # Static export to web/out/ (served by FastAPI)
 npm run lint    # ESLint
 ```
 
-The frontend is a **static export** (`web/out/`) served directly by FastAPI. After `npm run build`, FastAPI serves the output from `web/out/`. The `NEXT_PUBLIC_API_URL` env var controls the API base URL (empty = same origin).
+Static export → `web/out/`, served by FastAPI after `npm run build`. `NEXT_PUBLIC_API_URL`: empty = same origin.
+
+### Docker
+
+```bash
+docker compose up -d    # Uses proxy-net external network, SQLite volume mount
+```
+
+### Chrome Extension
+
+Source: `extensions/chrome/`. Package: **`uv run release-chrome-extension`** → `extensions/dist/` (also listed under Backend commands).
 
 ## Architecture
 
@@ -54,7 +68,7 @@ The frontend is a **static export** (`web/out/`) served directly by FastAPI. Aft
 3. Fetch detail pages in parallel
 4. Apply filters: price range, blacklist keywords, seller type, seller rating
 5. Save new ads to DB
-6. AI analysis runs after each scrape when new ads were found (queued on analyzer), and once at startup; each analyze run processes up to 10 ads and re-queues another run if backlog remains (until empty). Scraper and analyzer each have a single-worker queue so jobs run one after another without overlap
+6. AI analysis runs after each scrape when new ads were found (queued on analyzer), and once at startup; each analyze run processes up to 10 ads and re-queues another run if backlog remains (until empty). Scraper and analyzer each have a single-worker queue so jobs run one after another without overlap.
 
 ### Scheduler (APScheduler, `core/background_jobs.py`, class `BackgroundJobs`)
 
@@ -63,7 +77,7 @@ The frontend is a **static export** (`web/out/`) served directly by FastAPI. Aft
 
 ### Frontend
 
-Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Static export served by FastAPI.
+Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Build/dev workflow and `NEXT_PUBLIC_API_URL`: **Commands → Frontend** above.
 
 - `web/lib/api.ts` — all API calls, typed against `web/lib/types.ts`
 - `web/app/(app)/` — route group for the main app layout (sidebar)
@@ -72,13 +86,40 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Static export served
 
 ### Key conventions
 
-- No Alembic — schema changes require `uv run dbreset`
-- DB stored at `data/schnappster.db`, path resolved via `get_app_root()` (never relative paths)
+- **Database:** SQLite at `data/schnappster.db`, path via `get_app_root()` (never relative paths). No Alembic — schema changes → **`uv run dbreset`**.
 - API keys (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`) live in `.env`, not the DB
-- `AppSettings` table used for runtime-configurable settings (seller filters, Telegram, etc.)
+- **`AppSettings`:** runtime-configurable settings (seller filters, Telegram, etc.)
 - Image URLs stored as comma-separated strings in `Ad.image_urls`
 - Seller rating is an int 0–2 (0=poor, 1=ok, 2=top)
 - `bargain_score` is 0–10 (AI-assigned)
+- Ruff: line-length 100, rules `E, F, I, N, UP, B, SIM, ASYNC`, ignore `UP017`
+- Tests run with `asyncio_mode = "auto"`, fixtures in `tests/fixtures/`
+
+## Code style
+
+- Descriptive names — avoid cryptic abbreviations (`get_active_searches`, not `get_as`).
+- Keep functions roughly **≤ ~20 lines**; split larger logic into helpers.
+- Prefer **early return** over deep nesting.
+- Remove dead code — do not leave large commented-out blocks.
+- Use **named constants** for non-obvious numeric thresholds (e.g. batch sizes), not magic numbers scattered in code.
+- Comments explain **why**, not what the next line obviously does.
+
+## Python & FastAPI habits
+
+- Full **type hints**; Pyright is used — avoid `Any` unless justified.
+- Avoid `# type: ignore` except where unavoidable.
+- **Thin routes:** validate input → call service → return response.
+- Inject **services via `Depends()`**, not by constructing inside route bodies.
+- Set **HTTP status codes** explicitly where it matters (`201`, `204`, …).
+- Use **Pydantic / SQLModel** schemas for request and response bodies — avoid untyped `dict` payloads.
+- Raise **`HTTPException`** with a clear `detail` string.
+- **Async** for IO-bound work (HTTP, DB); **sync** for CPU-heavy pure logic when appropriate.
+
+## Testing
+
+- Prefer testing **observable behavior**, not private methods or implementation details.
+- New services and filter logic should get **unit tests** (same spirit as `test_scraper_filters.py`).
+- **`uv run pytest`** should stay green before merge.
 
 ## Output Format
 - Begin every response with "━━━" on its own line to visually separate it from previous content

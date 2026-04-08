@@ -1,12 +1,16 @@
 # Schnappster — Weiterentwicklung zur Multi-User SaaS-Plattform
 
+> **Nur Planung:** Diese Datei beschreibt **geplante** Features und Migrationsschritte. Sie ist **kein** dauerhaftes Projekt-Handbuch. Stabile Konventionen in **`AGENTS.md`** pflegen; **`CLAUDE.md`** ist ein Symlink darauf. Von Agenten-Dateien **nicht** auf dieses Dokument verweisen.
+
 ## Beschreibung
 
 Schnappster ist aktuell eine Single-User-App ohne Authentifizierung. Die
 Weiterentwicklung macht die App mehrbenutzerfähig: Nutzer können sich per
 Google oder Facebook einloggen und sehen nur ihre eigenen Suchen und Schnäppchen.
-Admins haben dieselbe Datenisolierung, zusätzlich aber Zugriff auf Logs,
-App-Settings und Betriebsfunktionen. Perspektivisch soll die App als
+Für **ihre eigenen** Daten gelten für Admins dieselben Mandantenregeln wie für
+normale User; **zusätzlich** erhalten Admins über RLS/Policies und geschützte
+Routen Zugriff auf Logs, globale App-Settings und Betriebsfunktionen.
+Perspektivisch soll die App als
 bezahlter Dienst angeboten werden (Payments vorerst nicht im Scope).
 
 ---
@@ -19,8 +23,10 @@ bezahlter Dienst angeboten werden (Payments vorerst nicht im Scope).
 |---|---|---|
 | **Datenbank** | PostgreSQL (via Supabase) | Ersetzt SQLite. Multi-User-fähig, concurrent writes, skalierbar |
 | **Auth** | Supabase Auth | Google- und Facebook-OAuth eingebaut, User-Management-Dashboard, Passwort-Reset, E-Mail-Verifikation |
-| **Datenisolierung** | PostgreSQL Row Level Security (RLS) | DB-seitige Zugriffskontrolle — jeder User sieht nur seine eigenen Daten, gilt für User und Admin gleichermaßen |
-| **Rollen** | Admin / User | Gleiche Datenisolierung für beide. Admins haben zusätzlich Zugriff auf Logs, App-Settings, Statistiken und Admin-Funktionen. User-Verwaltung läuft über Supabase-Dashboard |
+| **Datenisolierung** | PostgreSQL Row Level Security (RLS) | Reguläre User nur eigene Mandantendaten (`owner_id` / `user_id`). Admins gleiches Prinzip für **eigene** Daten **plus** zusätzliche Policies für Admin-Ressourcen (z. B. `app_settings`, ggf. Querschnitt für Statistiken) |
+| **Rollen** | Admin / User | User: nur eigene Suchen/Anzeigen/Einstellungen. Admin: oben genannte Zusatzrechte (Logs, globale Settings, Stats, manuelle Jobs). User-Verwaltung über Supabase-Dashboard |
+
+Hinweis für spätere Payments: Zusätzliche bezahlte Stufen möglichst **nicht** als neue Admin-Rollen modellieren, sondern separat als Plan/Entitlements (z. B. `free`, `premium`) neben `role` (`user`/`admin`), damit Rechteverwaltung und Monetarisierung sauber getrennt bleiben.
 
 ### Unverändert
 
@@ -32,6 +38,14 @@ bezahlter Dienst angeboten werden (Payments vorerst nicht im Scope).
 | **AI-Analyse** | OpenAI-kompatible API (OpenRouter) |
 | **Hintergrundjobs** | APScheduler |
 | **Frontend** | Next.js + React + Tailwind + shadcn/ui |
+
+### Verbindliche Festlegung: Admin-HTTP = Variante B
+
+- **Jede FastAPI-Route, die einen HTTP-Request bearbeitet** (normale User **und** Admins), nutzt **`get_db_session()`** mit gesetztem **User-JWT** — **RLS bleibt immer aktiv**. Admin-Rechte: `Depends(require_admin)` **plus** passende **RLS-Policies** (JWT `app_metadata.role = 'admin'`), z. B. für `app_settings` und bei Bedarf weitere Tabellen (Logs, Statistiken).
+- **`get_admin_session()` (Service-Role, RLS umgangen)** ist **ausschließlich** für **Hintergrundjobs** (Scraper, Analyzer) — **niemals** für Admin-Dashboard-, Settings- oder Stats-HTTP-Endpunkte.
+- **`DELETE /users/me`:** Kaskade auf App-Tabellen mit **`get_db_session()`** (nur eigene Zeilen; RLS muss `DELETE` für den Besitzer erlauben). Anschließend Löschen des **Supabase-Auth-Users** über die **Supabase Admin API** (Service-Role-**Key**, typisch `auth.admin.delete_user` o. ä.) — das ist **kein** „Admin-Dashboard mit God-DB-Session“, sondern ein klar abgegrenzter Auth-Vorgang innerhalb dieser einen Route.
+
+**Variante A** (Service-Role-**SQL-Session** für Admin-HTTP) ist **nicht** vorgesehen.
 
 ---
 
@@ -63,84 +77,139 @@ bezahlter Dienst angeboten werden (Payments vorerst nicht im Scope).
 }
 ```
 
-### CLAUDE.md erweitern
+### Konventionen für die Umsetzungsphase (Code-Qualität, Tests, Architektur)
 
-Die bestehende CLAUDE.md um folgende Abschnitte erweitern:
+> Die folgenden Punkte waren früher als „CLAUDE.md-Ergänzung“ gedacht — sie bleiben **hier** als **Planungs- und Arbeitsreferenz** für die Migration. Was sich bewährt, später gezielt in **`AGENTS.md`** übernehmen (ohne diese Planungsdatei dauerhaft zu verlinken).
+
+#### Multi-Tenancy
+
+- Alle User-Daten tragen `owner_id` (UUID aus Supabase Auth).
+- **Alle HTTP-Routen** (User und Admin): `get_db_session()` — RLS aktiv; Mandanten-Daten ohne manuelles `WHERE owner_id`; Admin-Zusatzrechte nur über RLS-Policies (`role = admin`).
+- Hintergrundprozesse (Scraper, Analyzer) laufen mit Service-Role — RLS ist bypassed, `owner_id` muss explizit in alle Queries und Inserts gesetzt werden.
+- Admin-HTTP: **Variante B** — nur `get_db_session()` + `require_admin` + RLS-Admin-Policies (siehe **Verbindliche Festlegung** oben).
+- `get_admin_session()`: **nur** Background-Jobs, **nie** für Admin-HTTP-Handler. `DELETE /users/me`: App-Daten mit User-Session, Auth-User per Supabase Admin API (Service-Key), nicht `get_admin_session`.
+
+#### Zwei DB-Verbindungen
+
+- `get_db_session()` — User-Context, RLS aktiv (**alle HTTP-Routen**, inkl. Admin).
+- `get_admin_session()` — Service-Role, RLS bypassed (**nur** APScheduler/Background-Jobs).
+- Niemals Service-Role-Key ins Frontend; Service-Role nur in Server-Code mit klar abgegrenzten Pfaden.
+
+#### Tests
+
+**Was wird „gemockt“?**
+
+- **Supabase Auth** (`get_current_user`, JWT): in den meisten **pytest**-Läufen **mocken** (z. B. `dependency_overrides`), damit kein Netz und kein Supabase-Auth-Aufruf nötig ist.
+- **Die Datenbank:** typischerweise **nicht** durch einen generischen Supabase-Mock ersetzen — **echte PostgreSQL-Instanz** (lokal, Docker, CI), damit SQLModel/Constraints stimmen.
+- **Kurz:** Auth mocken, **DB real (Postgres)** — zwei verschiedene Dinge.
+
+**Muss lokal Postgres laufen? Reicht SQLite?**
+
+- Nach Umstellung auf Postgres/`asyncpg`: jeder Test mit echtem SQL gegen die App-DB braucht **irgendwo PostgreSQL** (lokal oder nur CI).
+- **SQLite** ersetzt das für die Haupt-Suite **nicht** (Treiber, Dialekt, kein RLS).
+- Ohne laufende DB: nur Tests **ohne** DB (reine Logik) oder mit komplett gemockter Session.
+
+**Umgebungen**
+
+- **pytest:** Auth mocken; Postgres lokal/CI; kein Prod.
+- **RLS-Integration (optional):** `npx supabase start` oder isoliertes Projekt — keine parallelen CI-Läufe gegen eine geteilte Dev-DB ohne Isolation.
+- **Produktion:** nie für automatisierte Tests.
+
+**Regeln**
+
+- Supabase-Auth in pytest mocken — nicht gegen Remote-Prod testen.
+- RLS in einer **Supabase-** oder Postgres-Umgebung testen, nicht durch „alles mocken“.
+- Fixtures für User-Context und Admin-Context getrennt.
+- `uv run pytest` vor Commit grün; Verhalten testen, keine internen Implementierungsdetails mocken.
+- Neue Services/Filter: Unit-Tests wie bei bestehenden Tests (z. B. `test_scraper_filters.py`).
+
+#### Code-Stil
+
+- Sprechende Namen, keine unnötigen Abkürzungen (`get_active_searches`, nicht `get_as`).
+- Funktionen möglichst **~20 Zeilen** — größere Logik in Hilfsmethoden.
+- **Early return** statt tiefer Verschachtelung.
+- Keine auskommentierten Codeblöcke — löschen statt auskommentieren.
+- Keine Magic Numbers — benannte Konstanten (`MAX_ADS_PER_RUN = 10`).
+- Kommentare nur **WARUM**, nicht **WAS**.
+
+#### Python & FastAPI
+
+- Vollständige Type Hints — Pyright ist konfiguriert, kein `Any` ohne Begründung.
+- Kein `# type: ignore` außer wo unvermeidbar.
+- Routes **dünn:** validieren → Service → Response.
+- Services per `Depends()` injizieren, nicht in Routes instanziieren.
+- HTTP-Statuscodes explizit (`201`, `204`, …).
+- Pydantic/SQLModel-Schemas für Requests/Responses — kein loses `dict`.
+- `HTTPException` mit klarem `detail`.
+- **Async** wo sinnvoll (IO-bound async, CPU-bound sync).
+
+#### Weitere Konventionen (SaaS-Zielzustand)
+
+- Schema: Supabase CLI (`supabase migration new`), SQL unter `supabase/migrations/` — im Zielzustand kein `uv run dbreset` für Schemawechsel mehr.
+- SQLModel: Tabellen + Read/Create/Update in **derselben** Datei.
+- Background-Jobs: Scraper und Analyzer je **Single-Worker-Queue**, keine Überlappung.
+- `AppSettings`: nur Admins — RLS mit Policy nur für `app_metadata.role = 'admin'`.
+- `UserSettings`: pro User (Telegram Chat-ID, Benachrichtigungen).
+- Konto-Löschung: App-Daten mit User-Session/RLS; Auth-User per Admin API; Haupt-Admin schützen (`403`).
+- Telegram Bot-Token in `.env`; Chat-ID in `UserSettings`.
+- Avatar aus OAuth/Supabase Session — kein eigenes Storage.
+- Passwort ändern über Supabase Auth API.
+- API-Keys nur in `.env`.
+- Öffentliche Pflichtseiten: `/impressum`, `/datenschutz` — Middleware-Ausnahmen.
+- CORS: bei abweichenden Origins `CORSMiddleware` + `CORS_ORIGINS` (kein `*` mit Credentials).
+- Admin-Rolle nur in **`app_metadata`**; `require_admin` und RLS aus derselben Quelle — supabase-py-Feldnamen per Context7/Doku prüfen.
+
+#### MCP
+
+- Bei Code für **supabase-py** möglichst **Context7** (oder aktuelle offizielle Doku) nutzen.
+
+### Agent-Dateien nach der Umsetzung
+
+Diese Datei ist **kein** Ziel für dauerhafte Verweise aus `AGENTS.md` / `CLAUDE.md` oder Cursor-Rules.
+
+**Nach** (oder während) der Implementierung: **`AGENTS.md`** an den **Ist-Zustand** anpassen — u. a. neue Sektion **„SaaS / multi-tenancy“** (Regeln aus diesem Dokument und Abschnitt **Konventionen für die Umsetzungsphase**), Befehle (`dbreset` vs. Migrationen), DB-Pfade, Test-Hinweise (Postgres, Auth-Mocks). Bis dahin bleibt `AGENTS.md` **ohne** geplante Features. Diese Planungsdatei kann danach **archiviert, gekürzt oder gelöscht** werden.
+
+| Datei | Rolle |
+|--------|--------|
+| **`AGENTS.md`** | **Kanonische** Agenten-Anleitung (Cursor, Codex, …) — **hier editieren** |
+| **`CLAUDE.md`** | Symlink → `AGENTS.md` (Claude Code erwartet den Dateinamen) |
+| **`docs/schnappster-saas-evolution.md`** | **Nur** Planung — nicht verlinken |
 
 <details>
-<summary>Ergänzungen für die CLAUDE.md anzeigen</summary>
+<summary><strong>AGENTS.md-Ergänzungen nach der Migration</strong> (zum Aufklappen & Kopieren)</summary>
+
+Nach **Postgres + Supabase + Multi-Tenancy** die folgenden Teile in **`AGENTS.md`** übernehmen (Sprache Englisch wie die restliche Datei). **`Key conventions`** und **`Testing`** anpassen; neue Sektion vor **`## Output Format`** einfügen. **Commands** (Static Export vs. Next-Node, `npm run build`, Docker) an den dann gültigen Stack anpassen — siehe Deployment-Abschnitt in diesem Dokument. Ergänzend gelten die inhaltlichen Regeln unter **Konventionen für die Umsetzungsphase** weiter oben in diesem Dokument (teilweise Deutsch, fürs Vibe-Coding).
+
+**1. In `### Key conventions` — die Bullet „Database“ und „AppSettings“ ersetzen durch:**
 
 ```markdown
-## Multi-Tenancy
+- **Database:** PostgreSQL (Supabase). No Alembic — schema changes via **Supabase migrations** (`supabase/migrations/`); do not use `uv run dbreset` as the primary workflow for schema evolution. Paths and connection string via app settings / env. **RLS** is enforced — see **SaaS / multi-tenancy** below.
+- API keys (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`) live in `.env`, not the DB
+- **`AppSettings`:** global runtime settings (seller filters, Telegram, etc.). **Admin-only** in the DB (RLS policies) — see **SaaS / multi-tenancy**.
+```
 
-- Alle User-Daten tragen `owner_id` (UUID aus Supabase Auth)
-- API-Routen laufen im User-Context — RLS filtert automatisch, kein WHERE nötig
-- Hintergrundprozesse (Scraper, Analyzer) laufen mit Service-Role — RLS ist bypassed,
-  `owner_id` muss explizit in alle Queries und Inserts gesetzt werden
-- Admin-Routen: Service-Role + `require_admin` Dependency
+*(Die übrigen Key-conventions-Bullets davor/danach unverändert lassen, außer ihr ändert bewusst noch Felder wie `SUPABASE_*` in `.env`.)*
 
-## Zwei DB-Verbindungen
+**2. In `## Testing` — nach den bestehenden Bullets ergänzen:**
 
-- `get_db_session()` — User-Context, RLS aktiv (für API-Routen)
-- `get_admin_session()` — Service-Role, RLS bypassed (für Background-Jobs, Admin)
-- Niemals Service-Role-Key im Frontend oder in API-Routen die User-Input verarbeiten
+```markdown
+- With **Supabase auth**: mock **`get_current_user`** / auth in most tests; use a **real PostgreSQL** for tests that execute SQL against the app schema (SQLite is not a substitute for the main suite when production is Postgres). For **supabase-py**, verify APIs against current docs or **Context7**.
+```
 
-## Tests
+**3. Neue Sektion vor `## Output Format` einfügen:**
 
-### Umgebungen
+```markdown
+## SaaS / multi-tenancy
 
-- **Unit-Tests (pytest):** Supabase-Auth mocken (`app.dependency_overrides[get_current_user]`),
-  lokales PostgreSQL — schnell, kein Netzwerk, CI-fähig
-- **Integrationstests:** Supabase lokal via Docker (`npx supabase start`) —
-  RLS-Policies und volle Supabase-Features testbar
-- **Staging:** Eigenes Supabase-Projekt (`schnappster-dev`) — isoliert von Produktion
-- **Produktion:** `schnappster-prod` — wird nie für Tests verwendet
+Multi-tenant Postgres + Supabase Auth + RLS. Single-user SQLite no longer applies.
 
-### Regeln
+**Rules of thumb:**
 
-- Supabase-Auth in Unit-Tests immer mocken — nie gegen Remote-DB testen
-- RLS-Policies in der lokalen Supabase-Instanz testen, nicht in pytest
-- Fixtures für User-Context und Admin-Context getrennt halten
-- `uv run pytest` muss vor jedem Commit grün sein
-- Teste Verhalten, nicht Implementierungsdetails — kein Mocken interner Methoden
-- Neue Services und Filterfunktionen brauchen Unit-Tests (wie bestehende `test_scraper_filters.py`)
-
-## Code-Stil
-
-- Funktionen und Variablen: sprechende Namen, keine Abkürzungen (`get_active_searches`, nicht `get_as`)
-- Funktionen maximal ~20 Zeilen — größere Logik in Hilfsmethoden auslagern
-- Early Return statt verschachtelter if-Blöcke
-- Keine auskommentierten Code-Blöcke — löschen statt auskommentieren
-- Keine Magic Numbers — Konstanten mit sprechenden Namen (`MAX_ADS_PER_RUN = 10`)
-- Kommentare nur WARUM, nicht WAS
-
-## Python & FastAPI Konventionen
-
-- Vollständige Type Hints überall — Pyright ist konfiguriert, kein `Any` ohne Begründung
-- Kein `# type: ignore` außer wo absolut unvermeidbar
-- Routes sind dünn: Request validieren → Service aufrufen → Response zurückgeben
-- Services via `Depends()` injizieren, nicht in Routes instanziieren
-- HTTP-Statuscodes explizit setzen (`status_code=201`, `status_code=204`)
-- Pydantic/SQLModel-Schemas für alle Request- und Response-Typen — kein `dict`
-- Exceptions als `HTTPException` mit sprechendem `detail`-Text
-- Async wo sinnvoll — IO-bound Operationen (HTTP, DB) async, CPU-bound sync
-
-## Konventionen
-
-- Schema-Änderungen: Supabase-Migrations (`supabase migration new`) — kein `uv run dbreset` mehr
-- SQLModel-Muster: Tabellen-Definition + Read/Create/Update-Schemas in derselben Datei
-- Background-Jobs: ScraperService und AIService haben je eine Single-Worker-Queue —
-  Jobs dürfen sich nicht überlappen
-- `AppSettings`-Tabelle für globale runtime-konfigurierbare Einstellungen (Admin)
-- `UserSettings`-Tabelle für benutzerspezifische Einstellungen (Telegram Chat-ID, Benachrichtigungen)
-- Konto-Löschung: Cascade-Delete aller User-Daten via Service-Role, danach Supabase Auth User löschen — Haupt-Admin kann sich nicht löschen (API gibt 403)
-- Telegram Bot-Token in `.env` — Chat-ID je User in `UserSettings`
-- Avatar kommt als URL aus der Supabase Auth Session (OAuth-Provider) — kein eigenes Storage
-- Passwort-Änderung über Supabase Auth API — kein altes Passwort nötig (User ist eingeloggt)
-- API-Keys (`OPENAI_API_KEY`, `SUPABASE_URL` etc.) nur in `.env`
-
-## MCP
-Nutze immer context7 wenn du Code für supabase-py generierst.
+- Tenant data uses **`owner_id`** (Supabase Auth user id). **All HTTP routes** (users and admins) use **`get_db_session()`** with JWT so **RLS stays on**. No manual `WHERE owner_id = …` for normal tenant queries.
+- **`get_admin_session()`** (service role, RLS bypass) **only** for **APScheduler / background jobs** — never as the default for admin HTTP routes (admin UI uses user JWT + RLS).
+- **Admin HTTP:** `require_admin` + **RLS policies** for `app_metadata.role = admin` (e.g. `app_settings`). Do **not** use a service-role **SQL** session for ordinary admin HTTP handlers (only background jobs use that connection).
+- **`DELETE /users/me`:** cascade app rows with the **user** DB session; delete the **Auth user** via **Supabase Admin API** (service key), not `get_admin_session` for dashboard-style routes.
+- Schema: **Supabase migrations** (`supabase/migrations/`), not `uv run dbreset` as the primary model. Multi-tenant testing: see **Testing** above.
 ```
 
 </details>
@@ -196,7 +265,7 @@ class UserSettings(SQLModel, table=True):
 |---|---|---|
 | Telegram Bot-Token | `.env` | Admin (globale Konfiguration) |
 | Telegram Chat-ID | `UserSettings` | User (persönliche Einstellung) |
-| Globale Filter-Regeln, Scraper-Einstellungen | `AppSettings` | Admin |
+| Globale Filter-Regeln, Scraper-Einstellungen | `AppSettings` | Nur Admins (UI + DB: RLS, siehe Schritt 6) |
 | Benachrichtigungskanal, Mindest-Score, Modus | `UserSettings` | User |
 
 ---
@@ -272,8 +341,8 @@ Am Ende der Settings-Page als eigenständiger **Danger Zone**-Abschnitt:
 - Beschreibungstext: „Dein Konto und alle gespeicherten Daten (Suchen, Schnäppchen) werden unwiderruflich gelöscht."
 - Button: „Konto löschen" (`variant="destructive"`, outline-style um versehentliche Klicks zu vermeiden)
 - **Bestätigung:** shadcn/ui `AlertDialog` — Titel „Konto wirklich löschen?", Bestätigungs-Button erst klickbar nach Eingabe des Wortes `löschen` in ein Textfeld
-- **Backend-Logik:** Cascade-Delete aller User-Daten (AdSearches, Ads, UserSettings) → anschließend Supabase Auth User löschen via Service-Role
-- **Schutz Haupt-Admin:** Der primäre Admin-Account (definiert über `is_primary_admin`-Flag oder feste E-Mail in `.env`) kann sich nicht selbst löschen — API gibt `403` zurück, Frontend zeigt stattdessen informativen Hinweis
+- **Backend-Logik:** App-Tabellen mit User-Session/RLS kaskadieren → Supabase-Auth-User per **Admin API** (Service-Role-Key), siehe „Verbindliche Festlegung“
+- **Schutz Haupt-Admin:** Der primäre Admin-Account soll **eindeutig** erkennbar sein (**eine** Quelle festlegen: z. B. nur `PRIMARY_ADMIN_EMAIL` in `.env` **oder** nur DB-Flag — nicht beides widersprüchlich). Dieser Account kann sich nicht selbst löschen — API `403`, Frontend Hinweis
 
 ---
 
@@ -285,8 +354,10 @@ In Deutschland gesetzlich vorgeschrieben (TMG § 5). Als einfache statische Seit
 - Inhalt: Name + Anschrift, E-Mail-Adresse, ggf. Umsatzsteuer-ID
 - Link: im Sidebar-Footer (unterhalb der Navigation) und/oder im Login/Register-Screen
 
+**Route-Platzierung:** `/impressum` soll **nicht** von einem Layout erzwungen werden, das Auth voraussetzt — bei Bedarf eigene Route-Group `(public)` oder Pfad **außerhalb** von `(app)`, damit die Middleware-Ausnahme greift und keine Sidebar-Pflicht entsteht.
+
 ```tsx
-// web/app/(app)/impressum/page.tsx — statisch, kein "use client" nötig
+// z. B. web/app/(public)/impressum/page.tsx oder web/app/impressum/page.tsx — statisch, kein "use client" nötig
 export default function ImpressumPage() {
   return (
     <div className="max-w-2xl space-y-4">
@@ -302,18 +373,82 @@ Die Impressum-Seite muss auch ohne Login erreichbar sein — Middleware so konfi
 
 ---
 
+## Datenschutz & DSGVO
+
+Für einen **öffentlichen SaaS-Betrieb** in der EU/DE sind Impressum allein nicht ausreichend.
+
+### Datenschutzerklärung
+
+- Route: **`/datenschutz`** — statische Next.js-Page (wie Impressum), **ohne Login** erreichbar
+- Inhalt (Mindestpunkte, mit Rechtsberatung abstimmen): Verantwortlicher, Zwecke der Verarbeitung, Rechtsgrundlagen, **Supabase** (Auth/DB-Hosting), ggf. **OpenRouter/AI-Anbieter** (wenn personenbezogene Inhalte aus Anzeigen verarbeitet werden), Cookies/localStorage falls genutzt, Speicherdauer, Betroffenenrechte (Auskunft, Löschung — Konto-Löschung in der App verlinken), Beschwerderecht bei Aufsichtsbehörde
+- Links: Sidebar-Footer, Login/Register, ggf. Footer der Auth-Card
+- Middleware: `/datenschutz` von Auth-Redirect **ausnehmen** (wie `/impressum`)
+
+### Auftragsverarbeitung (AVV)
+
+- Mit **Supabase** einen **Data Processing Agreement (DPA)** / Auftragsverarbeitungsvertrag abschließen (Organisation im Dashboard → Legal, Übersicht unter [supabase.com/legal](https://supabase.com/legal) — exakten Prozess mit aktueller Doku abgleichen)
+- Weitere Subprozessoren (E-Mail-Versand, Sentry, Hosting) dokumentieren und in der Datenschutzerklärung nennen
+- Bei Nutzung von **US-Anbietern** ohne angemessenes Schutzniveau: **Standardvertragsklauseln** und ggf. TIA — rechtlich klären
+
+### Technische Hinweise
+
+- **Konto-Löschung** (bereits geplant) als Ausübung des Löschrechts Art. 17 dokumentieren
+- **Telegram Chat-ID** in `UserSettings` ist personenbezogen — in der Datenschutzerklärung erwähnen
+
+---
+
+## Frontend-Auth: Session, Refresh, Token-Speicher
+
+Next.js und FastAPI teilen sich die Verantwortung: das **Frontend** hält die Supabase-Session, das **Backend** validiert das Access-Token pro Request.
+
+### Supabase JS (`@supabase/supabase-js`)
+
+- Client mit `SUPABASE_URL` + **`anon` key** initialisieren (nie Service-Role im Browser)
+- **`onAuthStateChange`** nutzen, um Session-Wechsel (Login, Logout, Token-Refresh) in React-State oder Context zu spiegeln
+- **Refresh:** Supabase-Client erneuert Access-Tokens **automatisch** mit dem Refresh-Token, solange die Session lebt — keine eigene Refresh-Logik duplizieren, außer es gibt besondere Anforderungen
+
+### Token an die FastAPI-API senden
+
+- API-Calls (z. B. `fetch` in `web/lib/api.ts`): **`Authorization: Bearer <access_token>`** aus der aktuellen Supabase-Session setzen
+- Bei **gleichem Origin** (Caddy: UI und `/api` unter einer Domain) entfallen viele CORS-Probleme; trotzdem konsistent den Header mitsenden
+
+### Speicherort der Session
+
+| Ansatz | Kurzbeschreibung | Hinweis |
+|--------|------------------|---------|
+| **Standard Supabase Browser-Client** | Typisch: **localStorage** (Default) oder konfigurierbar | Einfach; bei XSS-Risiko Session-Hijacking möglich — CSP, sichere Dependencies, keine unsicheren `dangerouslySetInnerHTML` |
+| **Cookie-basiert (httpOnly)** | Session/Token in **httpOnly-Cookies** — oft über **Supabase SSR** / `@supabase/ssr` + Server Components / Route Handlers | Weniger XSS-Angriffsfläche für Token-Diebstahl; mehr Setup (Middleware, Cookie-Refresh) |
+
+**Empfehlung:** Für eine Dashboard-App mit Fokus auf schnelle Umsetzung zunächst **Standard-Client + Bearer-Header**; Migration auf **SSR/Cookies** erwägen, wenn ihr härtere Security-Anforderungen oder SEO für geschützte Bereiche braucht.
+
+### Session-Ablauf & UX
+
+- Abgelaufene Session: API antwortet **401** — Client soll auf **`/login`** leiten oder `signIn` anbieten
+- Optional: stiller Refresh vor API-Calls, wenn `session.expires_at` nahe ist (Supabase macht oft schon genug)
+
+### Middleware (Next.js)
+
+- Geschützte Routen: Session aus Cookie **oder** aus lesbarem Storage prüfen — je nach gewähltem Muster; bei reinem localStorage kann Middleware die Session **ohne** zusätzlichen Trick nicht lesen → dann **Client-Guard** + ggf. kurzer Flash, oder Umstieg auf **SSR-Cookie-Session** für echtes serverseitiges Routing
+- Dokumentieren, welches Muster ihr wählt, damit keine Lücke zwischen „Middleware denkt ausgeloggt“ und „Client hat noch Session“ entsteht
+
+---
+
 ## Supabase-Integration: Schritt für Schritt
 
-### Zwei Projekte, drei Umgebungen
+### Zwei Projekte, Umgebungen & Tests
 
-| Umgebung | Supabase-Projekt | Zweck |
+| Nutzung | Datenbank / Auth | Zweck |
 |---|---|---|
-| Lokale Entwicklung | `schnappster-dev` | Entwicklung gegen echte Online-DB, kein Docker nötig |
-| Integrationstests | `schnappster-dev` | Tests gegen dev-DB (RLS-Policies, Auth-Flows) |
-| Unit-Tests | — | Supabase gemockt, läuft offline ohne Netzwerk |
-| Produktion | `schnappster-prod` | Live-Betrieb |
+| **Lokale Entwicklung (manuell)** | `schnappster-dev` (Cloud) | Bequem: RLS, Auth, E-Mail ohne lokalen Supabase-Docker |
+| **pytest (Standard)** | PostgreSQL lokal oder CI-Postgres; **Auth gemockt** | Schnell, reproduzierbar, kein Zugriff auf Prod |
+| **RLS-/Auth-Integration (optional)** | `npx supabase start` **oder** isoliertes Supabase-Projekt | Policies mit echtem `auth.uid()` / JWT testen |
+| **Produktion** | `schnappster-prod` | Live — **nie** für automatisierte Tests |
 
-Lokale Entwicklung nutzt die Online-dev-DB direkt — kein lokaler Docker-Stack, kein `npx supabase start`. Supabase-Features (RLS, Auth, E-Mail) funktionieren sofort.
+**Klarstellung:** „Tests mocken die DB“ ist **so nicht gemeint**. Üblich ist: **`get_current_user` / Supabase Auth mocken**, die **PostgreSQL-Verbindung** aber **real** halten (sonst fehlen echte SQL-/ORM-Tests). Nur wenn ein Test bewusst **ohne** DB läuft (reine Logik), wird die Session ersetzt oder gar nicht geöffnet.
+
+**Postgres vs. SQLite für pytest:** Sobald die App nur noch gegen **Postgres** läuft, brauchen DB-Tests **Postgres** (lokal oder in CI). **SQLite als Ersatz** für dieselbe Suite ist **nicht empfohlen** (Dialekt, RLS, Treiber). Ausnahme: einzelne Tests **ohne** DB-Zugriff. Nach der Migration: die gleichen Regeln in **`AGENTS.md`** festhalten (nicht nur hier).
+
+Lokale Entwicklung **kann** die Online-`schnappster-dev`-DB nutzen — das schließt aus, dass pytest dieselbe Strategie braucht.
 
 ---
 
@@ -382,18 +517,35 @@ Der SQLite-spezifische Code (`data/schnappster.db`, `get_app_root()`) fällt kom
 
 ---
 
-### Schritt 5 — DB-Schema migrieren
+### Schritt 5 — DB-Schema anlegen (Greenfield)
+
+Es gibt **keine wichtigen Bestandsdaten** in SQLite, die übernommen werden müssen — Schema in Postgres **neu aufsetzen**, alte lokale SQLite-Datei kann entfallen.
 
 **Einmalig — dev-Projekt:**
 
-Im Supabase Dashboard → **SQL Editor** das neue Schema anlegen:
+Im Supabase Dashboard → **SQL Editor** Tabellen anlegen (Namen an euer SQLModel-Schema anpassen; Beispiel):
 
 ```sql
--- owner_id-Spalten hinzufügen (referenzieren Supabase auth.users)
-ALTER TABLE ad_search ADD COLUMN owner_id UUID REFERENCES auth.users(id);
-ALTER TABLE ad ADD COLUMN owner_id UUID REFERENCES auth.users(id);
+-- Beispiel: neue Tabellen mit owner_id (kein ALTER aus SQLite-Migration nötig)
+CREATE TABLE ad_search (
+    id SERIAL PRIMARY KEY,
+    -- ... übrige Spalten wie im SQLModel ...
+    owner_id UUID NOT NULL REFERENCES auth.users(id)
+);
 
--- UserSettings-Tabelle anlegen
+CREATE TABLE ad (
+    id SERIAL PRIMARY KEY,
+    -- ... übrige Spalten wie im SQLModel ...
+    owner_id UUID NOT NULL REFERENCES auth.users(id)
+);
+
+-- Globale App-Konfiguration — nur Admins (RLS in Schritt 6)
+CREATE TABLE app_settings (
+    id SERIAL PRIMARY KEY,
+    -- ... Spalten wie im SQLModel ...
+    singleton_guard INTEGER UNIQUE DEFAULT 1  -- optional: eine Zeile erzwingen
+);
+
 CREATE TABLE user_settings (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id),
     display_name TEXT,
@@ -406,9 +558,11 @@ CREATE TABLE user_settings (
 );
 ```
 
-Dasselbe SQL anschließend im prod-Projekt ausführen.
+> Die konkreten Spalten und Typen müssen **1:1** zu euren SQLModel-Definitionen passen; obiges SQL ist eine **Strukturskizze**, kein Copy-Paste ohne Abgleich.
 
-Zukünftige Schema-Änderungen: SQL-Datei in `migrations/` ablegen → dev testen → prod deployen.
+Dasselbe Schema anschließend im **prod**-Projekt ausrollen (Migration / SQL Editor).
+
+Zukünftige Schema-Änderungen: Supabase CLI `supabase migration new …` → SQL unter **`supabase/migrations/`** versionieren → dev anwenden/testen → prod deployen (nicht nur lose `migrations/` im Repo ohne CLI-Pfad, es sei denn, ihr mappt das bewusst).
 
 ---
 
@@ -421,6 +575,7 @@ Im SQL Editor (dev zuerst, dann prod):
 ALTER TABLE ad_search ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ad ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 
 -- Policies: jeder User sieht und verändert nur seine eigenen Daten
 CREATE POLICY "users_own_searches" ON ad_search
@@ -431,9 +586,20 @@ CREATE POLICY "users_own_ads" ON ad
 
 CREATE POLICY "users_own_settings" ON user_settings
     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- app_settings: nur Admins (User-JWT + RLS — verbindliche Architektur, siehe „Verbindliche Festlegung“)
+-- Erfordert role in JWT app_metadata (wie in Schritt 10)
+CREATE POLICY "admins_own_app_settings" ON app_settings
+    FOR ALL TO authenticated
+    USING ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+    WITH CHECK ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 ```
 
-Testen im SQL Editor mit `SET LOCAL role = authenticated; SET LOCAL request.jwt.claims = '{"sub": "<uuid>"}';` vor einer SELECT-Abfrage.
+Es gibt **nur eine** Policy auf `app_settings` (für `authenticated`). Ihre `USING`-Bedingung ist nur für JWTs mit `app_metadata.role = 'admin'` erfüllt — **alle anderen** eingeloggten User sehen damit **keine** Zeilen (kein separater „Deny“ nötig).
+
+Testen im SQL Editor mit `SET LOCAL role = authenticated; SET LOCAL request.jwt.claims = '{"sub": "<uuid>"}';` vor einer SELECT-Abfrage — für Admin-Policy-Tests `app_metadata` im JWT-JSON ergänzen (z. B. `"app_metadata":{"role":"admin"}`), sonst schlägt `auth.jwt() -> …` fehl.
+
+**Wichtig für FastAPI:** Damit `auth.uid()` und `auth.jwt()` in Policies greifen, muss jede **User-Session** vor SQL die **JWT-Claims** an Postgres übergeben (z. B. `SET LOCAL request.jwt.claims` / `SET LOCAL role` — exakte Syntax mit asyncpg/SQLAlchemy per **Context7** zum aktuellen Supabase-Empfehlungspfad). Ohne das sieht RLS den Nutzer nicht und blockiert zu viel oder falsch.
 
 ---
 
@@ -475,13 +641,20 @@ async def require_admin(user = Depends(get_current_user)):
     return user
 ```
 
+**Abgleich: JWT, `require_admin`, supabase-py und RLS**
+
+- Die **Rolle `admin`** muss in Supabase in **`app_metadata`** (nicht `user_metadata`) liegen — nur dann steuert der Server sie vertrauenswürdig; `user_metadata` ist vom Client überschreibbar.
+- **`require_admin`** im Python-Code muss dieselbe Quelle lesen wie die RLS-Policy in Schritt 6 (`auth.jwt() -> 'app_metadata' ->> 'role'`). Das **supabase-py**-`User`-Objekt nutzt typischerweise **`user.app_metadata`** (Python-Attribut) — **Feldnamen und Verschachtelung** mit der aktuellen Library-Version und eurem JWT per **Context7 / offizielle Doku** abgleichen; nach Updates erneut prüfen.
+- **`get_user(token)`** (Beispiel oben) kann je nach Version/Setup **Netzwerk** bedeuten — für Produktion **lokale JWT-Signatur** (JWKS) erwägen, um Latenz und Supabase-Abhängigkeit pro Request zu reduzieren (optional, eigener Task).
+- Strikte Regel: Wenn `app_metadata.role` im JWT fehlt oder abweicht, muss **`require_admin`** **403** liefern und die DB-Policy ebenfalls **keinen** Admin-Zugriff gewähren.
+
 ---
 
 ### Schritt 9 — Zwei DB-Sessions implementieren
 
 **User-Context (`get_db_session`):** JWT-Claims werden als PostgreSQL-Session-Variable gesetzt → `auth.uid()` gibt die User-ID zurück → RLS filtert automatisch.
 
-**Admin-Context (`get_admin_session`):** Verbindung mit `SUPABASE_SERVICE_ROLE_KEY` → RLS ist bypassed → `owner_id` in alle Queries und Inserts explizit schreiben.
+**Admin-Context (`get_admin_session`):** Verbindung mit `SUPABASE_SERVICE_ROLE_KEY` → RLS ist bypassed → `owner_id` in alle Queries und Inserts explizit schreiben. **Nur** für **Background-Jobs**. **Admin-HTTP-Routen** nutzen **ausschließlich** `get_db_session()` nach `require_admin` — siehe **„Verbindliche Festlegung: Admin-HTTP = Variante B“** oben.
 
 > Für die konkrete Implementierung mit asyncpg + SQLAlchemy Events (SET LOCAL request.jwt.claims) **Context7 verwenden** — supabase-py ändert hier regelmäßig die empfohlene API.
 
@@ -506,7 +679,7 @@ Weitere Admins: gleicher SQL-Befehl, oder eigenes Admin-Interface in Phase 4.
 
 ### Schritt 11 — Unit-Tests: Supabase mocken
 
-Unit-Tests laufen vollständig offline — kein Netzwerk, keine Dev-DB:
+**Auth** mocken — **kein** Aufruf von Supabase Cloud, **keine** Produktions-DB. **Postgres für DB-Tests** weiterhin nötig (lokal/CI), sofern der Test echtes SQL ausführt (siehe Abschnitt „Zwei Projekte, Umgebungen & Tests“).
 
 ```python
 # tests/conftest.py
@@ -516,8 +689,12 @@ from app.core.auth import get_current_user
 
 @pytest.fixture
 def mock_user():
-    return SimpleNamespace(id="test-uuid-1234", email="test@test.com",
-                           app_metadata={"role": "user"})
+    # id als gültige UUID, wenn Tests echte Postgres-FKs treffen
+    return SimpleNamespace(
+        id="550e8400-e29b-41d4-a716-446655440000",
+        email="test@test.com",
+        app_metadata={"role": "user"},
+    )
 
 @pytest.fixture(autouse=True)
 def override_auth(mock_user):
@@ -526,7 +703,7 @@ def override_auth(mock_user):
     app.dependency_overrides.clear()
 ```
 
-Für DB-Assertions in Unit-Tests: lokales PostgreSQL oder `pytest-postgresql` (in-process PostgreSQL-Instanz). Für RLS-Tests: dev-DB via Integrationstest.
+Für DB-Assertions: **PostgreSQL** (Docker, `pytest-postgresql`, CI-Service). **Nicht** SQLite als Ersatz für die Postgres-Ziel-Architektur. Für RLS-Tests: Supabase-Umgebung (lokal oder Integrationstest).
 
 ---
 
@@ -639,6 +816,18 @@ schnappster.app {
 
 Caddy besorgt TLS-Zertifikate von Let's Encrypt automatisch — kein Certbot, kein manuelles Renewals.
 
+**API-Pfad: Caddy und FastAPI abstimmen:** Caddy leitet **`/api/*`** unverändert an den API-Container weiter (z. B. Request-Pfad bleibt `/api/v1/...`). Das FastAPI-Routing muss **dieselben Pfade** bedienen — z. B. `APIRouter(prefix="/api")` bzw. globales Prefix, **oder** Caddy `handle_path` / `uri strip_prefix` nutzen und Backend ohne `/api`-Prefix. Vor dem Umbau festlegen und `NEXT_PUBLIC_API_URL` (leer = gleiche Origin-URLs mit `/api`) konsistent halten.
+
+**CORS (Cross-Origin Resource Sharing)**
+
+- **Produktion mit Caddy (ein Host):** Browser ruft `https://schnappster.app` und `https://schnappster.app/api/...` auf — **gleiche Origin**, klassisches CORS für API-Calls meist **nicht** nötig (kein Preflight für einfache GET ohne exotische Header; bei `Authorization` kann dennoch Preflight entstehen — FastAPI `CORSMiddleware` mit erlaubtem Origin `https://schnappster.app` schadet nicht).
+- **Abweichende Origins** treten auf bei: lokalem **Next** auf `http://localhost:3000` und API auf `http://localhost:8000`, **Staging** mit anderer Domain, oder **Vorschau-Deployments**. Dann in FastAPI **`CORSMiddleware`** konfigurieren:
+  - `allow_origins`: explizite Liste (kein `*` mit Credentials)
+  - `allow_credentials`: `true` nur wenn nötig (Cookies cross-origin)
+  - `allow_methods` / `allow_headers`: mindestens `Authorization`, `Content-Type`
+- **Umgebungsvariablen:** z. B. `CORS_ORIGINS=https://app.example.com,https://staging.example.com` aus `.env` lesen — nie Wildcards in Prod mit sensiblen Daten.
+- **OPTIONS**-Preflight: sicherstellen, dass Caddy **OPTIONS** an FastAPI durchreicht und nicht abblockt.
+
 ### Hosting-Optionen
 
 | Option | Kosten | Ressourcen | Server | Empfohlen für |
@@ -741,15 +930,15 @@ git pull && docker compose up -d --build
 
 Für automatisches Deployment: GitHub Actions Workflow, der nach Push auf `main` per SSH `git pull && docker compose up -d --build` auf dem Server ausführt.
 
-### Lokale Entwicklung (unverändert)
+### Lokale Entwicklung
 
-Lokal ändert sich nichts:
+Nach Entfernen des Static Exports weiter mit getrennten Prozessen (wie bisher üblich):
 ```bash
-uv run start --skip-tests   # FastAPI auf :8000
-cd web && npm run dev        # Next.js auf :3000 (proxied /api/* → :8000)
+uv run start --dev          # oder API nur: uvicorn … — je nach pyproject-Skript
+cd web && npm run dev       # Next.js auf :3000, Proxy /api/* → :8000
 ```
 
-Kein Caddy, kein Docker lokal nötig.
+**Hinweis:** Sobald `output: "export"` entfällt, prüfen, ob `uv run start` (ohne `--dev`) noch sinnvoll ist — Produktions-Compose nutzt `npm run build` + `npm start` für Next; lokal ist **`--dev` / `npm run dev`** der Referenz-Workflow. Caddy/Docker lokal nicht nötig.
 
 ---
 
@@ -789,10 +978,17 @@ Kein Caddy, kein Docker lokal nötig.
 - Debugging von Policies kann aufwendig sein
 - Hintergrundprozesse (Scraper, Analyzer) laufen mit Service-Role und umgehen RLS — dort braucht es eigene Python-Logik
 
-**Praktische Umsetzung:**
-- API-Routen (User-Requests): nur RLS, kein WHERE nötig
-- Hintergrundprozesse (Scraper): Service-Role + explizite Python-Logik
-- Admin-Routen: Service-Role + `require_admin` Dependency
+**Praktische Umsetzung (verbindlich):**
+- **Alle HTTP-Routen** (User und Admin): `get_db_session()`, JWT gesetzt, **RLS aktiv** — für Mandanten-Daten kein `WHERE owner_id = …` nötig
+- **Hintergrundprozesse** (Scraper, Analyzer): `get_admin_session()` + explizites Setzen von `owner_id` in Code
+- **Admin-HTTP** (Logs, App-Settings, Stats, manuelle Trigger): immer **`require_admin` + RLS-Policies** für `role = 'admin'` (Schritt 6-Muster); **kein** `get_admin_session()` in diesen Handlern
+- **Querschnitt durch alle Mandanten** (z. B. `/admin/stats`): **zusätzliche RLS-Policies** für Admins auf den betroffenen Tabellen **oder** **SQL-Aggregat-Funktion** mit `SECURITY DEFINER` (nur Zahlen) — weiterhin **ohne** Service-Role-HTTP
+
+### Admin-HTTP: Variante B (festgelegt, keine Alternative A)
+
+**Variante B** ist die **einzige** vorgesehene Variante für Admin-Dashboard und alle Admin-API-Routen: Der Admin bleibt mit **normalem User-JWT** an der DB; RLS bleibt aktiv; zusätzliche Policies erteilen Rechte für `app_metadata.role = 'admin'` (siehe Schritt 6 für `app_settings`).
+
+**Variante A** (HTTP-Handler öffnen eine Service-Role-Connection und umgehen RLS) ist für Schnappster **bewusst nicht vorgesehen** — höheres Risiko bei falscher Route-zu-Session-Zuordnung.
 
 ### Warum PostgreSQL statt SQLite?
 
@@ -820,13 +1016,14 @@ Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
 - `uv add supabase asyncpg`
 - `app/core/db.py`: SQLite-Engine durch PostgreSQL-Engine ersetzen (`DATABASE_URL` aus Settings)
 - Pydantic Settings um `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` erweitern
-- `app/core/auth.py`: `get_current_user` + `require_admin` Dependencies implementieren (supabase-py, **Context7 nutzen**)
-- `get_db_session()` (User-Context, RLS aktiv) und `get_admin_session()` (Service-Role) implementieren
+- `app/core/auth.py`: `get_current_user` + `require_admin` Dependencies implementieren (supabase-py, **Context7 nutzen** — siehe Schritt 8 „Abgleich JWT“)
+- `get_db_session()` (User-Context, RLS aktiv — **alle HTTP-Routen inkl. Admin**) und `get_admin_session()` (Service-Role — **nur Jobs**) implementieren
+- Optional früh: **`CORSMiddleware`** + `CORS_ORIGINS` für lokales `localhost:3000` ↔ `localhost:8000`, siehe **Deployment → CORS**
 
 **DB-Schema:**
-- `owner_id UUID` auf `AdSearch` und `Ad` ergänzen (SQL Editor im dev-Projekt)
-- `UserSettings`-Tabelle anlegen
-- RLS aktivieren und Policies für alle User-Tabellen setzen
+- Postgres-Schema **neu** anlegen (Greenfield, kein SQLite-Datenimport)
+- `owner_id` auf `AdSearch` und `Ad`; `UserSettings`; `AppSettings`
+- RLS aktivieren: User-Tabellen pro Besitzer; `app_settings` nur für Admins (Schritt 6)
 - Hintergrundjobs (ScraperService, AIService) auf `get_admin_session` + explizites `owner_id` umstellen
 
 **Tests:**
@@ -838,10 +1035,10 @@ Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
 
 ### Phase 2 — Frontend: Auth-Screens
 
-**Impressum anlegen:**
-- `/impressum` als statische Next.js-Page (kein API-Aufruf)
-- Link im Sidebar-Footer eintragen
-- Middleware: `/impressum` von Auth-Weiterleitung ausnehmen
+**Impressum & Datenschutz anlegen:**
+- `/impressum` und **`/datenschutz`** als statische Next.js-Pages (kein API-Aufruf), siehe Abschnitte **Impressum** und **Datenschutz & DSGVO**
+- Links im Sidebar-Footer, Login/Register
+- Middleware: **`/impressum`**, **`/datenschutz`** (und ggf. weitere öffentliche Seiten) von Auth-Weiterleitung ausnehmen
 
 **Route-Group `(auth)` anlegen** (`web/app/(auth)/`):
 - Gemeinsames Layout ohne Sidebar: `gradient-subtle`-Hintergrund, Logo + `Card max-w-sm` zentriert
@@ -855,6 +1052,7 @@ Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
 - Auth-Context oder Hook (`useSession`) für Session-State
 - Middleware: nicht eingeloggte User → Redirect zu `/login`
 - Nach Login → Redirect zur App
+- Details: Abschnitt **Frontend-Auth: Session, Refresh, Token-Speicher** (Token an API, Refresh, localStorage vs. Cookies, Middleware-Lücken vermeiden)
 
 ---
 
@@ -869,12 +1067,16 @@ Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
 **Backend:**
 - `GET /users/me` + `PATCH /users/me` — Profil lesen und aktualisieren
 - `GET /users/me/settings` + `PATCH /users/me/settings` — UserSettings
-- `DELETE /users/me` — Cascade-Delete: AdSearches → Ads → UserSettings → Supabase Auth User (Service-Role); Haupt-Admin geschützt (403)
+- `DELETE /users/me` — App-Daten mit User-Session/RLS kaskadieren, dann Auth-User per **Supabase Admin API** (Service-Role-Key); Haupt-Admin geschützt (403); siehe „Verbindliche Festlegung“
 - `POST /users/me/change-password` — via Supabase Auth API
 
 ---
 
 ### Phase 4 — Admin-Bereich
+
+**DB/Session:** Alle Admin-Endpunkte nutzen **`get_db_session()`** + **`require_admin`**; fehlende Rechte werden über **RLS-Admin-Policies** ergänzt (z. B. lesender Querschnitt für Stats) — **kein** `get_admin_session()` für HTTP.
+
+**Logs (Speicherort klären):** Wenn Logs nur **Dateien/stdout** sind, schützt RLS nicht — Zugriff nur über **`require_admin`** in FastAPI und sichere Dateipfade/Rotation. Wenn Logs in der **DB** landen, **RLS + Admin-Policies** wie bei anderen Tabellen vorsehen.
 
 **Bestehende Routen absichern:**
 - Logs-Route: `require_admin` Dependency hinzufügen
@@ -902,6 +1104,8 @@ Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
 **Betrieb:**
 - Rate-Limiting auf Auth-Routen (FastAPI `slowapi` oder Supabase-seitig)
 - Monitoring: Sentry für Python-Backend und Next.js-Frontend
+- **CORS:** bei getrennten Origins (lokal, Staging, Vorschau) `CORSMiddleware` + `CORS_ORIGINS` aus `.env`; siehe **Deployment → CORS**
+- **DSGVO laufend:** Subprozessor-Liste und AVV mit Supabase (und anderen Anbietern) aktuell halten; Datenschutzerklärung bei neuen Features (z. B. neuer Analytics-Anbieter) anpassen
 
 ---
 
