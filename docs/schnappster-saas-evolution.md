@@ -505,6 +505,162 @@ Für DB-Assertions in Unit-Tests: lokales PostgreSQL oder `pytest-postgresql` (i
 
 ---
 
+## Deployment
+
+### Warum Frontend und Backend trennen?
+
+Der aktuelle Ansatz (Next.js als Static Export, durch FastAPI ausgeliefert) hat mit der SaaS-Umstellung einen entscheidenden Nachteil: **`middleware.ts` funktioniert nur im Node.js-Modus** — nicht beim Static Export. Ohne Middleware können nicht eingeloggte User nicht server-seitig auf `/login` umgeleitet werden; der Redirect passiert erst im Browser (sichtbarer Flash, schlechtere UX, kein sicheres Route-Guarding).
+
+Gleichzeitig macht die Trennung auch operativ mehr Sinn: FastAPI macht reines API, Next.js macht reines Frontend, Caddy schaltet als Reverse Proxy davor.
+
+### Ziel-Architektur
+
+```
+Internet → Caddy (Port 80/443, TLS automatisch)
+              │
+              ├── /api/*  → FastAPI    (Port 8000, Python)
+              └── /*      → Next.js   (Port 3000, Node.js)
+```
+
+Alle drei Dienste laufen als Docker-Container, verwaltet mit Docker Compose.
+
+### Was sich ändert
+
+**`web/next.config.mjs`** — Static Export entfernen:
+```js
+// Vorher:
+...(process.env.NODE_ENV === "production" && { output: "export" }),
+trailingSlash: true,
+
+// Nachher: beides entfernen — Next.js läuft als Node.js-Server
+// images.unoptimized: true kann bleiben (oder entfernen für optimierte Images)
+```
+
+**`app/core/bootstrap.py`** — Frontend-Serving entfernen:
+```python
+# Entfernen:
+app.include_router(frontend_router)  # war Fallback für Dynamic Routes
+mount_frontend(app)                  # war StaticFiles für web/out/
+```
+
+FastAPI wird damit ein reiner API-Server. Der `frontend_router` und `mount_frontend` können aus `app/routes/` gelöscht werden.
+
+### Docker Compose
+
+**`Dockerfile`** (FastAPI, im Repo-Root):
+```dockerfile
+FROM python:3.12-slim
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN pip install uv && uv sync --frozen --no-dev
+COPY . .
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+**`web/Dockerfile`** (Next.js):
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+CMD ["npm", "start"]
+```
+
+**`docker-compose.yml`** (Repo-Root):
+```yaml
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+
+  web:
+    build: ./web
+    restart: unless-stopped
+    env_file: ./web/.env.local
+    environment:
+      - NEXT_PUBLIC_API_URL=  # leer = same origin (Caddy routet /api/*)
+
+  caddy:
+    image: caddy:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+    depends_on:
+      - api
+      - web
+
+volumes:
+  caddy_data:
+```
+
+**`Caddyfile`** (Repo-Root):
+```
+schnappster.app {
+    handle /api/* {
+        reverse_proxy api:8000
+    }
+    handle {
+        reverse_proxy web:3000
+    }
+}
+```
+
+Caddy besorgt TLS-Zertifikate von Let's Encrypt automatisch — kein Certbot, kein manuelles Renewals.
+
+### Hosting-Empfehlung
+
+**Empfehlung: Hetzner Cloud VPS**
+
+| | Hetzner CX22 | DigitalOcean Basic | Railway | Render |
+|---|---|---|---|---|
+| **Preis** | ~€5/mo | ~$12/mo | ~$15–30/mo | ~$15–30/mo |
+| **vCPU / RAM** | 2 / 4 GB | 1 / 1 GB | managed | managed |
+| **Ops-Aufwand** | niedrig (Docker) | niedrig (Docker) | minimal | minimal |
+| **Datenschutz** | DE-Server (DSGVO) | US-Server | US-Server | US-Server |
+| **TLS** | via Caddy | via Caddy | automatisch | automatisch |
+
+Hetzner CX22 (~€5/mo) bietet mehr als genug Ressourcen für Schnappster und hat deutsche Server (DSGVO-Vorteil). Der Ops-Aufwand mit Docker Compose ist gering.
+
+Managed-Plattformen (Railway, Render, Fly.io) sind einfacher im Setup, kosten aber 3–6× mehr und haben US-Server. Sinnvoll wenn der Ops-Aufwand ein Problem ist.
+
+### Deployment-Workflow
+
+```bash
+# Einmalig: Server einrichten
+ssh root@<server-ip>
+apt install docker.io docker-compose-plugin -y
+
+# Repo klonen + starten
+git clone https://github.com/pikktee/schnappster.git /opt/schnappster
+cd /opt/schnappster
+cp .env.example .env   # Credentials eintragen
+docker compose up -d
+
+# Update deployen
+git pull && docker compose up -d --build
+```
+
+Für automatisches Deployment: GitHub Actions Workflow, der nach einem Push auf `main` per SSH `git pull && docker compose up -d --build` auf dem Server ausführt.
+
+### Lokale Entwicklung (unverändert)
+
+Lokal ändert sich nichts:
+```bash
+uv run start --skip-tests   # FastAPI auf :8000
+cd web && npm run dev        # Next.js auf :3000 (proxied /api/* → :8000)
+```
+
+`npm run dev` ist bereits so konfiguriert dass API-Calls an `:8000` weitergeleitet werden — kein Caddy lokal nötig.
+
+---
+
 ## Begründungen und Vergleiche
 
 ### Warum Supabase?
@@ -557,6 +713,11 @@ Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
 ## Detaillierter Umsetzungsplan
 
 ### Phase 1 — Backend: Auth & Multi-Tenancy
+
+**Deployment-Vorbereitung (einmalig):**
+- `web/next.config.mjs`: `output: 'export'` und `trailingSlash` entfernen
+- `app/core/bootstrap.py`: `frontend_router` und `mount_frontend` entfernen
+- `Dockerfile`, `web/Dockerfile`, `docker-compose.yml`, `Caddyfile` anlegen
 
 **Supabase-Setup (einmalig, manuell):**
 - Projekte `schnappster-dev` und `schnappster-prod` auf supabase.com anlegen
