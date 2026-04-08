@@ -277,6 +277,31 @@ Am Ende der Settings-Page als eigenständiger **Danger Zone**-Abschnitt:
 
 ---
 
+## Impressum
+
+In Deutschland gesetzlich vorgeschrieben (TMG § 5). Als einfache statische Seite umsetzen:
+
+- Route: `/impressum` — eigene Next.js-Page, kein API-Aufruf
+- Inhalt: Name + Anschrift, E-Mail-Adresse, ggf. Umsatzsteuer-ID
+- Link: im Sidebar-Footer (unterhalb der Navigation) und/oder im Login/Register-Screen
+
+```tsx
+// web/app/(app)/impressum/page.tsx — statisch, kein "use client" nötig
+export default function ImpressumPage() {
+  return (
+    <div className="max-w-2xl space-y-4">
+      <h1 className="text-xl font-semibold">Impressum</h1>
+      <p>Angaben gemäß § 5 TMG</p>
+      {/* Name, Anschrift, E-Mail */}
+    </div>
+  )
+}
+```
+
+Die Impressum-Seite muss auch ohne Login erreichbar sein — Middleware so konfigurieren, dass `/impressum` von der Auth-Weiterleitung ausgenommen ist.
+
+---
+
 ## Supabase-Integration: Schritt für Schritt
 
 ### Zwei Projekte, drei Umgebungen
@@ -614,23 +639,90 @@ schnappster.app {
 
 Caddy besorgt TLS-Zertifikate von Let's Encrypt automatisch — kein Certbot, kein manuelles Renewals.
 
-### Hosting-Empfehlung
+### Hosting-Optionen
 
-**Empfehlung: Hetzner Cloud VPS**
-
-| | Hetzner CX22 | DigitalOcean Basic | Railway | Render |
+| Option | Kosten | Ressourcen | Server | Empfohlen für |
 |---|---|---|---|---|
-| **Preis** | ~€5/mo | ~$12/mo | ~$15–30/mo | ~$15–30/mo |
-| **vCPU / RAM** | 2 / 4 GB | 1 / 1 GB | managed | managed |
-| **Ops-Aufwand** | niedrig (Docker) | niedrig (Docker) | minimal | minimal |
-| **Datenschutz** | DE-Server (DSGVO) | US-Server | US-Server | US-Server |
-| **TLS** | via Caddy | via Caddy | automatisch | automatisch |
+| **Eigener T640** | kostenlos | sehr viel | lokal/Büro | Entwicklung, Hobby, Testen |
+| **Oracle Cloud Free Tier** | kostenlos | 4 ARM-Cores, 24 GB RAM | EU verfügbar | Produktion gratis |
+| **Hetzner CX22** | ~€5/mo | 2 vCPU, 4 GB | DE (DSGVO) | Produktion, zuverlässig |
+| **Railway / Render** | ~€15–30/mo | managed | US-Server | Zero-Ops, kein Serverbetrieb |
 
-Hetzner CX22 (~€5/mo) bietet mehr als genug Ressourcen für Schnappster und hat deutsche Server (DSGVO-Vorteil). Der Ops-Aufwand mit Docker Compose ist gering.
+**Oracle Cloud Free Tier** ist die stärkste kostenlose Option — die Always-Free-ARM-Instanzen (Ampere A1) sind dauerhaft gratis, keine Kreditkarte nach Ablauf. Achtung: Signup kann Kreditkarte zur Verifikation verlangen. Ressourcen (4 Cores, 24 GB) sind für Schnappster weit überdimensioniert.
 
-Managed-Plattformen (Railway, Render, Fly.io) sind einfacher im Setup, kosten aber 3–6× mehr und haben US-Server. Sinnvoll wenn der Ops-Aufwand ein Problem ist.
+**Eigener T640**: Hardware-Kosten entfallen. Voraussetzungen: Router-Portweiterleitung (80, 443), DynDNS falls keine statische IP (DuckDNS — kostenlos), Strom läuft natürlich.
 
-### Deployment-Workflow
+### Docker vs. direkt (systemd)
+
+Docker Compose ist sinnvoll für Cloud-VPS (reproduzierbar, Wechsel zwischen Servern einfach). Für einen eigenen Server mit einem Entwickler ist **systemd direkt oft einfacher und leichtgewichtiger**:
+
+| | systemd direkt | Docker Compose |
+|---|---|---|
+| **Setup-Aufwand** | niedrig | mittel |
+| **Ressourcen-Overhead** | minimal | etwas mehr |
+| **Updates** | `git pull + systemctl restart` | `docker compose up --build` |
+| **Isolation** | keine | vollständig |
+| **Reproduzierbar** | nein | ja |
+| **Ideal für** | T640, einzelner Server | Cloud-VPS, mehrere Server |
+
+**Empfehlung:**
+- **T640 / eigener Server** → systemd direkt (kein Docker)
+- **Oracle Cloud / Hetzner** → Docker Compose (Dockerfiles aus vorherigem Abschnitt)
+
+### Deployment auf dem T640 (systemd, kein Docker)
+
+```bash
+# Einmalig: Abhängigkeiten
+apt install caddy nodejs npm -y
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Repo klonen
+git clone https://github.com/pikktee/schnappster.git /opt/schnappster
+cd /opt/schnappster
+cp .env.example .env    # Credentials eintragen
+
+# systemd-Service für FastAPI: /etc/systemd/system/schnappster-api.service
+[Unit]
+Description=Schnappster API
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/schnappster
+ExecStart=/root/.cargo/bin/uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+EnvironmentFile=/opt/schnappster/.env
+
+[Install]
+WantedBy=multi-user.target
+
+# systemd-Service für Next.js: /etc/systemd/system/schnappster-web.service
+[Service]
+WorkingDirectory=/opt/schnappster/web
+ExecStart=/usr/bin/npm start
+Restart=always
+
+# Starten
+systemctl daemon-reload
+systemctl enable --now schnappster-api schnappster-web
+
+# Caddyfile: /etc/caddy/Caddyfile — wie oben beschrieben
+systemctl reload caddy
+```
+
+**DynDNS falls keine statische IP** (DuckDNS — kostenlos):
+```bash
+# Cronjob alle 5 Minuten: IP aktualisieren
+*/5 * * * * curl -s "https://www.duckdns.org/update?domains=<subdomain>&token=<token>&ip="
+```
+
+**Updates:**
+```bash
+cd /opt/schnappster && git pull
+systemctl restart schnappster-api
+cd web && npm run build && systemctl restart schnappster-web
+```
+
+### Deployment auf Cloud-VPS (Docker Compose)
 
 ```bash
 # Einmalig: Server einrichten
@@ -640,14 +732,14 @@ apt install docker.io docker-compose-plugin -y
 # Repo klonen + starten
 git clone https://github.com/pikktee/schnappster.git /opt/schnappster
 cd /opt/schnappster
-cp .env.example .env   # Credentials eintragen
+cp .env.example .env    # Credentials eintragen
 docker compose up -d
 
 # Update deployen
 git pull && docker compose up -d --build
 ```
 
-Für automatisches Deployment: GitHub Actions Workflow, der nach einem Push auf `main` per SSH `git pull && docker compose up -d --build` auf dem Server ausführt.
+Für automatisches Deployment: GitHub Actions Workflow, der nach Push auf `main` per SSH `git pull && docker compose up -d --build` auf dem Server ausführt.
 
 ### Lokale Entwicklung (unverändert)
 
@@ -657,7 +749,7 @@ uv run start --skip-tests   # FastAPI auf :8000
 cd web && npm run dev        # Next.js auf :3000 (proxied /api/* → :8000)
 ```
 
-`npm run dev` ist bereits so konfiguriert dass API-Calls an `:8000` weitergeleitet werden — kein Caddy lokal nötig.
+Kein Caddy, kein Docker lokal nötig.
 
 ---
 
@@ -745,6 +837,11 @@ Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
 ---
 
 ### Phase 2 — Frontend: Auth-Screens
+
+**Impressum anlegen:**
+- `/impressum` als statische Next.js-Page (kein API-Aufruf)
+- Link im Sidebar-Footer eintragen
+- Middleware: `/impressum` von Auth-Weiterleitung ausnehmen
 
 **Route-Group `(auth)` anlegen** (`web/app/(auth)/`):
 - Gemeinsames Layout ohne Sidebar: `gradient-subtle`-Hintergrund, Logo + `Card max-w-sm` zentriert
