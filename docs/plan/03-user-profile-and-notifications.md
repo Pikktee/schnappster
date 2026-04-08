@@ -7,13 +7,12 @@ Pro-User Profildaten und Benachrichtigungseinstellungen sauber trennen.
 ## Benutzerprofil
 
 - Name: initial aus OAuth, editierbar
-- Avatar: aus OAuth-Provider (URL), kein Upload/Storage
+- Avatar: aus Supabase-User-Objekt im Frontend (`user.user_metadata.avatar_url`), kein DB-Feld, kein Upload/Storage
 - E-Mail: aus Supabase Auth, read-only
 
 ## Benachrichtigungskanaele
 
 - Telegram: Bot-Token global in `.env`, Chat-ID pro User
-- Web Push
 - E-Mail (an Auth-E-Mail)
 
 ## Benachrichtigungsoptionen
@@ -27,7 +26,7 @@ Pro-User Profildaten und Benachrichtigungseinstellungen sauber trennen.
 - `user_id` (PK, FK auf auth user)
 - `display_name`
 - `telegram_chat_id`
-- `notify_telegram`, `notify_email`, `notify_web_push`
+- `notify_telegram`, `notify_email`
 - `notify_min_score`
 - `notify_mode`
 

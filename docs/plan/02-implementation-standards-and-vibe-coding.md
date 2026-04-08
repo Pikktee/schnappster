@@ -43,8 +43,9 @@ Qualitaet und Konsistenz waehrend der Migration sichern.
 - Verhalten testen, nicht interne Implementierungsdetails
 - Neue Services/Filter mit Unit-Tests absichern
 - `uv run pytest` vor jedem Merge gruen
-- Supabase-Auth in pytest mocken
-- SQL-nahe Tests gegen echte PostgreSQL-Instanz
+- Supabase-Auth in pytest mocken (`dependency_overrides` fuer `get_current_user`)
+- DB-Tests gegen Postgres erst nach MVP (nicht Tag-1-kritisch)
+- RLS-Integrationstests manuell (zwei Test-User); automatisiert nur bei haeufigen Policy-Aenderungen
 
 ## Agenten-Workflow nach Umsetzung
 

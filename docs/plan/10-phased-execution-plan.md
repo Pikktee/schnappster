@@ -2,12 +2,12 @@
 
 ## Phase 1 - Backend: Auth und Multi-Tenancy
 
-- Deployment-Vorbereitung (Next Export raus, API/Frontend Trennung, Docker/Caddy Artefakte)
-- Manuelle Vorarbeiten aus `90-manual-supabase-and-external-setup.md` abschliessen
-- Backend-Migration auf Postgres/Supabase
-- RLS-Policies und Session-Kontexte
-- Jobs auf Service-Role + `owner_id` umstellen
-- Tests auf Postgres-kompatiblen Stand bringen
+1. Manuelle Vorarbeiten aus `90-manual-supabase-and-external-setup.md` abschliessen
+2. Backend-Migration auf Postgres/Supabase (Static Export bleibt vorerst funktionsfaehig)
+3. RLS-Policies und Session-Kontexte
+4. Jobs auf Service-Role + `owner_id` umstellen
+5. Tests auf Postgres-kompatiblen Stand bringen (Alembic Baseline)
+6. Deployment-Umbau: Next Export raus, API/Frontend Trennung, Docker/Caddy Artefakte (erst wenn Backend stabil auf Postgres laeuft)
 
 ## Phase 2 - Frontend: Auth-Screens
 
@@ -32,7 +32,7 @@
 
 ## Phase 5 - Betrieb
 
-- Telegram/E-Mail/Web-Push Benachrichtigungen
+- Telegram/E-Mail Benachrichtigungen
 - Rate-Limiting, Monitoring
 - CORS und Datenschutz im laufenden Betrieb nachziehen
 - Manuelle Deployment-/Ops-Schritte aus `91-manual-deployment-and-operations.md` anwenden

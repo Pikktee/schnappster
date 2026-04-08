@@ -20,17 +20,17 @@ Hinweis: Server-/DNS-/TLS-Operations sind als manuelle Schritte in
 - Frontend-Serving im FastAPI-Bootstrap entfernen (`frontend_router`, `mount_frontend`)
 - Eigene Container fuer API und Web
 
-## Routing-Pfadabgleich
+## Routing-Pfadabgleich (entschieden)
 
-- Entweder Backend erwartet `/api/...`
-- Oder Caddy strippt Prefix vor Proxy
-- Entscheidung einmal festlegen und in Frontend/API konsistent halten
+- Backend erwartet `/api/...` (bereits im Ist-Zustand so implementiert)
+- Caddy leitet `/api/*` ohne Prefix-Stripping an FastAPI durch
+- `/*` geht an Next.js
 
 ## CORS
 
-- Bei gleicher Origin minimal
-- Bei getrennten Origins (lokal/staging/previews) `CORSMiddleware` + explizite `CORS_ORIGINS`
-- Kein Wildcard mit Credentials in Produktion
+- **Produktion:** Nicht noetig — Frontend und API laufen hinter Caddy auf gleicher Domain (Same Origin)
+- **Lokale Entwicklung:** `CORSMiddleware` fuer `localhost:3000` ↔ `localhost:8000` (bereits vorhanden)
+- Kein Wildcard mit Credentials
 
 ## Agenten-Outputs (Code/Config)
 
