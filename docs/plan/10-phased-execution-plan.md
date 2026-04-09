@@ -7,7 +7,7 @@
 3. RLS-Policies und Session-Kontexte
 4. Jobs auf Service-Role + `owner_id` umstellen
 5. Tests auf Postgres-kompatiblen Stand bringen (Alembic Baseline)
-6. Deployment-Umbau: Next Export raus, API/Frontend Trennung, Docker/Caddy Artefakte (erst wenn Backend stabil auf Postgres laeuft)
+6. Deployment-Umbau: API/Frontend Trennung auf Railway/Vercel, Domains + CORS-Konfiguration (erst wenn Backend stabil auf Postgres laeuft)
 
 ## Phase 2 - Frontend: Auth-Screens
 
@@ -34,7 +34,7 @@
 
 - Telegram/E-Mail Benachrichtigungen
 - Rate-Limiting, Monitoring
-- CORS und Datenschutz im laufenden Betrieb nachziehen
+- CORS- und Datenschutz-Betriebsprozesse dauerhaft pflegen und regelmaessig pruefen
 - Manuelle Deployment-/Ops-Schritte aus `91-manual-deployment-and-operations.md` anwenden
 
 ## Phase 6 - Payments (spaeter)

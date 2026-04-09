@@ -45,7 +45,7 @@ sind absichtlich ausgelagert nach `90-manual-supabase-and-external-setup.md`.
 ### Ueberblick
 
 - `get_db_session()`: User-JWT + RLS fuer alle HTTP-Routen
-- `get_admin_session()`: nur Background-Jobs (Service-Role, kein JWT, RLS umgangen)
+- `get_admin_session()`: nur Background-Jobs (dedizierter Admin-Kontext, nie in normalen HTTP-Routen)
 
 ### Ablauf: JWT-Claims an PostgreSQL uebergeben
 
@@ -85,9 +85,10 @@ def get_db_session(current_user = Depends(get_current_user)):
 
 ```python
 def get_admin_session():
-    """Fuer Background-Jobs: kein JWT, Service-Role umgeht RLS."""
+    """Nur fuer Background-Jobs: dedizierter Admin-Kontext, kein User-JWT."""
     with Session(engine) as session:
-        session.execute(text("SET LOCAL role = 'service_role'"))
+        # Rechte kommen aus der tatsaechlichen DB-Role/Connection-Strategie,
+        # nicht aus einer missverstaendlichen Annahme ueber SET LOCAL role.
         yield session
 ```
 
@@ -102,8 +103,11 @@ CREATE POLICY owner_access ON ad_search
 ### Wichtig
 
 - `SET LOCAL` gilt nur innerhalb der aktuellen Transaction — kein Leak zwischen Requests
-- Background-Jobs nutzen `get_admin_session()` mit Service-Role (kein JWT noetig)
+- Normale HTTP-Routen verwenden niemals `get_admin_session()`
+- Background-Jobs nutzen einen expliziten Admin-Kontext mit klar dokumentierter Rechtevergabe
 - `owner_id` wird bei INSERT explizit aus den Claims gesetzt (nicht von RLS)
+- Kein Sicherheitsdesign auf der Annahme aufbauen, dass `SET LOCAL role = 'service_role'`
+  automatisch RLS korrekt umgeht
 
 ## 6) API-Routen-Uebersicht (Ist → Soll)
 
@@ -164,6 +168,12 @@ User-Management erfolgt initial ueber das Supabase Dashboard (kein eigener Endpo
 - Auth wird gemockt (`dependency_overrides` fuer `get_current_user`)
 - Keine echte Postgres noetig — gemockte DB/Services reichen
 - `uv run pytest` bleibt schnell und laeuft ohne externe Abhaengigkeiten
+
+### Muss: Security-Invariants (leichtgewichtig, aber verpflichtend)
+
+- Test/Check 1: User-HTTP-Route kann keine systemweiten Admin-Operationen ausfuehren
+- Test/Check 2: Background-Job mit Admin-Kontext kann benoetigte systemweite Operation ausfuehren
+- Test/Check 3: `get_admin_session()` wird nicht in normalen HTTP-Routen verwendet
 
 ### Sollte (nach MVP): DB-Tests gegen Postgres
 

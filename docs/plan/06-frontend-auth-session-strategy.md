@@ -41,7 +41,7 @@ Robuste Session-Fuehrung zwischen Next.js Frontend und FastAPI API.
 ## API-Authentifizierung
 
 - `Authorization: Bearer <access_token>` in allen API-Requests
-- Bei gleicher Origin (hinter Caddy) trotzdem konsistent Header senden
+- Auch bei Cross-Origin (`app.<domain>` -> `api.<domain>`) konsistent Header senden
 
 ## Ablauf bei Session-Expiry
 
