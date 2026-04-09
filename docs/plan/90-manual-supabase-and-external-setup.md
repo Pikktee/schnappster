@@ -9,7 +9,8 @@ Nicht als KI-Agentenplan verwenden.
 
 - Projekt `schnappster-dev` anlegen
 - Projekt `schnappster-prod` anlegen
-- Notieren: Project URL, anon key, service_role key, Database URL
+- Notieren: Project URL, Publishable key, Secret key, Database URL (Direct connection string)
+- Optional zusaetzlich notieren: Pooler connection string (fuer serverless/kurzlebige Verbindungen)
 
 ## OAuth Provider
 
@@ -31,4 +32,4 @@ Nicht als KI-Agentenplan verwenden.
 
 - `.env` lokal pflegen (nicht committen)
 - Produktions-Secrets im Host/Secret-Manager setzen
-- Service-Role Key nie im Frontend verwenden
+- Secret Key nie im Frontend verwenden
