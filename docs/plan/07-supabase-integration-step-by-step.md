@@ -17,16 +17,19 @@ sind absichtlich ausgelagert nach `90-manual-supabase-and-external-setup.md`.
 ## 2) Schema (Greenfield)
 
 - Greenfield: App startet mit leerem Postgres, kein Datenimport aus SQLite
+- SQLite-Bestand ist nur Testdaten; es gibt bewusst keine Datenuebernahme
 - `ad_search` + `ad` um `owner_id` erweitern
 - `user_settings` anlegen
 - `app_settings` anlegen (admin-only Zugriff)
 - `owner_id` als Referenz auf Supabase User-ID (`auth.users.id`) speichern,
   aber kein hartes FK-Design auf `auth.users` voraussetzen
 - SQLModel und DB-Schema 1:1 synchron halten
-- Initiales Schema via Alembic-Baseline-Migration erstellen
-- Zukuenftige Schema-Aenderungen via **Alembic** (Auto-Generate aus SQLModel-Definitionen)
-- `uv run dbreset` bleibt nur fuer lokale Entwicklung; Produktion immer ueber Alembic
-- RLS-Policies als separate SQL-Migrationen in Alembic verwalten
+- MVP: Schema-Aenderungen als versionierte SQL-Dateien im Repo verwalten
+  (z. B. `db/migrations/001_init.sql`, `002_add_owner_id.sql`, `003_rls_policies.sql`)
+- Migrationen manuell und in Reihenfolge ausfuehren (dev/prod), inkl. kurzer Apply-Dokumentation
+- `uv run dbreset` bleibt nur fuer lokale Entwicklung; Produktion ueber versionierte SQL-Migrationen
+- RLS-Policies als eigene SQL-Migrationen pflegen (nicht ad hoc im Dashboard)
+- Alembic ist optionales Spaeter-Thema nach MVP-Stabilisierung
 
 ## 3) RLS und Policies
 
@@ -41,6 +44,8 @@ sind absichtlich ausgelagert nach `90-manual-supabase-and-external-setup.md`.
 - `require_admin`
 - Admin-Rolle in `raw_app_meta_data` setzen
 - Konsistenz zwischen Python-Check (`user.app_metadata`) und SQL-Policy (`auth.jwt()`)
+- Bemerkung (spaeter): Bei dynamischen Rollen-Aenderungen ist Token-Refresh/Neu-Login noetig,
+  damit neue Claims im JWT wirksam werden (fuer MVP mit festem Admin nicht kritisch).
 
 ## 5) Session-Kontexte
 
@@ -113,6 +118,9 @@ CREATE POLICY owner_access ON ad_search
 - `SET LOCAL` gilt nur innerhalb der aktuellen Transaction — kein Leak zwischen Requests
 - HTTP-Request = eine Transaction fuer DB-Operationen im Route-Handler
 - Keine Zwischen-Commits innerhalb eines Requests, wenn RLS-Claims via `SET LOCAL` genutzt werden
+- Guardrail: kein `session.commit()`/`session.rollback()` in `app/routes` und normalen Services
+- Guardrail: DB-Write-Zugriffe in HTTP-Routen nur ueber die injizierte Request-Session
+- Ausnahmen nur fuer klar markierte Spezialfaelle mit eigener Dokumentation und Tests
 - Normale HTTP-Routen verwenden niemals `get_admin_session()`
 - Background-Jobs nutzen einen expliziten Admin-Kontext mit klar dokumentierter Rechtevergabe
 - `owner_id` wird bei INSERT explizit aus den Claims gesetzt (nicht von RLS)
@@ -125,7 +133,8 @@ CREATE POLICY owner_access ON ad_search
    (`user_settings`, `ad_search` inklusive `ad`-Kaskade)
 2. Logs bleiben systemweit/admin-only und werden nicht im User-Delete-Flow geloescht
 3. Danach Auth-User via Supabase Admin API loeschen
-4. Bei Fehler in Schritt 3 klaren Fehlerstatus liefern und Wiederholung ermoeglichen
+4. Bei Fehler in Schritt 3: User als `deletion_pending` markieren und idempotenten Retry ermoeglichen
+5. Wiederholte `DELETE /users/me` Aufrufe muessen sicher sein (kein Fehler bei bereits geloeschten App-Daten)
 
 ## 6) API-Routen-Uebersicht (Ist → Soll)
 
@@ -192,10 +201,12 @@ User-Management erfolgt initial ueber das Supabase Dashboard (kein eigener Endpo
 - Test/Check 1: User-HTTP-Route kann keine systemweiten Admin-Operationen ausfuehren
 - Test/Check 2: Background-Job mit Admin-Kontext kann benoetigte systemweite Operation ausfuehren
 - Test/Check 3: `get_admin_session()` wird nicht in normalen HTTP-Routen verwendet
+- Test/Check 4: einfacher CI-Guard auf verbotene `commit(`/`rollback(` Aufrufe
+  in `app/routes` und `app/services` (mit expliziter Allowlist fuer DB-Dependency/Spezialfaelle)
 
 ### Sollte (nach MVP): DB-Tests gegen Postgres
 
-- Testen, ob SQLModel-Queries und Alembic-Migrationen korrekt funktionieren
+- Testen, ob SQLModel-Queries und versionierte SQL-Migrationen korrekt funktionieren
 - Benoetigt Postgres-Docker-Container in Test-Config
 - Nicht Tag-1-kritisch, aber sinnvoll sobald der Betrieb stabil laeuft
 

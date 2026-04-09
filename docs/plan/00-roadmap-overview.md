@@ -7,7 +7,7 @@ Schnappster wird von Single-User (SQLite, keine Auth) zu einer Multi-User-SaaS m
 - Supabase Auth (Google/Facebook, E-Mail/Passwort)
 - PostgreSQL + RLS-basierter Datenisolierung
 - Admin-Funktionen mit Variante B (Admin-HTTP ueber User-JWT + RLS, kein Service-Role-SQL in normalen Admin-Routen)
-- optionalen Benachrichtigungskanaelen (Telegram, E-Mail, Web Push)
+- optionalen Benachrichtigungskanaelen (Telegram, E-Mail)
 - spaeterer Erweiterbarkeit Richtung Payments/Entitlements
 
 ## Reihenfolge der KI-Agenten-Teilplaene

@@ -11,7 +11,6 @@ Hinweis: Server-/DNS-/TLS-Operations sind als manuelle Schritte in
 
 - Frontend auf Vercel (`app.<domain>`)
 - Backend API auf Railway (`api.<domain>`)
-- MCP-Server als separater Railway-Service (`mcp.<domain>`)
 - HTTPS/TLS und Domains ueber Vercel/Railway + DNS
 
 ## Aenderungen gegenueber aktuellem Stand

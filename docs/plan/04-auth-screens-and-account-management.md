@@ -40,6 +40,8 @@ Vollstaendige Login-/Account-UX fuer Multi-User.
 - Logs bleiben systemweit/admin-only und sind nicht Teil des User-Delete-Flows
 - Kein DB-Design voraussetzen, das per FK direkt an `auth.users` kaskadiert
 - Danach Auth-User via Supabase Admin API loeschen
+- Endpoint-Verhalten idempotent halten (wiederholter Aufruf bleibt sicher)
+- Falls Auth-Delete fehlschlaegt: `deletion_pending` markieren und Retry erlauben
 - Primaeren Admin vor Selbstloeschung schuetzen (`403`)
 
 ## Backend-Endpunkte (Account)

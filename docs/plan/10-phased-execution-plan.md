@@ -6,7 +6,7 @@
 2. Backend-Migration auf Postgres/Supabase (Static Export bleibt vorerst funktionsfaehig)
 3. RLS-Policies und Session-Kontexte
 4. Jobs auf Service-Role + `owner_id` umstellen
-5. Tests auf Postgres-kompatiblen Stand bringen (Alembic Baseline)
+5. Versionierte SQL-Migrationen fuer MVP aufsetzen und Tests auf Postgres-kompatiblen Stand bringen
 6. Deployment-Umbau: API/Frontend Trennung auf Railway/Vercel, Domains + CORS-Konfiguration (erst wenn Backend stabil auf Postgres laeuft)
 
 ## Phase 2 - Frontend: Auth-Screens
