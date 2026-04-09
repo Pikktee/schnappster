@@ -2,7 +2,7 @@
 
 ## Ziel
 
-Migration von SQLite/Single-User auf Postgres/Supabase/Multi-Tenancy.
+Migration von SQLite/Single-User auf Postgres/Supabase/Multi-User.
 
 Hinweis: Externe/Portal-Schritte (Projektanlage, Provider-Konfiguration, Secrets-Verwaltung)
 sind absichtlich ausgelagert nach `90-manual-supabase-and-external-setup.md`.
@@ -33,7 +33,7 @@ sind absichtlich ausgelagert nach `90-manual-supabase-and-external-setup.md`.
 
 ## 3) RLS und Policies
 
-- RLS auf allen Multi-Tenant-Tabellen aktivieren
+- RLS auf allen Multi-User-Tabellen aktivieren
 - Owner-Policies fuer `ad_search`, `ad`, `user_settings`
 - Admin-Policy fuer `app_settings` via `app_metadata.role = admin`
 - Policy-Tests mit passenden JWT-Claims (inkl. `app_metadata`)

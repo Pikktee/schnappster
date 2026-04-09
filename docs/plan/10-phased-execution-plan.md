@@ -1,6 +1,6 @@
 # 10 - Phasenplan der Umsetzung
 
-## Phase 1 - Backend: Auth und Multi-Tenancy
+## Phase 1 - Backend: Auth und Multi-User
 
 1. Manuelle Vorarbeiten aus `90-manual-supabase-and-external-setup.md` abschliessen
 2. Backend-Migration auf Postgres/Supabase (Static Export bleibt vorerst funktionsfaehig)
