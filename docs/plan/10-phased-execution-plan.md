@@ -28,7 +28,7 @@
 - Bestehende Routen mit `require_admin` absichern
 - Admin-Endpunkte fuer manuelle Trigger + Stats
 - Sidebar/Admin-Dashboard fuer Admins
-- Logs-Konzept entscheiden (Datei vs DB)
+- Logs als systemweite, admin-only API-Ressourcen finalisieren (kein User-Delete-Cleanup)
 
 ## Phase 5 - Betrieb
 

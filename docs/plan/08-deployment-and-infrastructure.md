@@ -29,9 +29,15 @@ Hinweis: Server-/DNS-/TLS-Operations sind als manuelle Schritte in
 ## CORS
 
 - **Produktion:** Notwendig, da Cross-Origin (`app.<domain>` -> `api.<domain>`)
-- Erlaubte Origins explizit whitelisten (`https://app.<domain>` plus Preview-URLs)
+- CORS-Strategie:
+  - stabiler Haupt-Origin immer explizit erlauben: `https://app.<domain>`
+  - Preview-URLs nur fuer nicht-produktive Umgebungen erlauben (Pattern-Match auf Vercel-Preview-Domains)
+  - Produktion bevorzugt ohne Preview-Origin-Freigaben betreiben
 - **Lokale Entwicklung:** `CORSMiddleware` fuer `localhost:3000` ↔ `localhost:8000` (bereits vorhanden)
 - Kein Wildcard mit Credentials
+- Backend-Umsetzung ueber ENV:
+  - `CORS_ALLOWED_ORIGINS` (kommagetrennte fixe Origins)
+  - optional `CORS_ALLOWED_ORIGIN_REGEX` fuer Preview-Umgebungen
 
 ## Agenten-Outputs (Code/Config)
 

@@ -9,6 +9,7 @@ Pro-User Profildaten und Benachrichtigungseinstellungen sauber trennen.
 - Name: initial aus OAuth, editierbar
 - Avatar: aus Supabase-User-Objekt im Frontend (`user.user_metadata.avatar_url`), kein DB-Feld, kein Upload/Storage
 - E-Mail: aus Supabase Auth, read-only
+- API-Scope: `/users/me` PATCH aendert nur den Namen (`display_name`), nicht Avatar/E-Mail
 
 ## Benachrichtigungskanaele
 

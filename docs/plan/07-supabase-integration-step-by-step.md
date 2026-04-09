@@ -20,6 +20,8 @@ sind absichtlich ausgelagert nach `90-manual-supabase-and-external-setup.md`.
 - `ad_search` + `ad` um `owner_id` erweitern
 - `user_settings` anlegen
 - `app_settings` anlegen (admin-only Zugriff)
+- `owner_id` als Referenz auf Supabase User-ID (`auth.users.id`) speichern,
+  aber kein hartes FK-Design auf `auth.users` voraussetzen
 - SQLModel und DB-Schema 1:1 synchron halten
 - Initiales Schema via Alembic-Baseline-Migration erstellen
 - Zukuenftige Schema-Aenderungen via **Alembic** (Auto-Generate aus SQLModel-Definitionen)
@@ -47,21 +49,23 @@ sind absichtlich ausgelagert nach `90-manual-supabase-and-external-setup.md`.
 - `get_db_session()`: User-JWT + RLS fuer alle HTTP-Routen
 - `get_admin_session()`: nur Background-Jobs (dedizierter Admin-Kontext, nie in normalen HTTP-Routen)
 
-### Ablauf: JWT-Claims an PostgreSQL uebergeben
+### Ablauf: JWT-Claims an PostgreSQL uebergeben (transaktionssicher)
 
-```
+```text
 Request mit Bearer Token
     ↓
-get_current_user()          — Token validieren, Claims extrahieren
+get_current_user()                     — Token validieren, Claims extrahieren
     ↓
-get_db_session(user)        — DB-Session oeffnen, Claims setzen
+get_db_session(user)                   — Session + explizite Transaction oeffnen
     ↓
 SET LOCAL request.jwt.claims = '{"sub":"<user-id>", ...}'
 SET LOCAL role = 'authenticated'
     ↓
-Query ausfuehren            — RLS-Policies lesen request.jwt.claims
+Alle Queries dieses Requests in derselben Transaction ausfuehren
     ↓
-Transaction commit/rollback — SET LOCAL wird automatisch zurueckgesetzt
+Am Request-Ende genau 1x commit/rollback
+    ↓
+Transaction-Ende setzt SET LOCAL automatisch zurueck
 ```
 
 ### Pseudocode `get_db_session()`
@@ -69,16 +73,20 @@ Transaction commit/rollback — SET LOCAL wird automatisch zurueckgesetzt
 ```python
 def get_db_session(current_user = Depends(get_current_user)):
     with Session(engine) as session:
-        # Claims als Postgres-Session-Variable setzen
-        # SET LOCAL gilt nur innerhalb dieser Transaction
-        claims = json.dumps({
-            "sub": str(current_user.id),
-            "role": "authenticated",
-            "app_metadata": current_user.app_metadata,
-        })
-        session.execute(text("SET LOCAL request.jwt.claims = :claims"), {"claims": claims})
-        session.execute(text("SET LOCAL role = 'authenticated'"))
-        yield session
+        with session.begin():
+            # Claims als Postgres-Session-Variable setzen.
+            # SET LOCAL gilt nur innerhalb dieser Transaction.
+            claims = json.dumps({
+                "sub": str(current_user.id),
+                "role": "authenticated",
+                "app_metadata": current_user.app_metadata,
+            })
+            session.execute(
+                text("SET LOCAL request.jwt.claims = :claims"),
+                {"claims": claims},
+            )
+            session.execute(text("SET LOCAL role = 'authenticated'"))
+            yield session
 ```
 
 ### Pseudocode `get_admin_session()`
@@ -103,11 +111,21 @@ CREATE POLICY owner_access ON ad_search
 ### Wichtig
 
 - `SET LOCAL` gilt nur innerhalb der aktuellen Transaction — kein Leak zwischen Requests
+- HTTP-Request = eine Transaction fuer DB-Operationen im Route-Handler
+- Keine Zwischen-Commits innerhalb eines Requests, wenn RLS-Claims via `SET LOCAL` genutzt werden
 - Normale HTTP-Routen verwenden niemals `get_admin_session()`
 - Background-Jobs nutzen einen expliziten Admin-Kontext mit klar dokumentierter Rechtevergabe
 - `owner_id` wird bei INSERT explizit aus den Claims gesetzt (nicht von RLS)
 - Kein Sicherheitsdesign auf der Annahme aufbauen, dass `SET LOCAL role = 'service_role'`
   automatisch RLS korrekt umgeht
+
+### Konto-Loeschung (verbindlicher Ablauf)
+
+1. App-Daten im User-Context ueber `owner_id` loeschen
+   (`user_settings`, `ad_search` inklusive `ad`-Kaskade)
+2. Logs bleiben systemweit/admin-only und werden nicht im User-Delete-Flow geloescht
+3. Danach Auth-User via Supabase Admin API loeschen
+4. Bei Fehler in Schritt 3 klaren Fehlerstatus liefern und Wiederholung ermoeglichen
 
 ## 6) API-Routen-Uebersicht (Ist → Soll)
 
@@ -138,10 +156,10 @@ RLS filtert automatisch nach `owner_id` — kein manuelles `WHERE owner_id` noet
 
 | Route | Methode(n) | Auth | Beschreibung |
 |-------|-----------|------|-------------|
-| `/api/users/me` | GET, PATCH | user | Eigenes Profil (Name, Avatar-URL) |
+| `/api/users/me` | GET, PATCH | user | Eigenes Profil (GET: Name, Avatar-URL, E-Mail; PATCH: nur Name) |
 | `/api/users/me/settings` | GET, PATCH | user | Persoenliche Einstellungen (Benachrichtigungen etc.) |
 | `/api/users/me/change-password` | POST | user | Nur fuer E-Mail/Passwort-User |
-| `/api/users/me` | DELETE | user | Konto loeschen (Kaskade + Supabase Admin API) |
+| `/api/users/me` | DELETE | user | Konto loeschen (owner_id-Cleanup + Supabase Admin API) |
 
 ### Bestehende Routen — Logs (werden Admin-only)
 

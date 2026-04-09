@@ -34,8 +34,11 @@ Vollstaendige Login-/Account-UX fuer Multi-User.
 
 - Destruktiver Bereich mit `AlertDialog`
 - Bestaetigung erst nach Eingabe `loeschen`
-- App-Daten kaskadieren via `ON DELETE CASCADE` in der DB:
-  `user → user_settings, ad_search → ad, logs_scraperun, logs_aianalysis, logs_error`
+- App-Daten werden im User-Context explizit ueber `owner_id` geloescht:
+  `user_settings`, `ad_search`
+  (wobei `ad` via `ON DELETE CASCADE` an `ad_search` haengt)
+- Logs bleiben systemweit/admin-only und sind nicht Teil des User-Delete-Flows
+- Kein DB-Design voraussetzen, das per FK direkt an `auth.users` kaskadiert
 - Danach Auth-User via Supabase Admin API loeschen
 - Primaeren Admin vor Selbstloeschung schuetzen (`403`)
 

@@ -25,7 +25,9 @@ Klarer technischer Rahmen, bevor Implementierungsdetails starten.
 - RLS bleibt in HTTP-Routen immer aktiv.
 - Admin-Rechte werden durch `require_admin` plus RLS-Policies vergeben.
 - `get_admin_session()` (Service Role) ist nur fuer Background-Jobs.
-- `DELETE /users/me`: App-Daten im User-Context loeschen, Auth-User danach via Supabase Admin API loeschen.
+- `DELETE /users/me`: erst App-Daten im User-Context ueber `owner_id` loeschen
+  (`user_settings`, `ad_search` mit `ad`-Kaskade), danach Auth-User
+  via Supabase Admin API loeschen.
 - Variante A (Service-Role-SQL fuer normale Admin-HTTP-Routen) wird nicht verwendet.
 
 ## Future-Proofing fuer Payments
