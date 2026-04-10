@@ -33,7 +33,7 @@ def list_scraperuns(
 
     query = (
         select(ScrapeRun)
-        .join(AdSearch, ScrapeRun.adsearch_id == AdSearch.id)
+        .join(AdSearch, col(ScrapeRun.adsearch_id) == col(AdSearch.id))
         .where(AdSearch.owner_id == current_user.tenant_id)
         .order_by(col(ScrapeRun.started_at).desc())
         .limit(limit)

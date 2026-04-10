@@ -65,9 +65,16 @@ def setup_cors(app: FastAPI) -> None:
     allowed_origins = _ensure_dev_next_origin_aliases(
         [o.strip() for o in config.cors_allowed_origins.split(",") if o.strip()]
     )
-    kwargs: dict[str, object] = {}
-    if config.cors_allowed_origin_regex.strip():
-        kwargs["allow_origin_regex"] = config.cors_allowed_origin_regex.strip()
+    origin_regex = config.cors_allowed_origin_regex.strip() or None
+    if origin_regex is None:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=allowed_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+        return
 
     app.add_middleware(
         CORSMiddleware,
@@ -75,7 +82,7 @@ def setup_cors(app: FastAPI) -> None:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        **kwargs,
+        allow_origin_regex=origin_regex,
     )
 
 
