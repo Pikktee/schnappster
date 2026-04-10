@@ -14,10 +14,15 @@ from app.core.config import config, get_app_root
 
 # Datenbank-Engine erstellen
 _is_sqlite = config.database_url.startswith("sqlite")
+_is_postgres = config.database_url.startswith("postgresql")
+_connect_args = {"check_same_thread": False} if _is_sqlite else {}
+if _is_postgres:
+    # Verhindert haengende Requests, wenn externe DB kurzfristig nicht erreichbar ist.
+    _connect_args = {**_connect_args, "connect_timeout": 5}
 db_engine = create_engine(
     config.database_url,
     echo=False,
-    connect_args={"check_same_thread": False} if _is_sqlite else {},
+    connect_args=_connect_args,
 )
 
 
@@ -25,7 +30,28 @@ def init_db() -> None:
     """Alle Tabellen anlegen und initialen Commit ausführen."""
     SQLModel.metadata.create_all(db_engine)
     with Session(db_engine) as session:
+        if _is_sqlite:
+            _ensure_user_settings_columns(session)
         session.commit()
+
+
+def _column_exists_sqlite(session: Session, table: str, column: str) -> bool:
+    rows = session.execute(text(f"PRAGMA table_info({table})")).all()
+    return any(len(row) > 1 and row[1] == column for row in rows)
+
+
+def _ensure_user_settings_columns(session: Session) -> None:
+    """Sichert nachgezogene user_settings-Spalten fuer bestehende Datenbanken."""
+    table_name = "user_settings"
+    column_name = "display_name_user_set"
+    if _column_exists_sqlite(session, table_name, column_name):
+        return
+    session.execute(
+        text(
+            "ALTER TABLE user_settings "
+            "ADD COLUMN display_name_user_set BOOLEAN NOT NULL DEFAULT 0"
+        )
+    )
 
 
 def get_db_session():

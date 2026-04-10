@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import SQLModel, select
@@ -82,6 +84,24 @@ def _delete_auth_user(user_id: str) -> None:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to delete auth user: {response.text}",
+        )
+
+
+def _validate_password_strength(password: str) -> None:
+    """Prueft Mindestlaenge, Gross-/Kleinbuchstaben und Sonderzeichen."""
+    errors: list[str] = []
+    if len(password) < 8:
+        errors.append("mindestens 8 Zeichen")
+    if not re.search(r"[A-Z]", password):
+        errors.append("einen Grossbuchstaben")
+    if not re.search(r"[a-z]", password):
+        errors.append("einen Kleinbuchstaben")
+    if not re.search(r"[^A-Za-z0-9]", password):
+        errors.append("ein Sonderzeichen")
+    if errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Passwort benoetigt: {', '.join(errors)}.",
         )
 
 
@@ -188,11 +208,7 @@ def change_password(
             detail="Keine E-Mail fuer dieses Konto hinterlegt.",
         )
     new_pw = payload.new_password.strip()
-    if len(new_pw) < 8:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Neues Passwort muss mindestens 8 Zeichen haben.",
-        )
+    _validate_password_strength(new_pw)
     _verify_email_password(current_user.email, payload.old_password)
     url = f"{config.supabase_url.rstrip('/')}/auth/v1/user"
     with httpx.Client(timeout=10.0) as client:

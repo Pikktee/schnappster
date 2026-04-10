@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { supabase } from "@/lib/supabase"
+import { PasswordStrengthIndicator } from "@/components/password-strength-indicator"
+import { isPasswordValid } from "@/lib/password-validation"
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("")
@@ -16,6 +18,10 @@ export default function RegisterPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!isPasswordValid(password)) {
+      toast.error("Passwort erfuellt nicht alle Anforderungen.")
+      return
+    }
     if (!supabase) {
       toast.error("Registrierung ist derzeit nicht verfuegbar.")
       return
@@ -61,9 +67,9 @@ export default function RegisterPage() {
               required
               onChange={(e) => setPassword(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">Mindestens 8 Zeichen empfohlen.</p>
+            <PasswordStrengthIndicator password={password} />
           </div>
-          <Button className="w-full" disabled={loading} type="submit">
+          <Button className="w-full" disabled={loading || !isPasswordValid(password)} type="submit">
             {loading ? "Registrierung..." : "Konto erstellen"}
           </Button>
         </form>

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de">
+  <body style="margin:0;padding:0;background:#f5f7fb;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fb;padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+            <tr>
+              <td style="padding:24px 24px 8px 24px;text-align:center;">
+                <img src="https://app.schnappster.de/logo.png" alt="Schnappster" width="56" height="56" style="display:block;margin:0 auto 12px auto;border-radius:12px;" />
+                <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#64748b;font-weight:600;">Schnappster</div>
+                <h1 style="margin:12px 0 8px 0;font-size:24px;line-height:1.25;">E-Mail bestaetigen</h1>
+                <p style="margin:0;color:#475569;font-size:15px;line-height:1.6;">
+                  Danke fuer deine Registrierung. Bitte bestaetige deine E-Mail-Adresse, um dein Konto zu aktivieren.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px;text-align:center;">
+                <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:10px;">
+                  Konto aktivieren
+                </a>
+                <p style="margin:16px 0 0 0;color:#64748b;font-size:13px;line-height:1.6;">
+                  Falls der Button nicht funktioniert, nutze diesen Link:<br />
+                  <a href="{{ .ConfirmationURL }}" style="color:#2563eb;text-decoration:underline;">{{ .ConfirmationURL }}</a>
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 24px 24px 24px;border-top:1px solid #f1f5f9;color:#64748b;font-size:12px;line-height:1.6;">
+                Diese Nachricht wurde fuer <strong>{{ .Email }}</strong> erstellt.<br />
+                Wenn du dich nicht registriert hast, kannst du diese E-Mail ignorieren.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

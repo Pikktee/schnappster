@@ -166,8 +166,8 @@ export default function DashboardPage() {
           label="Aktive Suchaufträge"
           value={activeSearches}
           icon={Search}
-          iconBgColor="bg-emerald-50"
-          iconTextColor="text-emerald-600"
+          iconBgColor="bg-amber-50"
+          iconTextColor="text-amber-600"
         />
         <StatCard
           label="Anzeigen insgesamt"
@@ -180,15 +180,15 @@ export default function DashboardPage() {
           label="Letzte Aktualisierung"
           value={lastUpdate ? timeAgo(lastUpdate) : "Noch nie"}
           icon={Clock}
-          iconBgColor="bg-blue-50"
-          iconTextColor="text-blue-600"
+          iconBgColor="bg-amber-50"
+          iconTextColor="text-amber-600"
         />
       </div>
 
       <Card className="reveal-stagger gap-0">
         <CardHeader className="pb-0">
           <CardTitle className="flex items-center gap-2">
-            <Zap className="size-5 text-primary" />
+            <Zap className="size-5" />
             Letzte Schnäppchen
           </CardTitle>
         </CardHeader>

@@ -1,48 +1,77 @@
-# Schnappster – Architektur
+# Schnappster - Architektur
 
-## Übersicht
+## Uebersicht
 
 Die folgenden Diagramme visualisieren die Architektur der Anwendung.
 
-### 1. Systemüberblick
+### 1. Systemueberblick
 
-#### Produktion (`architecture-overview.png`)
+#### Produktion (Zielbild: Vercel + Railway)
 
-**Ein Server auf :8000** – `uv run start` (ohne `--dev`): FastAPI liefert API und statisches Frontend aus einem Prozess.
+Web und API laufen als getrennte Deployments mit eigenen Domains:
 
-- **User/Browser** → **FastAPI App (:8000)** (API unter `/api`, statisches Frontend aus `web/out`: Next.js 16, React 19, Tailwind v4, shadcn/ui)
-- FastAPI nutzt **SQLite** (`data/schnappster.db`)
-- **APScheduler** (Background Jobs): Scrape-Job alle 1 Min (und einmal beim Start). Analyze-Job einmal beim Start (Backlog abarbeiten) und nach jedem Scrape bei neuen Anzeigen; jeder Analyze-Lauf verarbeitet bis zu 10 Ads und queued bei verbleibendem Backlog den nächsten Lauf (Re-Queue bis leer). Cleanup-Job alle 24 h und einmal beim Start (löscht Anzeigen älter als konfigurierte Tage).
-- **ScraperService** → **Kleinanzeigen.de**, **AIService** → **OpenAI-kompatible API**
-- **Benachrichtigungen** → **Telegram-Bot**
+- **Frontend (Vercel):** `https://app.<domain>`
+- **Backend API (Railway):** `https://api.<domain>`
+- **Routing:** Frontend ruft API unter `https://api.<domain>/api/...` auf
+- **TLS/HTTPS:** wird durch Vercel und Railway + DNS-Domain-Mapping bereitgestellt
 
-#### Development (`architecture-overview-dev.png`)
+Das Backend beinhaltet weiterhin den kompletten fachlichen Runtime-Anteil:
 
-**Zwei getrennte Prozesse** – `uv run start --dev`: Frontend und API laufen auf verschiedenen Ports, CORS aktiv.
+- **FastAPI** mit Endpunkten unter `/api`
+- **APScheduler** fuer Scrape-, Analyze- und Cleanup-Jobs (im API-Prozess)
+- **ScraperService** -> **Kleinanzeigen.de**
+- **AIService** -> **OpenAI-kompatible API**
+- **Benachrichtigungen** -> **Telegram-Bot**
+- **Persistenz** -> Datenbank gemaess aktueller Konfiguration/Umgebung
 
-- **Benutzer/Browser** ↔ **Next.js Dev Server (:3000)** (React 19, Tailwind, shadcn/ui, Hot Reload) für die App; **API-Anfragen (CORS)** gehen vom Browser direkt an **FastAPI API (:8000)** (nur `/api`).
-- Zwischen :3000 und :8000: **CORS** (Cross-Origin-Requests); das Frontend ruft die API unter :8000 auf.
-- **APScheduler** (Scrape Job, Analyze Job, Cleanup Job) läuft **intern** im FastAPI-Prozess (`core/background_jobs.py`), kein separater Dienst. Beim Start: einmal Scrape, einmal Analyze, einmal Cleanup; Analyze wird bei neuem Scrape-Output und bei verbleibendem Backlog (Re-Queue) erneut gequeued. Cleanup alle 24 h (Anzeigen älter als konfigurierte Tage löschen).
-- DB, ScraperService, AIService und Telegram hängen am FastAPI-Prozess (:8000); die **SQLite-DB** wird von FastAPI gelesen und geschrieben (bidirektional).
+CORS ist in der Produktion notwendig, da Frontend und API auf unterschiedlichen Origins laufen.
+
+#### Development
+
+Lokal bleiben Frontend und API ebenfalls getrennt:
+
+- **Next.js Dev Server:** `http://localhost:3000`
+- **FastAPI API:** `http://localhost:8000/api/...`
+- **CORS:** `localhost:3000` muss fuer die lokale API freigegeben sein
+
+Die Background Jobs laufen lokal wie in Produktion im FastAPI-Prozess.
 
 ### 2. Backend-Schichten (`architecture-backend-layers.png`)
 
-Zeigt die Schichten des Backends (von außen nach innen). **Pfeil** = „nutzt“. Quelle: `architecture-backend-layers.mmd` (Mermaid). PNG neu erzeugen: `npx -p @mermaid-js/mermaid-cli mmdc -i architecture-backend-layers.mmd -o architecture-backend-layers.png`
+Zeigt die Schichten des Backends (von aussen nach innen). **Pfeil** = "nutzt".
+Quelle: `architecture-backend-layers.mmd` (Mermaid).
+PNG neu erzeugen:
+`npx -p @mermaid-js/mermaid-cli mmdc -i architecture-backend-layers.mmd -o architecture-backend-layers.png`
 
-- **Entry:** `main.py` → `create_app()` in `core/bootstrap.py` (CORS, Lifespan, Router, Static Mount)
+- **Entry:** `main.py` -> `create_app()` in `core/bootstrap.py` (CORS, Lifespan, Router)
 - **routes/api:** REST-Endpunkte (ads, adsearch, aianalysislogs, errorlogs, scraperuns, settings, version)
-- **routes/frontend:** SPA-Fallback für `/searches/{id}` und `/ads/{id}`, Mount von `web/out`
 - **services:** ScraperService, AIService, SettingsService, Telegram
-- **scraper:** HTTP/HTML (httpclient, parser) – keine Business-Logik
+- **scraper:** HTTP/HTML (httpclient, parser) - keine Business-Logik
 - **models:** SQLModel-Tabellen und API-Schemas
 - **core:** DB, Config, Logging, BackgroundJobs (APScheduler)
-- **cli:** Einstiegspunkte (`uv run start`, `scrape`, `analyze`, `dbreset`); nutzt services, core, models (gestrichelte Pfeile)
+- **cli:** Einstiegspunkte (`uv run start`, `scrape`, `analyze`, `dbreset`); nutzt services, core, models
+
+Hinweis: Der fruehere Frontend-Mount im FastAPI-Bootstrap ist nicht mehr Teil des Zielbilds fuer Produktion.
 
 ### 3. Scheduler- und Analyze-Flow (`architecture-scheduler-flow.png`)
 
-Zeigt, wann Scrape- und Analyze-Jobs laufen und wie der Analyze-Backlog abgearbeitet wird. Quelle: `architecture-scheduler-flow.mmd`. PNG neu erzeugen: `npx -p @mermaid-js/mermaid-cli mmdc -i architecture-scheduler-flow.mmd -o architecture-scheduler-flow.png`
+Zeigt, wann Scrape- und Analyze-Jobs laufen und wie der Analyze-Backlog abgearbeitet wird.
+Quelle: `architecture-scheduler-flow.mmd`.
+PNG neu erzeugen:
+`npx -p @mermaid-js/mermaid-cli mmdc -i architecture-scheduler-flow.mmd -o architecture-scheduler-flow.png`
 
 - **Beim Start:** `initial_scrape`, `initial_analyze` und `initial_cleanup` laufen einmal.
-- **Alle 1 Min:** Scrape prüft fällige Suchen; bei neuen Ads wird ein Analyze-Job in die Analyzer-Queue gestellt.
-- **Analyze-Lauf:** Verarbeitet bis zu 10 unanalysierte Ads; wenn danach noch Backlog besteht und mindestens eine Ad analysiert wurde, wird der nächste Analyze-Job gequeued (Re-Queue bis Backlog leer).
-- **Cleanup:** Alle 24 h und einmal beim Start – löscht Anzeigen älter als die in den Einstellungen konfigurierte Anzahl Tage (`auto_delete_ads_days`).
+- **Alle 1 Min:** Scrape prueft faellige Suchen; bei neuen Ads wird ein Analyze-Job in die Analyzer-Queue gestellt.
+- **Analyze-Lauf:** Verarbeitet bis zu 10 unanalysierte Ads; bei verbleibendem Backlog wird erneut gequeued.
+- **Cleanup:** Alle 24 h und einmal beim Start - loescht alte Anzeigen gemaess `auto_delete_ads_days`.
+
+### 4. Geplanter MCP-Service auf Railway
+
+Fuer den kommenden MCP-Server ist die empfohlene Betriebsform ein eigener Railway-Service:
+
+- Separater Deploy neben der API (kein gemeinsamer Prozess)
+- Eigene Umgebungsvariablen und Secrets
+- Eigene Logs, Healthchecks und Rollback-Historie
+- Optional eigene Domain (z. B. `mcp.<domain>`) oder interner Service-Zugriff
+
+Damit bleiben API und MCP operativ entkoppelt, auch bei separaten Releases.

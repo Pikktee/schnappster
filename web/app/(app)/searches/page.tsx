@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus } from "lucide-react"
+import { Plus, SearchX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -60,7 +60,7 @@ export default function SearchesPage() {
       setHeaderActions(
         <Button onClick={() => setIsCreateOpen(true)} className="cursor-pointer">
           <Plus className="size-4" />
-          Neue Suche erstellen
+          Neuer Suchauftrag
         </Button>
       )
     } else {
@@ -135,9 +135,8 @@ export default function SearchesPage() {
     <ContentReveal className="flex flex-col gap-6">
       {searches.length === 0 ? (
         <EmptyState
-          message="Noch keine Suchaufträge. Erstelle deinen ersten!"
-          actionLabel="Neue Suche erstellen"
-          onAction={() => setIsCreateOpen(true)}
+          message="Erstelle deinen ersten Suchauftrag, um automatisch nach Schnäppchen zu suchen."
+          icon={<SearchX className="size-12 text-muted-foreground/50" />}
         />
       ) : (
         <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5 list-none p-0 m-0">
@@ -159,7 +158,7 @@ export default function SearchesPage() {
       }}>
         <DialogContent className="sm:max-w-xl" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>Neue Suche erstellen</DialogTitle>
+            <DialogTitle>Neuen Suchauftrag erstellen</DialogTitle>
           </DialogHeader>
           <SearchForm
             onSubmit={handleCreate}

@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { LayoutGrid, TableIcon, SlidersHorizontal, ChevronLeft, ChevronRight, RotateCcw, Euro, Star, MapPin, Clock } from "lucide-react"
+import { LayoutGrid, TableIcon, SlidersHorizontal, ChevronLeft, ChevronRight, RotateCcw, Euro, Star, MapPin, Clock, SearchX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -442,7 +442,10 @@ function AdsPageContent() {
       </div>
 
       {ads.length === 0 ? (
-        <EmptyState message="Keine Angebote gefunden. Passe die Filter an oder warte auf neue Analysen." />
+        <EmptyState
+          message="Keine Angebote gefunden. Passe die Filter an oder warte auf neue Analysen."
+          icon={<SearchX className="size-12 text-muted-foreground/50" />}
+        />
       ) : viewMode === "cards" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {ads.map((ad) => (

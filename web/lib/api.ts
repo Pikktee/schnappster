@@ -55,34 +55,6 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
   const customHeaders = options?.headers ?? {}
   const fullUrl = `${BASE_URL}${path}`
-  // #region agent log
-  if (typeof fetch !== "undefined") {
-    fetch("http://127.0.0.1:7779/ingest/bfe3bd6e-2abc-4ac9-b804-18a979d98c6d", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "ef93ff",
-      },
-      body: JSON.stringify({
-        sessionId: "ef93ff",
-        location: "web/lib/api.ts:apiFetch",
-        message: "pre_fetch",
-        data: {
-          hypothesisId: "H1-H3-H-KA",
-          fullUrl,
-          baseUrlLen: BASE_URL.length,
-          path,
-          method: options?.method ?? "GET",
-          pageOrigin:
-            typeof window !== "undefined" ? window.location.origin : "ssr",
-          hasAuthHeader: Boolean(token),
-        },
-        timestamp: Date.now(),
-        runId: "pre-fix",
-      }),
-    }).catch(() => {})
-  }
-  // #endregion
   let res: Response
   try {
     res = await fetch(fullUrl, {
@@ -95,37 +67,6 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
       ...options,
     })
   } catch (err: unknown) {
-    // #region agent log
-    const errInfo =
-      err instanceof Error
-        ? { name: err.name, message: err.message }
-        : { name: "non_error", message: String(err) }
-    if (typeof fetch !== "undefined") {
-      fetch("http://127.0.0.1:7779/ingest/bfe3bd6e-2abc-4ac9-b804-18a979d98c6d", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "ef93ff",
-        },
-        body: JSON.stringify({
-          sessionId: "ef93ff",
-          location: "web/lib/api.ts:apiFetch",
-          message: "fetch_threw",
-          data: {
-            hypothesisId: "H1-H2-H4-H-KA",
-            fullUrl,
-            ...errInfo,
-            baseUrlLen: BASE_URL.length,
-            path,
-            pageOrigin:
-              typeof window !== "undefined" ? window.location.origin : "ssr",
-          },
-          timestamp: Date.now(),
-          runId: "pre-fix",
-        }),
-      }).catch(() => {})
-    }
-    // #endregion
     throw new Error("Keine Verbindung zum Server — bitte Internetverbindung prüfen.")
   }
   if (!res.ok) {

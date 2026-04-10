@@ -44,12 +44,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
         {children}
         <p className="text-center text-xs text-muted-foreground">
-          <Link href="/datenschutz" className="underline underline-offset-4 hover:text-foreground">
-            Datenschutzerklaerung
-          </Link>{" "}
-          ·{" "}
           <Link href="/impressum" className="underline underline-offset-4 hover:text-foreground">
-            Impressum
+            Impressum & Datenschutz
           </Link>
         </p>
       </div>
