@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { supabase } from "@/lib/supabase"
@@ -33,9 +33,10 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <Card>
+    <Card className="shadow-md">
       <CardHeader>
         <CardTitle>Passwort zuruecksetzen</CardTitle>
+        <CardDescription>Wähle ein neues Passwort für dein Konto.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <form className="space-y-3" onSubmit={onSubmit}>
@@ -45,8 +46,11 @@ export default function ResetPasswordPage() {
               id="password"
               type="password"
               value={password}
+              autoComplete="new-password"
+              required
               onChange={(e) => setPassword(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">Mindestens 8 Zeichen empfohlen.</p>
           </div>
           <Button className="w-full" disabled={loading} type="submit">
             {loading ? "Speichern..." : "Neues Passwort speichern"}

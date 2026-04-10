@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { supabase } from "@/lib/supabase"
@@ -43,9 +43,12 @@ export default function LoginPage() {
   }
 
   return (
-    <Card>
+    <Card className="shadow-md">
       <CardHeader>
         <CardTitle>Anmelden</CardTitle>
+        <CardDescription>
+          Willkommen zurück bei Schnappster. Bitte melde dich an um fortzufahren.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-2">
@@ -56,10 +59,24 @@ export default function LoginPage() {
             Facebook
           </Button>
         </div>
+        <div className="relative py-1">
+          <div className="h-px w-full bg-border" />
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+            oder
+          </span>
+        </div>
         <form className="space-y-3" onSubmit={onSubmit}>
           <div className="space-y-2">
             <Label htmlFor="email">E-Mail</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              autoComplete="email"
+              inputMode="email"
+              required
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Passwort</Label>
@@ -67,6 +84,8 @@ export default function LoginPage() {
               id="password"
               type="password"
               value={password}
+              autoComplete="current-password"
+              required
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
