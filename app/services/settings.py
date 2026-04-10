@@ -106,20 +106,45 @@ class SettingsService:
         user_settings = self.session.get(UserSettings, user_id)
         if user_settings:
             return user_settings
-        user_settings = UserSettings(user_id=user_id, display_name=default_display_name or "")
+        user_settings = UserSettings(
+            user_id=user_id,
+            display_name=(default_display_name or "").strip(),
+            display_name_user_set=False,
+        )
         self.session.add(user_settings)
         self.session.commit()
         self.session.refresh(user_settings)
         return user_settings
 
+    def hydrate_display_name_from_identity(
+        self,
+        user_id: str,
+        identity_display_name: str,
+    ) -> UserSettings:
+        """Provider-Namen in die DB schreiben, solange der Nutzer keinen eigenen Namen gesetzt hat.
+
+        Google-Namen u. a. werden nachgezogen, ohne eine bewusst leere Eingabe zu ueberschreiben.
+        """
+        identity_display_name = (identity_display_name or "").strip()
+        settings = self.get_user_settings(user_id, default_display_name=identity_display_name)
+        if settings.display_name_user_set:
+            return settings
+        if identity_display_name and not (settings.display_name or "").strip():
+            settings.display_name = identity_display_name
+            self.session.add(settings)
+            self.session.commit()
+            self.session.refresh(settings)
+        return settings
+
     def update_user_settings(self, user_id: str, data: UserSettingsUpdate) -> UserSettings:
         """Aktualisiert UserSettings partiell."""
         settings = self.get_user_settings(user_id)
         update_data = data.model_dump(exclude_unset=True)
-        notify_mode = update_data.get("notify_mode")
-        if notify_mode is not None and notify_mode not in {"instant", "daily_summary"}:
-            raise ValueError("notify_mode must be 'instant' or 'daily_summary'")
+        if "display_name" in update_data:
+            settings.display_name_user_set = True
         for key, value in update_data.items():
+            if key == "display_name" and value is None:
+                value = ""
             setattr(settings, key, value)
         self.session.add(settings)
         self.session.commit()

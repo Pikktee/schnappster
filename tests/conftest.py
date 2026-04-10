@@ -49,6 +49,7 @@ def client_fixture(session):
             email="test@example.com",
             app_metadata={"role": "admin", "providers": ["email"]},
             user_metadata={"name": "Test User"},
+            identities=[],
             access_token="test-token",
         )
 

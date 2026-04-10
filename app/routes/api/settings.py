@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core import config as app_config
-from app.core.auth import CurrentUser, require_admin
+from app.core.auth import CurrentUser, get_current_user, require_admin
 from app.core.db import UserDbSession
 from app.models.settings_app import AppSettingsRead, AppSettingsUpdate
 from app.services.settings import SettingsService
@@ -27,9 +27,11 @@ def list_settings(
 @router.get("/telegram-configured")
 def get_telegram_configured(
     session: UserDbSession,
-    _: CurrentUser = Depends(require_admin),  # noqa: B008
+    _: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
-    """Gibt an, ob Telegram global konfiguriert ist (Bot-Token vorhanden)."""
+    """Gibt an, ob Telegram global konfiguriert ist (Bot-Token vorhanden).
+
+    Jeder eingeloggte Nutzer darf das lesen (Schalter in den persoenlichen Einstellungen)."""
     configured = bool(app_config.telegram_bot_token.strip())
 
     return {"configured": configured}

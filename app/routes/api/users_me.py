@@ -6,7 +6,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import SQLModel, select
 
-from app.core.auth import CurrentUser, get_current_user
+from app.core.auth import CurrentUser, get_current_user, identity_display_name
 from app.core.config import config
 from app.core.db import UserDbSession
 from app.models.adsearch import AdSearch
@@ -23,7 +23,12 @@ router = APIRouter(prefix="/users/me", tags=["Users"])
 
 
 class ChangePasswordRequest(SQLModel):
+    old_password: str
     new_password: str
+
+
+class DeleteAccountRequest(SQLModel):
+    confirm_email: str
 
 
 def _ensure_supabase_secret_key() -> str:
@@ -44,12 +49,24 @@ def _supabase_headers(token: str) -> dict[str, str]:
     }
 
 
-def _get_display_name(current_user: CurrentUser) -> str:
-    return str(
-        current_user.user_metadata.get("full_name")
-        or current_user.user_metadata.get("name")
-        or ""
-    )
+def _verify_email_password(email: str, password: str) -> None:
+    """Prueft das Passwort per Supabase Password-Grant (ohne Session zu ersetzen)."""
+    url = f"{config.supabase_url.rstrip('/')}/auth/v1/token?grant_type=password"
+    headers = {
+        "apikey": config.supabase_publishable_key,
+        "Content-Type": "application/json",
+    }
+    with httpx.Client(timeout=10.0) as client:
+        response = client.post(
+            url,
+            headers=headers,
+            json={"email": email.strip(), "password": password},
+        )
+    if response.status_code != status.HTTP_200_OK:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Altes Passwort ist falsch.",
+        )
 
 
 def _delete_auth_user(user_id: str) -> None:
@@ -74,15 +91,21 @@ def get_me(
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     service = SettingsService(session)
-    settings = service.get_user_settings(
-        current_user.id,
-        default_display_name=_get_display_name(current_user),
+    settings = service.hydrate_display_name_from_identity(
+        current_user.tenant_id,
+        identity_display_name(current_user),
     )
     avatar_url = current_user.user_metadata.get("avatar_url")
+    id_name = identity_display_name(current_user)
+    profile_name = (
+        settings.display_name
+        if settings.display_name_user_set
+        else (settings.display_name or id_name)
+    )
     return UserProfileRead(
-        id=current_user.id,
+        id=current_user.tenant_id,
         email=current_user.email,
-        display_name=settings.display_name or _get_display_name(current_user),
+        display_name=profile_name,
         avatar_url=str(avatar_url) if avatar_url else None,
         role=current_user.role,
     )
@@ -95,19 +118,26 @@ def patch_me(
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     service = SettingsService(session)
-    settings = service.get_user_settings(
-        current_user.id,
-        default_display_name=_get_display_name(current_user),
+    settings = service.hydrate_display_name_from_identity(
+        current_user.tenant_id,
+        identity_display_name(current_user),
     )
     settings.display_name = data.display_name.strip()
+    settings.display_name_user_set = True
     session.add(settings)
     session.commit()
     session.refresh(settings)
     avatar_url = current_user.user_metadata.get("avatar_url")
+    id_name = identity_display_name(current_user)
+    profile_name = (
+        settings.display_name
+        if settings.display_name_user_set
+        else (settings.display_name or id_name)
+    )
     return UserProfileRead(
-        id=current_user.id,
+        id=current_user.tenant_id,
         email=current_user.email,
-        display_name=settings.display_name,
+        display_name=profile_name,
         avatar_url=str(avatar_url) if avatar_url else None,
         role=current_user.role,
     )
@@ -119,9 +149,9 @@ def get_my_settings(
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     service = SettingsService(session)
-    return service.get_user_settings(
-        current_user.id,
-        default_display_name=_get_display_name(current_user),
+    return service.hydrate_display_name_from_identity(
+        current_user.tenant_id,
+        identity_display_name(current_user),
     )
 
 
@@ -133,7 +163,7 @@ def patch_my_settings(
 ):
     service = SettingsService(session)
     try:
-        return service.update_user_settings(current_user.id, data)
+        return service.update_user_settings(current_user.tenant_id, data)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -150,50 +180,75 @@ def change_password(
     if "email" not in providers:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password change is only available for email/password accounts",
+            detail="Passwort aendern ist nur fuer E-Mail-/Passwort-Konten moeglich.",
         )
-    if len(payload.new_password.strip()) < 8:
+    if not current_user.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Keine E-Mail fuer dieses Konto hinterlegt.",
+        )
+    new_pw = payload.new_password.strip()
+    if len(new_pw) < 8:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Password must have at least 8 characters",
+            detail="Neues Passwort muss mindestens 8 Zeichen haben.",
         )
+    _verify_email_password(current_user.email, payload.old_password)
     url = f"{config.supabase_url.rstrip('/')}/auth/v1/user"
     with httpx.Client(timeout=10.0) as client:
         response = client.put(
             url,
             headers=_supabase_headers(current_user.access_token),
-            json={"password": payload.new_password},
+            json={"password": new_pw},
         )
     if response.status_code != status.HTTP_200_OK:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password update failed",
+            detail="Passwort konnte nicht aktualisiert werden.",
         )
 
 
 @router.delete("/", status_code=204)
 def delete_me(
     session: UserDbSession,
+    payload: DeleteAccountRequest,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
+    if not current_user.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Keine E-Mail fuer dieses Konto hinterlegt "
+                "(Bestaetigung per E-Mail nicht moeglich)."
+            ),
+        )
+    confirmed = payload.confirm_email.strip().casefold()
+    expected = current_user.email.strip().casefold()
+    if confirmed != expected:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="E-Mail stimmt nicht mit dem Konto ueberein.",
+        )
     # Schutz fuer den primaeren Admin.
-    if current_user.role == "admin" and config.primary_admin_user_id == current_user.id:
+    if current_user.role == "admin" and config.primary_admin_user_id == current_user.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Primary admin account cannot be deleted",
         )
 
-    user_settings = session.get(UserSettings, current_user.id)
+    user_settings = session.get(UserSettings, current_user.tenant_id)
     if not user_settings:
         user_settings = UserSettings(
-            user_id=current_user.id,
-            display_name=_get_display_name(current_user),
+            user_id=current_user.tenant_id,
+            display_name=identity_display_name(current_user),
         )
         session.add(user_settings)
         session.commit()
         session.refresh(user_settings)
 
-    ad_searches = session.exec(select(AdSearch).where(AdSearch.owner_id == current_user.id)).all()
+    ad_searches = session.exec(
+        select(AdSearch).where(AdSearch.owner_id == current_user.tenant_id)
+    ).all()
     for ad_search in ad_searches:
         session.delete(ad_search)
     if user_settings:
@@ -201,14 +256,14 @@ def delete_me(
     session.commit()
 
     try:
-        _delete_auth_user(current_user.id)
+        _delete_auth_user(current_user.tenant_id)
     except HTTPException:
         # Falls Auth-Delete fehlschlaegt, markieren und Retry erlauben.
-        pending = session.get(UserSettings, current_user.id)
+        pending = session.get(UserSettings, current_user.tenant_id)
         if pending is None:
             pending = UserSettings(
-                user_id=current_user.id,
-                display_name=_get_display_name(current_user),
+                user_id=current_user.tenant_id,
+                display_name=identity_display_name(current_user),
                 deletion_pending=True,
             )
         else:

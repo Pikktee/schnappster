@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -9,6 +12,24 @@ import httpx
 from fastapi import Depends, Header, HTTPException, status
 
 from app.core.config import config
+
+
+def _jwt_sub_from_access_token(access_token: str) -> str | None:
+    """Liest `sub` aus dem JWT-Payload (ohne Signaturpruefung — Token ist via /user validiert)."""
+    try:
+        parts = access_token.split(".")
+        if len(parts) != 3:
+            return None
+        payload_b64 = parts[1]
+        pad = (-len(payload_b64)) % 4
+        if pad:
+            payload_b64 += "=" * pad
+        raw = base64.urlsafe_b64decode(payload_b64.encode("ascii"))
+        payload = json.loads(raw.decode("utf-8"))
+        sub = payload.get("sub")
+        return str(sub).strip() if sub else None
+    except (ValueError, json.JSONDecodeError, binascii.Error, UnicodeDecodeError):
+        return None
 
 
 @dataclass(slots=True)
@@ -19,7 +40,14 @@ class CurrentUser:
     email: str | None
     app_metadata: dict[str, Any]
     user_metadata: dict[str, Any]
+    identities: list[dict[str, Any]]
     access_token: str
+
+    @property
+    def tenant_id(self) -> str:
+        """Mandanten-ID fuer Postgres/RLS: immer `sub` aus dem Access-Token, sonst User-API-`id`."""
+        sub = _jwt_sub_from_access_token(self.access_token)
+        return sub if sub else self.id
 
     @property
     def role(self) -> str:
@@ -75,11 +103,16 @@ async def get_current_user(authorization: str | None = Header(default=None)) -> 
         )
 
     data = response.json()
+    raw_identities = data.get("identities")
+    identities: list[dict[str, Any]] = (
+        raw_identities if isinstance(raw_identities, list) else []
+    )
     return CurrentUser(
         id=str(data.get("id", "")),
         email=data.get("email"),
         app_metadata=data.get("app_metadata") or {},
         user_metadata=data.get("user_metadata") or {},
+        identities=identities,
         access_token=access_token,
     )
 
@@ -92,4 +125,40 @@ def require_admin(current_user: CurrentUser = Depends(get_current_user)) -> Curr
             detail="Admin role required",
         )
     return current_user
+
+
+def display_name_from_identity_metadata(meta: dict[str, Any]) -> str:
+    """Liest einen Anzeigenamen aus user_metadata bzw. Supabase identity_data (z. B. Google)."""
+    if not meta:
+        return ""
+    for key in ("full_name", "name", "preferred_username", "nickname"):
+        v = meta.get(key)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    given = meta.get("given_name")
+    family = meta.get("family_name")
+    parts: list[str] = []
+    if isinstance(given, str) and given.strip():
+        parts.append(given.strip())
+    if isinstance(family, str) and family.strip():
+        parts.append(family.strip())
+    if parts:
+        return " ".join(parts)
+    return ""
+
+
+def identity_display_name(user: CurrentUser) -> str:
+    """Bester verfuegbarer Anzeigename aus user_metadata und OAuth-Identities."""
+    n = display_name_from_identity_metadata(user.user_metadata or {})
+    if n:
+        return n
+    for ident in user.identities:
+        if not isinstance(ident, dict):
+            continue
+        idata = ident.get("identity_data")
+        if isinstance(idata, dict):
+            n = display_name_from_identity_metadata(idata)
+            if n:
+                return n
+    return ""
 

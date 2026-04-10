@@ -180,8 +180,6 @@ class AIService:
         user_settings = settings_service.get_user_settings(ad.owner_id)
         if score < user_settings.notify_min_score:
             return
-        if user_settings.notify_mode != "instant":
-            return
         if user_settings.notify_telegram and user_settings.telegram_chat_id:
             tg = TelegramService(
                 bot_token=app_config.telegram_bot_token,
