@@ -17,7 +17,7 @@ class ScrapeRun(SQLModel, table=True):
     __tablename__ = "scrape_runs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
-    adsearch_id: int = Field(foreign_key="ad_searches.id")
+    adsearch_id: int | None = Field(default=None, foreign_key="ad_searches.id", ondelete="SET NULL")
     started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     finished_at: datetime | None = None
     ads_found: int = 0
@@ -36,7 +36,7 @@ class ScrapeRunRead(SQLModel):
     """API-Ausgabe-Schema für einen Scrape-Lauf."""
 
     id: int
-    adsearch_id: int
+    adsearch_id: int | None
     started_at: datetime
     finished_at: datetime | None
     ads_found: int

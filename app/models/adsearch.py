@@ -46,6 +46,7 @@ class AdSearch(SQLModel, table=True):
     __tablename__ = "ad_searches"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
+    owner_id: str = Field(index=True)
     name: str
     url: str
     prompt_addition: str | None = None
@@ -91,6 +92,7 @@ class AdSearchRead(SQLModel):
     """API-Ausgabe-Schema für einen Suchauftrag."""
 
     id: int
+    owner_id: str
     name: str
     url: str
     prompt_addition: str | None

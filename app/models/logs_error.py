@@ -17,7 +17,7 @@ class ErrorLog(SQLModel, table=True):
     __tablename__ = "error_logs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
-    adsearch_id: int | None = Field(default=None, foreign_key="ad_searches.id")
+    adsearch_id: int | None = Field(default=None, foreign_key="ad_searches.id", ondelete="SET NULL")
     error_type: str
     message: str
     details: str | None = None
