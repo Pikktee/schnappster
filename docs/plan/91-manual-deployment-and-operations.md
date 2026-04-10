@@ -39,7 +39,11 @@ Nicht als KI-Agentenplan verwenden.
 
 ## Betrieb
 
-- Update-Prozess festlegen (Git-Push -> Auto-Deploy in Vercel/Railway)
+- Update-Prozess festlegen (nur Release-Tags deployen)
+- Auto-Deploy auf Branch-Push in Vercel und Railway deaktivieren
+- GitHub Actions Workflow `.github/workflows/deploy-on-release-tag.yml` verwenden:
+  - Trigger: Push von Tags `v*` (z. B. via `uv run release`)
+  - Secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `RAILWAY_TOKEN`, `RAILWAY_SERVICE_NAME`, `RAILWAY_ENVIRONMENT_NAME`
 - Deploy-Rollen klar trennen:
   - Frontend-Deploy beeinflusst nicht API
   - API-Deploy beeinflusst nicht Frontend
