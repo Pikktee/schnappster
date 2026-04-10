@@ -120,6 +120,9 @@ export function AppSidebar() {
           <Link href="/datenschutz" className="text-xs text-muted-foreground hover:text-foreground">
             Datenschutz
           </Link>
+          <Link href="/impressum" className="text-xs text-muted-foreground hover:text-foreground">
+            Impressum
+          </Link>
           <Button variant="ghost" className="h-auto justify-start p-0 text-xs" onClick={handleLogout}>
             Abmelden
           </Button>
