@@ -53,4 +53,4 @@ class UserProfileRead(SQLModel):
 class UserProfileUpdate(SQLModel):
     """Profil-Update, derzeit nur display_name."""
 
-    display_name: str = Field(default="", max_length=120)
+    display_name: str = Field(default="", max_length=50)

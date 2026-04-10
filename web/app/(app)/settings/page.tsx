@@ -48,6 +48,8 @@ import {
   settingsSaveHasErrors,
 } from "@/lib/settings-validation"
 import { cn } from "@/lib/utils"
+import { PasswordStrengthIndicator } from "@/components/password-strength-indicator"
+import { isPasswordValid } from "@/lib/password-validation"
 import {
   Tooltip,
   TooltipContent,
@@ -164,6 +166,11 @@ export default function SettingsPage() {
           updateSetting("min_seller_rating", minSellerRating),
         ])
       }
+      window.dispatchEvent(
+        new CustomEvent("schnappster-profile-updated", {
+          detail: { display_name: nameTrimmed },
+        }),
+      )
       toast.success("Einstellungen gespeichert")
     } catch (e) {
       const raw = e instanceof Error ? e.message : "Speichern fehlgeschlagen."
@@ -177,8 +184,8 @@ export default function SettingsPage() {
     const oldPw = oldPassword
     const newPw = newPassword.trim()
     if (!oldPw || !newPw) return
-    if (newPw.length < 8) {
-      toast.error("Neues Passwort muss mindestens 8 Zeichen haben.")
+    if (!isPasswordValid(newPw)) {
+      toast.error("Neues Passwort erfuellt nicht alle Anforderungen.")
       return
     }
     if (newPw !== confirmPassword.trim()) {
@@ -223,19 +230,19 @@ export default function SettingsPage() {
   return (
     <ContentReveal className="max-w-2xl">
       <Tabs defaultValue="general">
-        <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted/70 p-1">
+        <TabsList className="w-full sm:w-auto inline-flex h-auto p-0 gap-0 border-b-2 border-border bg-muted/40 rounded-none min-h-[3rem]">
           <TabsTrigger
             value="general"
-            className="rounded-lg px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="flex items-center gap-2 cursor-pointer rounded-t-lg rounded-b-none border-b-[3px] border-transparent bg-transparent px-5 py-3 -mb-[2px] text-sm font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-primary data-[state=active]:border-b-2 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-border data-[state=active]:rounded-b-none shadow-none transition-all duration-200 hover:text-foreground"
           >
-            <User className="mr-2 size-4" />
+            <User className="size-4" />
             Profil & Benachrichtigungen
           </TabsTrigger>
           <TabsTrigger
             value="security"
-            className="rounded-lg px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="flex items-center gap-2 cursor-pointer rounded-t-lg rounded-b-none border-b-[3px] border-transparent bg-transparent px-5 py-3 -mb-[2px] text-sm font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-primary data-[state=active]:border-b-2 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-border data-[state=active]:rounded-b-none shadow-none transition-all duration-200 hover:text-foreground"
           >
-            <Lock className="mr-2 size-4" />
+            <Lock className="size-4" />
             Sicherheit & Konto
           </TabsTrigger>
         </TabsList>
@@ -472,6 +479,7 @@ export default function SettingsPage() {
                   autoComplete="new-password"
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
+                <PasswordStrengthIndicator password={newPassword} />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="confirm-password">Neues Passwort bestätigen</Label>

@@ -1,5 +1,5 @@
 /** Grenzen wie im Backend (`UserProfileUpdate` / SQLModel). */
-export const DISPLAY_NAME_MAX_LENGTH = 120
+export const DISPLAY_NAME_MAX_LENGTH = 50
 
 export type SettingsSaveFieldErrors = {
   displayName?: string
