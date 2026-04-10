@@ -83,7 +83,7 @@ class ScraperService:
 
             details = self._fetch_details(new_previews)
             filtered = self._filter_ads(details, adsearch)
-            ads = self._save_ads(filtered, adsearch.id)
+            ads = self._save_ads(filtered, adsearch.id, adsearch.owner_id)
 
             ads_found_result = len(previews)
             ads_filtered_result = len(details) - len(filtered)
@@ -260,12 +260,13 @@ class ScraperService:
 
         return details
 
-    def _save_ads(self, details: list[ScrapedAdDetail], adsearch_id: int) -> list[Ad]:
+    def _save_ads(self, details: list[ScrapedAdDetail], adsearch_id: int, owner_id: str) -> list[Ad]:
         """Fügt die gescrapten Anzeigendetails in die ads-Tabelle ein und gibt die erstellten Ad-Instanzen zurück."""
         ads: list[Ad] = []
 
         for detail in details:
             ad = Ad(
+                owner_id=owner_id,
                 external_id=detail.external_id,
                 title=detail.title,
                 url=detail.url,

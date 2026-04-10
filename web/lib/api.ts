@@ -1,26 +1,151 @@
-import type { Ad, AdSearch, AppSetting, ErrorLog, AIAnalysisLog, PaginatedAds, ScrapeRun } from "./types"
+import type {
+  Ad,
+  AdSearch,
+  AIAnalysisLog,
+  AppSetting,
+  ErrorLog,
+  PaginatedAds,
+  ScrapeRun,
+  UserProfile,
+  UserSettings,
+} from "./types"
+import { supabase } from "./supabase"
 
 // Use relative URL by default so the static export can be served
 // from the same origin as the FastAPI backend.
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
 
+export class ApiAuthError extends Error {}
+
+/** FastAPI kann `detail` als String, Array von Validation-Error-Objekten oder Objekt liefern. */
+function formatFastApiDetail(detail: unknown): string {
+  if (detail == null) return ""
+  if (typeof detail === "string") return detail
+  if (Array.isArray(detail)) {
+    const parts = detail.map((item) => {
+      if (item && typeof item === "object" && "msg" in item) {
+        return String((item as { msg: unknown }).msg)
+      }
+      try {
+        return JSON.stringify(item)
+      } catch {
+        return String(item)
+      }
+    })
+    return parts.filter(Boolean).join(" ")
+  }
+  if (typeof detail === "object") {
+    try {
+      return JSON.stringify(detail)
+    } catch {
+      return String(detail)
+    }
+  }
+  return String(detail)
+}
+
+async function getAccessToken(): Promise<string | null> {
+  if (!supabase) return null
+  const { data } = await supabase.auth.getSession()
+  return data.session?.access_token ?? null
+}
+
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = await getAccessToken()
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
+  const customHeaders = options?.headers ?? {}
+  const fullUrl = `${BASE_URL}${path}`
+  // #region agent log
+  if (typeof fetch !== "undefined") {
+    fetch("http://127.0.0.1:7779/ingest/bfe3bd6e-2abc-4ac9-b804-18a979d98c6d", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "ef93ff",
+      },
+      body: JSON.stringify({
+        sessionId: "ef93ff",
+        location: "web/lib/api.ts:apiFetch",
+        message: "pre_fetch",
+        data: {
+          hypothesisId: "H1-H3-H-KA",
+          fullUrl,
+          baseUrlLen: BASE_URL.length,
+          path,
+          method: options?.method ?? "GET",
+          pageOrigin:
+            typeof window !== "undefined" ? window.location.origin : "ssr",
+          hasAuthHeader: Boolean(token),
+        },
+        timestamp: Date.now(),
+        runId: "pre-fix",
+      }),
+    }).catch(() => {})
+  }
+  // #endregion
   let res: Response
   try {
-    res = await fetch(`${BASE_URL}${path}`, {
+    res = await fetch(fullUrl, {
       cache: "no-store",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+        ...(customHeaders as Record<string, string>),
+      },
       ...options,
     })
-  } catch {
+  } catch (err: unknown) {
+    // #region agent log
+    const errInfo =
+      err instanceof Error
+        ? { name: err.name, message: err.message }
+        : { name: "non_error", message: String(err) }
+    if (typeof fetch !== "undefined") {
+      fetch("http://127.0.0.1:7779/ingest/bfe3bd6e-2abc-4ac9-b804-18a979d98c6d", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "ef93ff",
+        },
+        body: JSON.stringify({
+          sessionId: "ef93ff",
+          location: "web/lib/api.ts:apiFetch",
+          message: "fetch_threw",
+          data: {
+            hypothesisId: "H1-H2-H4-H-KA",
+            fullUrl,
+            ...errInfo,
+            baseUrlLen: BASE_URL.length,
+            path,
+            pageOrigin:
+              typeof window !== "undefined" ? window.location.origin : "ssr",
+          },
+          timestamp: Date.now(),
+          runId: "pre-fix",
+        }),
+      }).catch(() => {})
+    }
+    // #endregion
     throw new Error("Keine Verbindung zum Server — bitte Internetverbindung prüfen.")
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    if (res.status >= 500) {
-      throw new Error(body.detail || "Serverfehler — bitte später erneut versuchen.")
+    if (res.status === 401) {
+      await supabase?.auth.signOut()
+      if (typeof window !== "undefined") {
+        window.location.href = "/login"
+      }
+      throw new ApiAuthError("Sitzung abgelaufen oder ungültig. Bitte erneut einloggen.")
     }
-    throw new Error(body.detail || `Anfrage fehlgeschlagen (${res.status})`)
+    const detailText = formatFastApiDetail(
+      (body as { detail?: unknown }).detail,
+    )
+    if (res.status >= 500) {
+      throw new Error(
+        detailText || "Serverfehler — bitte später erneut versuchen.",
+      )
+    }
+    throw new Error(detailText || `Anfrage fehlgeschlagen (${res.status})`)
   }
   // 204 No Content has no body — do not call res.json()
   if (res.status === 204) return undefined as T
@@ -36,8 +161,6 @@ export const updateSearch = (id: number, data: Partial<AdSearch>) =>
   apiFetch<AdSearch>(`/api/adsearches/${id}`, { method: "PATCH", body: JSON.stringify(data) })
 export const deleteSearch = (id: number) =>
   apiFetch<void>(`/api/adsearches/${id}`, { method: "DELETE" })
-export const triggerScrape = (id: number) =>
-  apiFetch<{ status: string }>(`/api/adsearches/${id}/scrape`, { method: "POST" })
 
 // Ads
 export const fetchAds = async (params?: { adsearch_id?: number; is_analyzed?: boolean }): Promise<Ad[]> => {
@@ -118,3 +241,27 @@ export const updateSetting = (key: string, value: string) =>
 // Version (from backend / pyproject.toml)
 export const fetchVersion = () =>
   apiFetch<{ version: string }>("/api/version/")
+
+// User / Account
+export const fetchMe = () => apiFetch<UserProfile>("/api/users/me/")
+export const updateMe = (data: { display_name: string }) =>
+  apiFetch<UserProfile>("/api/users/me/", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  })
+export const fetchMySettings = () => apiFetch<UserSettings>("/api/users/me/settings")
+export const updateMySettings = (data: Partial<UserSettings>) =>
+  apiFetch<UserSettings>("/api/users/me/settings", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  })
+export const changePassword = (oldPassword: string, newPassword: string) =>
+  apiFetch<void>("/api/users/me/change-password", {
+    method: "POST",
+    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+  })
+export const deleteMyAccount = (confirmEmail: string) =>
+  apiFetch<void>("/api/users/me/", {
+    method: "DELETE",
+    body: JSON.stringify({ confirm_email: confirmEmail }),
+  })

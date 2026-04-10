@@ -8,6 +8,7 @@ from app.services.scraper import ScraperService
 def _make_adsearch() -> AdSearch:
     """Minimaler AdSearch ohne Preisgrenzen/Filter."""
     return AdSearch(
+        owner_id="00000000-0000-0000-0000-000000000001",
         name="Test-Suche",
         url="https://www.kleinanzeigen.de/s-test/kategorie/c123",
     )

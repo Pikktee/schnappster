@@ -1,14 +1,11 @@
 """API-Routen für Suchaufträge (Ad Searches)."""
 
-import logging
-import threading
-import traceback
-
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+from sqlmodel import select
 
+from app.core.auth import CurrentUser, get_current_user
 from app.core.background_jobs import BackgroundJobs, get_background_jobs
-from app.core.db import DbSession, db_engine
+from app.core.db import UserDbSession
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearchUpdate
 from app.models.logs_aianalysis import AIAnalysisLog
@@ -16,9 +13,6 @@ from app.models.logs_error import ErrorLog
 from app.models.logs_scraperun import ScrapeRun
 from app.scraper.httpclient import fetch_page_with_status
 from app.scraper.parser import parse_search_title
-from app.services.scraper import ScraperService
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/adsearches", tags=["AdSearches"])
 
@@ -27,15 +21,24 @@ router = APIRouter(prefix="/adsearches", tags=["AdSearches"])
 # --- Routen ---
 # --------------
 @router.get("/", response_model=list[AdSearchRead])
-def list_adsearches(session: DbSession):
+def list_adsearches(session: UserDbSession, current_user: CurrentUser = Depends(get_current_user)):  # noqa: B008
     """Gibt alle Suchaufträge zurück."""
-    return session.exec(select(AdSearch)).all()
+    return session.exec(select(AdSearch).where(AdSearch.owner_id == current_user.tenant_id)).all()
 
 
 @router.get("/{adsearch_id}", response_model=AdSearchRead)
-def get_adsearch(adsearch_id: int, session: DbSession):
+def get_adsearch(
+    adsearch_id: int,
+    session: UserDbSession,
+    current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
+):
     """Gibt einen Suchauftrag anhand der ID zurück; 404 wenn nicht gefunden."""
-    adsearch = session.get(AdSearch, adsearch_id)
+    adsearch = session.exec(
+        select(AdSearch).where(
+            AdSearch.id == adsearch_id,
+            AdSearch.owner_id == current_user.tenant_id,
+        )
+    ).first()
 
     if not adsearch:
         raise HTTPException(status_code=404, detail="AdSearch not found")
@@ -46,10 +49,14 @@ def get_adsearch(adsearch_id: int, session: DbSession):
 @router.post("/", response_model=AdSearchRead, status_code=201)
 def create_adsearch(
     data: AdSearchCreate,
-    session: DbSession,
+    session: UserDbSession,
+    current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
     background_jobs: BackgroundJobs = Depends(get_background_jobs),  # noqa: B008
 ):
-    """Legt einen neuen Suchauftrag an; URL wird per Abruf validiert, Name aus Seitentitel wenn leer."""
+    """Legt einen neuen Suchauftrag an.
+
+    URL wird per Abruf validiert, Name bei leerem Input aus dem Seitentitel uebernommen.
+    """
     name = data.name.strip()
     title_from_page = _validate_search_url_reachable(data.url)
 
@@ -64,7 +71,9 @@ def create_adsearch(
             )
         name = title_from_page
 
-    adsearch = AdSearch.model_validate({**data.model_dump(), "name": name})
+    adsearch = AdSearch.model_validate(
+        {**data.model_dump(), "name": name, "owner_id": current_user.tenant_id}
+    )
 
     session.add(adsearch)
     session.commit()
@@ -75,9 +84,22 @@ def create_adsearch(
 
 
 @router.patch("/{adsearch_id}", response_model=AdSearchRead)
-def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
-    """Aktualisiert einen bestehenden Suchauftrag. 404 wenn nicht gefunden. URL wird bei Angabe validiert."""
-    adsearch = session.get(AdSearch, adsearch_id)
+def update_adsearch(
+    adsearch_id: int,
+    data: AdSearchUpdate,
+    session: UserDbSession,
+    current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
+):
+    """Aktualisiert einen bestehenden Suchauftrag.
+
+    404 bei unbekannter ID; URL wird bei Angabe serverseitig validiert.
+    """
+    adsearch = session.exec(
+        select(AdSearch).where(
+            AdSearch.id == adsearch_id,
+            AdSearch.owner_id == current_user.tenant_id,
+        )
+    ).first()
 
     if not adsearch:
         raise HTTPException(status_code=404, detail="AdSearch not found")
@@ -88,7 +110,7 @@ def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
     if "url" in update_data:
         _validate_search_url_reachable(update_data["url"])
 
-    # Wenn der Client den Namen geleert hat: aktuelle URL laden und deren Titel als neuen Namen nutzen.
+    # Wenn der Client den Namen leert, nutzen wir den Seitentitel der aktuellen URL.
     title_from_page: str | None = None
     if (
         "name" in update_data
@@ -122,9 +144,18 @@ def update_adsearch(adsearch_id: int, data: AdSearchUpdate, session: DbSession):
 
 
 @router.delete("/{adsearch_id}", status_code=204)
-def delete_adsearch(adsearch_id: int, session: DbSession):
+def delete_adsearch(
+    adsearch_id: int,
+    session: UserDbSession,
+    current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
+):
     """Löscht den Suchauftrag inklusive zugehöriger Anzeigen, Scrape-Läufe und Fehlerlogs."""
-    adsearch = session.get(AdSearch, adsearch_id)
+    adsearch = session.exec(
+        select(AdSearch).where(
+            AdSearch.id == adsearch_id,
+            AdSearch.owner_id == current_user.tenant_id,
+        )
+    ).first()
 
     if not adsearch:
         raise HTTPException(status_code=404, detail="AdSearch not found")
@@ -150,38 +181,6 @@ def delete_adsearch(adsearch_id: int, session: DbSession):
     session.delete(adsearch)
     session.commit()
 
-
-@router.post("/{adsearch_id}/scrape", status_code=202)
-def trigger_scrape(adsearch_id: int, session: DbSession):
-    """Löst einen sofortigen Scrape für den Suchauftrag aus (asynchron im Hintergrund)."""
-    adsearch = session.get(AdSearch, adsearch_id)
-
-    if not adsearch:
-        raise HTTPException(status_code=404, detail="AdSearch not found")
-
-    def _run_scrape() -> None:
-        """Führt den Scrape in einem Hintergrund-Thread aus; bei Fehler in ErrorLog schreiben."""
-        with Session(db_engine) as bg_session:
-            try:
-                scraper = ScraperService(bg_session)
-                fresh = bg_session.get(AdSearch, adsearch_id)
-                if fresh:
-                    scraper.scrape_adsearch(fresh)
-            except Exception as e:
-                logger.error(f"Triggered scrape failed for AdSearch {adsearch_id}: {e}")
-                bg_session.add(
-                    ErrorLog(
-                        adsearch_id=adsearch_id,
-                        error_type="ScrapeError",
-                        message=str(e),
-                        details=traceback.format_exc(),
-                    )
-                )
-                bg_session.commit()
-
-    threading.Thread(target=_run_scrape, daemon=True).start()
-
-    return {"status": "scrape_triggered"}
 
 # ---------------
 # --- Hilfsfunktionen ---

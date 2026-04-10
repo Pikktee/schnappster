@@ -13,7 +13,7 @@ def test_list_adsearches_empty(client):
 
 
 def test_create_adsearch(client):
-    """POST /adsearches/ mit gültigen Daten liefert 201 und erstellten Suchauftrag mit id und is_active."""
+    """POST /adsearches/ mit gültigen Daten liefert 201 und neuen Suchauftrag."""
     data = {
         "name": "PodMic Frankfurt",
         "url": "https://www.kleinanzeigen.de/s-audio-hifi/60325/podmic/k0c172l4305r250",
@@ -285,6 +285,78 @@ def test_update_setting_invalid_rating(client):
         json={"value": "5"},
     )
     assert response.status_code == 422
+
+
+# --- Auth / Mandanten-ID ---
+
+
+def test_current_user_tenant_id_uses_jwt_sub():
+    """tenant_id entspricht dem JWT-`sub`, damit Postgres-RLS und App-Queries uebereinstimmen."""
+    import base64
+    import json
+
+    from app.core.auth import CurrentUser
+
+    payload = {"sub": "00000000-0000-0000-0000-000000000099"}
+    seg = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+    token = f"e30.{seg}.e30"
+    user = CurrentUser(
+        id="00000000-0000-0000-0000-000000000001",
+        email=None,
+        app_metadata={},
+        user_metadata={},
+        identities=[],
+        access_token=token,
+    )
+    assert user.tenant_id == "00000000-0000-0000-0000-000000000099"
+
+
+def test_current_user_tenant_id_falls_back_to_api_id():
+    from app.core.auth import CurrentUser
+
+    user = CurrentUser(
+        id="00000000-0000-0000-0000-000000000001",
+        email=None,
+        app_metadata={},
+        user_metadata={},
+        identities=[],
+        access_token="not-a-jwt",
+    )
+    assert user.tenant_id == "00000000-0000-0000-0000-000000000001"
+
+
+def test_identity_display_name_reads_google_identity_data():
+    """Name steht bei Google oft nur unter identities[].identity_data, nicht in user_metadata."""
+    from app.core.auth import CurrentUser, identity_display_name
+
+    user = CurrentUser(
+        id="u1",
+        email="a@b.de",
+        app_metadata={},
+        user_metadata={"picture": "https://example.com/x"},
+        identities=[
+            {
+                "provider": "google",
+                "identity_data": {"iss": "x", "sub": "y", "name": "Anna Beispiel"},
+            }
+        ],
+        access_token="t",
+    )
+    assert identity_display_name(user) == "Anna Beispiel"
+
+
+def test_identity_display_name_given_and_family():
+    from app.core.auth import CurrentUser, identity_display_name
+
+    user = CurrentUser(
+        id="u1",
+        email=None,
+        app_metadata={},
+        user_metadata={"given_name": "Max", "family_name": "Mustermann"},
+        identities=[],
+        access_token="t",
+    )
+    assert identity_display_name(user) == "Max Mustermann"
 
 
 # --- Version-Endpunkt ---

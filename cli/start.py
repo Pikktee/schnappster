@@ -1,9 +1,9 @@
-"""Startet die Schnappster-Anwendung.
+"""Startet die Schnappster-API.
 
 Verwendung:
-    uv run start                      # Tests, Web-Build, App starten (Port 8000)
+    uv run start                      # Tests und API starten (Port 8000)
     uv run start --port 8080          # Port 8080 nutzen
-    uv run start --skip-tests         # Tests überspringen, Web bauen, App starten
+    uv run start --skip-tests         # Tests überspringen, API starten
     uv run start --dev                # Dev-Modus: Next.js :3000 + Backend
     uv run start --dev --port 8080    # Dev-Modus auf Port 8080
 """
@@ -18,7 +18,7 @@ from pathlib import Path
 
 import uvicorn
 
-from app.core import get_app_root, setup_logging
+from app.core import config, get_app_root, setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +99,7 @@ def get_frontend_dir() -> Path:
 
 
 def build_frontend() -> None:
-    """Baut das Next.js-Frontend als statischen Export nach web/out."""
+    """Legacy-Helfer; im getrennten Deployment aktuell nicht genutzt."""
     frontend_dir = get_frontend_dir()
     if not frontend_dir.exists():
         logger.warning(
@@ -151,10 +151,19 @@ def start_frontend_dev(port: int) -> subprocess.Popen[bytes]:
     print("🚀  STARTING FRONTEND DEV SERVER")
     print("=" * 60 + "\n")
 
+    frontend_env = {
+        **os.environ,
+        "NEXT_PUBLIC_API_URL": f"http://127.0.0.1:{port}",
+    }
+    if config.supabase_url.strip():
+        frontend_env["NEXT_PUBLIC_SUPABASE_URL"] = config.supabase_url
+    if config.supabase_publishable_key.strip():
+        frontend_env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] = config.supabase_publishable_key
+
     proc = subprocess.Popen(
         ["npm", "run", "dev"],
         cwd=str(frontend_dir),
-        env={**os.environ, "NEXT_PUBLIC_API_URL": f"http://127.0.0.1:{port}"},
+        env=frontend_env,
     )
     return proc
 
@@ -184,9 +193,8 @@ def main() -> None:
             if frontend_proc and frontend_proc.poll() is None:
                 frontend_proc.terminate()
     else:
-        build_frontend()
         print("\n" + "=" * 60)
-        print("🚀  STARTING SCHNAPPSTER")
+        print("🚀  STARTING SCHNAPPSTER API")
         print("=" * 60)
         print(f"  App:      http://localhost:{port}")
         print("=" * 60 + "\n")

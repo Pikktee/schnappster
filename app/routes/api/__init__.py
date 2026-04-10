@@ -8,6 +8,7 @@ from app.routes.api.logs_aianalysis import router as aianalysislogs_router
 from app.routes.api.logs_error import router as errorlogs_router
 from app.routes.api.logs_scraperun import router as scraperuns_router
 from app.routes.api.settings import router as settings_router
+from app.routes.api.users_me import router as users_me_router
 from app.routes.api.version import router as version_router
 
 api_router = APIRouter(prefix="/api")
@@ -17,4 +18,5 @@ api_router.include_router(aianalysislogs_router)
 api_router.include_router(errorlogs_router)
 api_router.include_router(scraperuns_router)
 api_router.include_router(settings_router)
+api_router.include_router(users_me_router)
 api_router.include_router(version_router)

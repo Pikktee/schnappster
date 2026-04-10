@@ -20,7 +20,8 @@ class Ad(SQLModel, table=True):
     __tablename__ = "ads"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
-    adsearch_id: int | None = Field(default=None, foreign_key="ad_searches.id", ondelete="SET NULL")
+    owner_id: str = Field(index=True)
+    adsearch_id: int | None = Field(default=None, foreign_key="ad_searches.id", ondelete="CASCADE")
     external_id: str
     title: str
     description: str | None = None
@@ -55,6 +56,7 @@ class AdRead(SQLModel):
     """Lese-Schema für Anzeigen in API-Antworten."""
 
     id: int
+    owner_id: str
     adsearch_id: int | None
     external_id: str
     title: str

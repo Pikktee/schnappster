@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlmodel import Session, text
 
-from app.core import db_engine, setup_logging
+from app.core import config, db_engine, setup_logging
 from app.models import AdSearch, AppSettings, ErrorLog, ScrapeRun
 
 logger = logging.getLogger(__name__)
@@ -22,12 +22,14 @@ def main() -> None:
     past = datetime.now(UTC) - timedelta(hours=2)
 
     adsearch = AdSearch(
+        owner_id="00000000-0000-0000-0000-000000000001",
         name="PodMic Frankfurt",
         url="https://www.kleinanzeigen.de/s-audio-hifi/60325/podmic/k0c172l4305r250",
     )
 
     with Session(db_engine) as session:
-        session.execute(text("PRAGMA foreign_keys=ON"))
+        if config.database_url.startswith("sqlite"):
+            session.execute(text("PRAGMA foreign_keys=ON"))
 
         # Suchauftrag
         session.add(adsearch)

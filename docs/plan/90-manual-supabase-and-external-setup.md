@@ -30,6 +30,7 @@ Nicht als KI-Agentenplan verwenden.
 
 ## Secrets Management
 
-- `.env` lokal pflegen (nicht committen)
+- Lokal eine gemeinsame Root-`.env` pflegen (nicht committen)
+- `NEXT_PUBLIC_*` Werte in derselben Root-`.env` mitpflegen
 - Produktions-Secrets im Host/Secret-Manager setzen
-- Secret Key nie im Frontend verwenden
+- `SUPABASE_SECRET_KEY` nie im Frontend verwenden

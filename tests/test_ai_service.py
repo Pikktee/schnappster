@@ -111,6 +111,7 @@ def test_build_price_context_no_other_ads(session, sample_adsearch):
     ai_service.session = session
 
     ad = Ad(
+        owner_id="00000000-0000-0000-0000-000000000001",
         external_id="9999",
         title="Lonely Ad",
         url="https://example.com",

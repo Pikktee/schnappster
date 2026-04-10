@@ -1,13 +1,34 @@
 "use client"
 
 import { usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
+import { Spinner } from "@/components/ui/spinner"
+import { useAuth } from "@/components/auth-provider"
 import { PageHeadProvider } from "./page-head-context"
 import { AppPageHead } from "./app-page-head"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { session, loading } = useAuth()
+
+  useEffect(() => {
+    if (!loading && !session) {
+      router.replace("/login")
+    }
+  }, [loading, session, router])
+
+  if (loading || !session) {
+    return (
+      <div className="flex h-svh items-center justify-center">
+        <Spinner />
+      </div>
+    )
+  }
+
   return (
     <PageHeadProvider pathname={pathname}>
       <SidebarProvider className="h-svh">

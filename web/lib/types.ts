@@ -82,3 +82,21 @@ export interface AppSetting {
   key: string
   value: string
 }
+
+export interface UserProfile {
+  id: string
+  email: string | null
+  display_name: string
+  avatar_url: string | null
+  role: string
+}
+
+export interface UserSettings {
+  user_id: string
+  display_name: string
+  telegram_chat_id: string | null
+  notify_telegram: boolean
+  notify_email: boolean
+  notify_min_score: number
+  deletion_pending: boolean
+}

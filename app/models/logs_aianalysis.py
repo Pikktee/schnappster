@@ -18,8 +18,8 @@ class AIAnalysisLog(SQLModel, table=True):
     __tablename__ = "ai_analysis_logs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
-    ad_id: int = Field(foreign_key="ads.id")
-    adsearch_id: int = Field(foreign_key="ad_searches.id")
+    ad_id: int | None = Field(default=None, foreign_key="ads.id", ondelete="SET NULL")
+    adsearch_id: int | None = Field(default=None, foreign_key="ad_searches.id", ondelete="SET NULL")
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     prompt_text: str = ""
     ad_title: str = ""
@@ -38,8 +38,8 @@ class AIAnalysisLogRead(SQLModel):
     """API-Ausgabe-Schema für einen KI-Analyse-Log-Eintrag."""
 
     id: int
-    ad_id: int
-    adsearch_id: int
+    ad_id: int | None
+    adsearch_id: int | None
     created_at: datetime
     prompt_text: str
     ad_title: str
