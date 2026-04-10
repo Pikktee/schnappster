@@ -172,12 +172,21 @@ class AIService:
 
         logger.info(f"Analyzed ad {ad.id} '{ad.title}': score={result['score']}")
 
-        settings = SettingsService(self.session)
-        if result["score"] >= 8 and settings.get_bool("telegram_notifications_enabled"):
-            tg = TelegramService(
-                bot_token=app_config.telegram_bot_token, chat_id=app_config.telegram_chat_id
-            )
+        self._notify_if_enabled(ad, result["score"])
 
+    def _notify_if_enabled(self, ad: Ad, score: float) -> None:
+        """Versendet Benachrichtigungen gemaess UserSettings."""
+        settings_service = SettingsService(self.session)
+        user_settings = settings_service.get_user_settings(ad.owner_id)
+        if score < user_settings.notify_min_score:
+            return
+        if user_settings.notify_mode != "instant":
+            return
+        if user_settings.notify_telegram and user_settings.telegram_chat_id:
+            tg = TelegramService(
+                bot_token=app_config.telegram_bot_token,
+                chat_id=user_settings.telegram_chat_id,
+            )
             tg.send_bargain_notification(ad)
 
     def _build_user_context(self, ad: Ad, adsearch: AdSearch | None) -> dict:

@@ -1,12 +1,13 @@
-"""Laufzeit-Einstellungen aus der DB: Gewerbe-Ausschluss, Mindest-Verkäuferbewertung, Telegram."""
+"""Laufzeit-Einstellungen aus der DB: global und pro User."""
 
 from sqlmodel import Session
 
-from app.models.settings import AppSettings
+from app.models.settings_app import AppSettings
+from app.models.settings_user import UserSettings, UserSettingsUpdate
 
 
 class SettingsService:
-    """Liest und schreibt Einstellungen aus der Tabelle AppSettings; validiert gegen erlaubte Werte."""
+    """Liest/schreibt AppSettings und validiert gegen erlaubte Werte."""
 
     _SUPPORTED_SETTINGS: dict[str, dict] = {
         "exclude_commercial_sellers": {
@@ -45,7 +46,10 @@ class SettingsService:
         return self._SUPPORTED_SETTINGS.copy()
 
     def get(self, key: str) -> str:
-        """Gibt den String-Wert für einen Einstellungsschlüssel zurück; ValueError bei unbekanntem Schlüssel."""
+        """Gibt den String-Wert eines Schluessels zurueck.
+
+        Wirft ValueError bei unbekanntem Schluessel.
+        """
         if key not in self._SUPPORTED_SETTINGS:
             raise ValueError(f"This setting '{key}' is not supported.")
 
@@ -62,7 +66,10 @@ class SettingsService:
         return int(self.get(key))
 
     def set(self, key: str, value: str):
-        """Setzt einen Einstellungswert; validiert gegen Erlaubtes; legt Zeile an oder aktualisiert sie."""
+        """Setzt einen Einstellungswert.
+
+        Validiert gegen erlaubte Werte und legt die Zeile bei Bedarf an.
+        """
         if key not in self._SUPPORTED_SETTINGS:
             raise ValueError(f"This setting '{key}' is not supported.")
 
@@ -83,7 +90,7 @@ class SettingsService:
         self.session.commit()
 
     def get_all(self) -> list[dict]:
-        """Gibt alle unterstützten Einstellungen mit Schlüssel, Wert, Typ, Default, Erlaubtes und Beschreibung zurück."""
+        """Gibt alle unterstuetzten Einstellungen inkl. Metadaten zurueck."""
         all_settings = []
         for key, details in self._SUPPORTED_SETTINGS.items():
             entry = {
@@ -93,3 +100,28 @@ class SettingsService:
             }
             all_settings.append(entry)
         return all_settings
+
+    def get_user_settings(self, user_id: str, default_display_name: str = "") -> UserSettings:
+        """Liefert UserSettings; legt sie bei Bedarf mit Defaults an."""
+        user_settings = self.session.get(UserSettings, user_id)
+        if user_settings:
+            return user_settings
+        user_settings = UserSettings(user_id=user_id, display_name=default_display_name or "")
+        self.session.add(user_settings)
+        self.session.commit()
+        self.session.refresh(user_settings)
+        return user_settings
+
+    def update_user_settings(self, user_id: str, data: UserSettingsUpdate) -> UserSettings:
+        """Aktualisiert UserSettings partiell."""
+        settings = self.get_user_settings(user_id)
+        update_data = data.model_dump(exclude_unset=True)
+        notify_mode = update_data.get("notify_mode")
+        if notify_mode is not None and notify_mode not in {"instant", "daily_summary"}:
+            raise ValueError("notify_mode must be 'instant' or 'daily_summary'")
+        for key, value in update_data.items():
+            setattr(settings, key, value)
+        self.session.add(settings)
+        self.session.commit()
+        self.session.refresh(settings)
+        return settings
