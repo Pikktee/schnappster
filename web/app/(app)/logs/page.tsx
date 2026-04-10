@@ -480,7 +480,7 @@ export default function LogsPage() {
                   <tbody>
                     {aiLogs.map((log) => {
                       const isOpen = expandedAi.has(log.id)
-                      const search = searchMap.get(log.adsearch_id)
+                      const search = log.adsearch_id != null ? searchMap.get(log.adsearch_id) : null
                       return (
                         <Fragment key={log.id}>
                           <tr className="border-b border-border/80 hover:bg-muted/20 transition-colors">
@@ -500,22 +500,30 @@ export default function LogsPage() {
                               {timeAgo(log.created_at)}
                             </td>
                             <td className="align-top py-3 px-3 overflow-hidden">
-                              <Link
-                                href={`/ads/${log.ad_id}`}
-                                className="text-primary hover:underline font-medium cursor-pointer block min-w-0 truncate"
-                                title={log.ad_title ?? undefined}
-                              >
-                                {log.ad_title || "—"}
-                              </Link>
+                              {log.ad_id != null ? (
+                                <Link
+                                  href={`/ads/${log.ad_id}`}
+                                  className="text-primary hover:underline font-medium cursor-pointer block min-w-0 truncate"
+                                  title={log.ad_title ?? undefined}
+                                >
+                                  {log.ad_title || "—"}
+                                </Link>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
                             </td>
                             <td className="align-top py-3 px-3 overflow-hidden">
-                              <Link
-                                href={`/searches/${log.adsearch_id}`}
-                                className="text-primary hover:underline text-sm cursor-pointer block min-w-0 truncate"
-                                title={search?.name ?? `Suchauftrag #${log.adsearch_id}`}
-                              >
-                                {search?.name ?? `Suchauftrag #${log.adsearch_id}`}
-                              </Link>
+                              {log.adsearch_id != null ? (
+                                <Link
+                                  href={`/searches/${log.adsearch_id}`}
+                                  className="text-primary hover:underline text-sm cursor-pointer block min-w-0 truncate"
+                                  title={search?.name ?? `Suchauftrag #${log.adsearch_id}`}
+                                >
+                                  {search?.name ?? `Suchauftrag #${log.adsearch_id}`}
+                                </Link>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
                             </td>
                             <td className="align-top py-3 px-3 whitespace-nowrap font-medium">
                               {Math.round(log.score)}

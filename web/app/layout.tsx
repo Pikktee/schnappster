@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
+import { AuthProvider } from '@/components/auth-provider'
 import './globals.css'
 
 const _inter = Inter({ subsets: ["latin"] })
@@ -39,8 +40,10 @@ export default function RootLayout({
         >
           Zum Hauptinhalt springen
         </a>
-        {children}
-        <Toaster position="bottom-right" />
+        <AuthProvider>
+          {children}
+          <Toaster position="bottom-right" />
+        </AuthProvider>
       </body>
     </html>
   )
