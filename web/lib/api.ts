@@ -17,6 +17,33 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
 
 export class ApiAuthError extends Error {}
 
+/** FastAPI kann `detail` als String, Array von Validation-Error-Objekten oder Objekt liefern. */
+function formatFastApiDetail(detail: unknown): string {
+  if (detail == null) return ""
+  if (typeof detail === "string") return detail
+  if (Array.isArray(detail)) {
+    const parts = detail.map((item) => {
+      if (item && typeof item === "object" && "msg" in item) {
+        return String((item as { msg: unknown }).msg)
+      }
+      try {
+        return JSON.stringify(item)
+      } catch {
+        return String(item)
+      }
+    })
+    return parts.filter(Boolean).join(" ")
+  }
+  if (typeof detail === "object") {
+    try {
+      return JSON.stringify(detail)
+    } catch {
+      return String(detail)
+    }
+  }
+  return String(detail)
+}
+
 async function getAccessToken(): Promise<string | null> {
   if (!supabase) return null
   const { data } = await supabase.auth.getSession()
@@ -110,10 +137,15 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
       }
       throw new ApiAuthError("Sitzung abgelaufen oder ungültig. Bitte erneut einloggen.")
     }
+    const detailText = formatFastApiDetail(
+      (body as { detail?: unknown }).detail,
+    )
     if (res.status >= 500) {
-      throw new Error(body.detail || "Serverfehler — bitte später erneut versuchen.")
+      throw new Error(
+        detailText || "Serverfehler — bitte später erneut versuchen.",
+      )
     }
-    throw new Error(body.detail || `Anfrage fehlgeschlagen (${res.status})`)
+    throw new Error(detailText || `Anfrage fehlgeschlagen (${res.status})`)
   }
   // 204 No Content has no body — do not call res.json()
   if (res.status === 204) return undefined as T
@@ -129,8 +161,6 @@ export const updateSearch = (id: number, data: Partial<AdSearch>) =>
   apiFetch<AdSearch>(`/api/adsearches/${id}`, { method: "PATCH", body: JSON.stringify(data) })
 export const deleteSearch = (id: number) =>
   apiFetch<void>(`/api/adsearches/${id}`, { method: "DELETE" })
-export const triggerScrape = (id: number) =>
-  apiFetch<{ status: string }>(`/api/adsearches/${id}/scrape`, { method: "POST" })
 
 // Ads
 export const fetchAds = async (params?: { adsearch_id?: number; is_analyzed?: boolean }): Promise<Ad[]> => {
@@ -225,12 +255,13 @@ export const updateMySettings = (data: Partial<UserSettings>) =>
     method: "PATCH",
     body: JSON.stringify(data),
   })
-export const changePassword = (newPassword: string) =>
+export const changePassword = (oldPassword: string, newPassword: string) =>
   apiFetch<void>("/api/users/me/change-password", {
     method: "POST",
-    body: JSON.stringify({ new_password: newPassword }),
+    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
   })
-export const deleteMyAccount = () =>
+export const deleteMyAccount = (confirmEmail: string) =>
   apiFetch<void>("/api/users/me/", {
     method: "DELETE",
+    body: JSON.stringify({ confirm_email: confirmEmail }),
   })

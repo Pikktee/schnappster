@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Save, User, Bell, Shield, Trash2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -39,6 +39,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { supabase } from "@/lib/supabase"
+import {
+  DISPLAY_NAME_MAX_LENGTH,
+  getSettingsSaveValidationErrors,
+  humanizeSettingsSaveApiError,
+  settingsSaveHasErrors,
+} from "@/lib/settings-validation"
+import { cn } from "@/lib/utils"
 
 export default function SettingsPage() {
   const [displayName, setDisplayName] = useState("")
@@ -48,9 +55,10 @@ export default function SettingsPage() {
   const [notifyTelegram, setNotifyTelegram] = useState(false)
   const [notifyEmail, setNotifyEmail] = useState(false)
   const [notifyMinScore, setNotifyMinScore] = useState("8")
-  const [notifyMode, setNotifyMode] = useState<"instant" | "daily_summary">("instant")
   const [telegramChatId, setTelegramChatId] = useState("")
+  const [oldPassword, setOldPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [deleteConfirmation, setDeleteConfirmation] = useState("")
   const [excludeCommercialSellers, setExcludeCommercialSellers] = useState(false)
   const [minSellerRating, setMinSellerRating] = useState("0")
@@ -76,7 +84,6 @@ export default function SettingsPage() {
         setNotifyTelegram(userSettings.notify_telegram)
         setNotifyEmail(userSettings.notify_email)
         setNotifyMinScore(String(userSettings.notify_min_score))
-        setNotifyMode(userSettings.notify_mode)
         setTelegramChatId(userSettings.telegram_chat_id ?? "")
         setTelegramConfigured(telegramConfig.configured)
         if (profile.role === "admin") {
@@ -96,18 +103,36 @@ export default function SettingsPage() {
     load()
   }, [])
 
+  const settingsValidation = useMemo(
+    () =>
+      getSettingsSaveValidationErrors({
+        displayName,
+        notifyTelegram,
+        telegramConfigured,
+        telegramChatId,
+      }),
+    [displayName, notifyTelegram, telegramConfigured, telegramChatId],
+  )
+
+  const settingsFormInvalid = settingsSaveHasErrors(settingsValidation)
+
   async function handleSave() {
+    if (settingsFormInvalid) {
+      toast.error("Bitte korrigiere die markierten Felder, dann kann gespeichert werden.")
+      return
+    }
+    const nameTrimmed = displayName.trim()
+    const chatTrimmed = telegramChatId.trim()
     setIsSaving(true)
     try {
       await Promise.all([
-        updateMe({ display_name: displayName }),
+        updateMe({ display_name: nameTrimmed }),
         updateMySettings({
-          display_name: displayName,
+          display_name: nameTrimmed,
           notify_telegram: notifyTelegram,
           notify_email: notifyEmail,
           notify_min_score: Number(notifyMinScore),
-          notify_mode: notifyMode,
-          telegram_chat_id: telegramChatId || null,
+          telegram_chat_id: chatTrimmed || null,
         }),
       ])
       if (isAdmin) {
@@ -118,33 +143,46 @@ export default function SettingsPage() {
       }
       toast.success("Einstellungen gespeichert")
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Speichern fehlgeschlagen."
-      toast.error(msg)
+      const raw = e instanceof Error ? e.message : "Speichern fehlgeschlagen."
+      toast.error(humanizeSettingsSaveApiError(raw))
     } finally {
       setIsSaving(false)
     }
   }
 
   async function handleChangePassword() {
-    if (!newPassword.trim()) return
+    const oldPw = oldPassword
+    const newPw = newPassword.trim()
+    if (!oldPw || !newPw) return
+    if (newPw.length < 8) {
+      toast.error("Neues Passwort muss mindestens 8 Zeichen haben.")
+      return
+    }
+    if (newPw !== confirmPassword.trim()) {
+      toast.error("Neues Passwort und Bestätigung stimmen nicht überein.")
+      return
+    }
     try {
-      await changePassword(newPassword.trim())
+      await changePassword(oldPw, newPw)
+      setOldPassword("")
       setNewPassword("")
+      setConfirmPassword("")
       toast.success("Passwort aktualisiert.")
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Passwort konnte nicht geaendert werden.")
+      toast.error(e instanceof Error ? e.message : "Passwort konnte nicht geändert werden.")
     }
   }
 
   async function handleDeleteAccount() {
-    if (deleteConfirmation.trim().toLowerCase() !== "loeschen") return
+    const emailNorm = (email ?? "").trim().toLowerCase()
+    if (!emailNorm || deleteConfirmation.trim().toLowerCase() !== emailNorm) return
     setIsDeleting(true)
     try {
-      await deleteMyAccount()
+      await deleteMyAccount(deleteConfirmation.trim())
       await supabase?.auth.signOut()
       window.location.href = "/login"
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Konto konnte nicht geloescht werden.")
+      toast.error(e instanceof Error ? e.message : "Konto konnte nicht gelöscht werden.")
     } finally {
       setIsDeleting(false)
       setOpenDeleteDialog(false)
@@ -174,12 +212,52 @@ export default function SettingsPage() {
             <img src={avatarUrl} alt="Avatar" className="size-14 rounded-full border" />
           )}
           <div className="flex flex-col gap-2">
-            <Label htmlFor="display-name">Anzeigename</Label>
-            <Input id="display-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+            <Label htmlFor="email">E-Mail</Label>
+            <Input
+              id="email"
+              value={email}
+              readOnly
+              tabIndex={-1}
+              aria-readonly="true"
+              className="cursor-default border-transparent bg-muted shadow-none focus-visible:ring-0"
+            />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="email">E-Mail</Label>
-            <Input id="email" value={email} readOnly />
+            <div className="flex items-baseline justify-between gap-2">
+              <Label htmlFor="display-name" className="cursor-pointer">
+                Name{" "}
+                <span className="font-normal text-muted-foreground">(optional)</span>
+              </Label>
+              <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
+                {displayName.length}/{DISPLAY_NAME_MAX_LENGTH}
+              </span>
+            </div>
+            <Input
+              id="display-name"
+              name="display_name"
+              value={displayName}
+              maxLength={DISPLAY_NAME_MAX_LENGTH}
+              autoComplete="name"
+              aria-invalid={Boolean(settingsValidation.displayName)}
+              aria-describedby={
+                settingsValidation.displayName ? "display-name-error" : "display-name-hint"
+              }
+              onChange={(e) => setDisplayName(e.target.value)}
+              className={cn(
+                settingsValidation.displayName &&
+                  "border-destructive focus-visible:ring-destructive/30",
+              )}
+            />
+            {settingsValidation.displayName ? (
+              <p id="display-name-error" role="alert" className="text-sm text-destructive">
+                {settingsValidation.displayName}
+              </p>
+            ) : (
+              <p id="display-name-hint" className="text-sm text-muted-foreground">
+                Wird in der App angezeigt. Wenn du nichts einträgst, wird der Name von deinem
+                Anbieter (z. B. Google) verwendet, sofern vorhanden.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -193,23 +271,9 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           {!telegramConfigured && (
-            <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
-              <p>
-                Telegram ist nicht konfiguriert. Setze{" "}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-[0.8em]">TELEGRAM_BOT_TOKEN</code>{" "}
-                in der .env-Datei.
-              </p>
-              <p>
-                <a
-                  href="https://core.telegram.org/bots#how-do-i-create-a-bot"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-link hover:underline"
-                >
-                  Anleitung: Telegram Bot erstellen &rarr;
-                </a>
-              </p>
-            </div>
+            <p className="text-sm leading-relaxed text-amber-900 dark:text-amber-200">
+              Telegram-Benachrichtigungen sind derzeit systemweit deaktiviert.
+            </p>
           )}
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
@@ -241,9 +305,30 @@ export default function SettingsPage() {
             <Label htmlFor="telegram-chat-id">Telegram Chat-ID (pro Nutzer)</Label>
             <Input
               id="telegram-chat-id"
+              name="telegram_chat_id"
+              inputMode="text"
               value={telegramChatId}
+              autoComplete="off"
+              aria-invalid={Boolean(settingsValidation.telegramChatId)}
+              aria-describedby={
+                settingsValidation.telegramChatId ? "telegram-chat-id-error" : undefined
+              }
               onChange={(e) => setTelegramChatId(e.target.value)}
+              className={cn(
+                settingsValidation.telegramChatId &&
+                  "border-destructive focus-visible:ring-destructive/30",
+              )}
             />
+            {settingsValidation.telegramChatId ? (
+              <p id="telegram-chat-id-error" role="alert" className="text-sm text-destructive">
+                {settingsValidation.telegramChatId}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Nur nötig, wenn Telegram-Benachrichtigungen eingeschaltet sind und das System sie
+                anbietet.
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="notify-min-score">Mindest-Score</Label>
@@ -257,21 +342,6 @@ export default function SettingsPage() {
                     {score}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="notify-mode">Modus</Label>
-            <Select
-              value={notifyMode}
-              onValueChange={(v) => setNotifyMode(v as "instant" | "daily_summary")}
-            >
-              <SelectTrigger id="notify-mode" className="w-full max-w-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="instant">Sofort</SelectItem>
-                <SelectItem value="daily_summary">Tageszusammenfassung</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -316,16 +386,37 @@ export default function SettingsPage() {
 
       <Card className="max-w-2xl">
         <CardHeader>
-          <CardTitle>Passwort aendern</CardTitle>
+          <CardTitle>Passwort ändern</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="old-password">Altes Passwort</Label>
+            <Input
+              id="old-password"
+              type="password"
+              value={oldPassword}
+              autoComplete="current-password"
+              onChange={(e) => setOldPassword(e.target.value)}
+            />
+          </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="new-password">Neues Passwort</Label>
             <Input
               id="new-password"
               type="password"
               value={newPassword}
+              autoComplete="new-password"
               onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="confirm-password">Neues Passwort bestätigen</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              value={confirmPassword}
+              autoComplete="new-password"
+              onChange={(e) => setConfirmPassword(e.target.value)}
             />
           </div>
           <div>
@@ -339,7 +430,7 @@ export default function SettingsPage() {
       <div className="max-w-2xl pt-2">
         <Button
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || settingsFormInvalid}
           className="cursor-pointer gap-2 px-5"
         >
           <Save className="size-4" />
@@ -351,17 +442,20 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive">
             <Trash2 className="size-5" />
-            Danger Zone
+            Account löschen
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <p className="text-sm text-muted-foreground">
-            Konto und zugehoerige App-Daten dauerhaft loeschen.
+            Konto und zugehörige App-Daten dauerhaft löschen.
           </p>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="delete-confirmation">Zur Bestaetigung &quot;loeschen&quot; eingeben</Label>
+            <Label htmlFor="delete-confirmation">E-Mail-Adresse zur Bestätigung eingeben</Label>
             <Input
               id="delete-confirmation"
+              type="email"
+              autoComplete="email"
+              placeholder={email || "ihre@email.de"}
               value={deleteConfirmation}
               onChange={(e) => setDeleteConfirmation(e.target.value)}
             />
@@ -370,21 +464,25 @@ export default function SettingsPage() {
             <Button
               variant="destructive"
               onClick={() => setOpenDeleteDialog(true)}
-              disabled={deleteConfirmation.trim().toLowerCase() !== "loeschen" || isDeleting}
+              disabled={
+                !email?.trim() ||
+                deleteConfirmation.trim().toLowerCase() !== email.trim().toLowerCase() ||
+                isDeleting
+              }
             >
-              Konto loeschen
+              Konto löschen
             </Button>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Konto wirklich loeschen?</AlertDialogTitle>
+                <AlertDialogTitle>Konto wirklich löschen?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Diese Aktion kann nicht rueckgaengig gemacht werden.
+                  Diese Aktion kann nicht rückgängig gemacht werden.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Abbrechen</AlertDialogCancel>
                 <AlertDialogAction onClick={handleDeleteAccount}>
-                  {isDeleting ? "Loesche..." : "Ja, loeschen"}
+                  {isDeleting ? "Lösche..." : "Ja, löschen"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

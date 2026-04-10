@@ -98,6 +98,5 @@ export interface UserSettings {
   notify_telegram: boolean
   notify_email: boolean
   notify_min_score: number
-  notify_mode: "instant" | "daily_summary"
   deletion_pending: boolean
 }
