@@ -1,9 +1,10 @@
 """API-Routen für Anzeigen."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import col, func, select
 
-from app.core.db import DbSession
+from app.core.auth import CurrentUser, get_current_user
+from app.core.db import UserDbSession
 from app.models.ad import Ad, AdRead
 
 router = APIRouter(prefix="/ads", tags=["Ads"])
@@ -14,7 +15,8 @@ router = APIRouter(prefix="/ads", tags=["Ads"])
 # --------------
 @router.get("/")
 def list_ads(
-    session: DbSession,
+    session: UserDbSession,
+    current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
     adsearch_id: int | None = None,
     is_analyzed: bool | None = None,
     min_score: int | None = None,
@@ -25,7 +27,7 @@ def list_ads(
     """Gibt paginierte Anzeigen mit optionalen Filtern
     (adsearch_id, is_analyzed, min_score) und Sortierung zurück.
     """
-    query = select(Ad)
+    query = select(Ad).where(Ad.owner_id == current_user.id)
 
     if adsearch_id is not None:
         query = query.where(Ad.adsearch_id == adsearch_id)
@@ -50,9 +52,13 @@ def list_ads(
 
 
 @router.get("/{ad_id}", response_model=AdRead)
-def get_ad(ad_id: int, session: DbSession):
+def get_ad(
+    ad_id: int,
+    session: UserDbSession,
+    current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
+):
     """Gibt eine Anzeige anhand der ID zurück; 404 wenn nicht gefunden."""
-    ad = session.get(Ad, ad_id)
+    ad = session.exec(select(Ad).where(Ad.id == ad_id, Ad.owner_id == current_user.id)).first()
 
     if not ad:
         raise HTTPException(status_code=404, detail="Ad not found")
