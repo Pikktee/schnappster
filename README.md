@@ -50,8 +50,9 @@ cd schnappster
 # Installation mit uv
 uv sync
 
-# Umgebungsvariablen konfigurieren: .env anlegen (ggf. von .env.example kopieren)
-# OPENAI_API_KEY, OPENAI_MODEL und optional OPENAI_BASE_URL in .env setzen
+# Umgebungsvariablen konfigurieren:
+# - .env im Repo-Root anlegen (ggf. von .env.example kopieren)
+# OPENAI_API_KEY, OPENAI_MODEL und optional OPENAI_BASE_URL setzen
 ```
 
 ### 3. Frontend einrichten (optional)
@@ -64,9 +65,9 @@ npm run build
 
 ## Konfiguration
 
-### Umgebungsvariablen (.env)
+### Umgebungsvariablen (.env im Repo-Root)
 
-Bis März 2026 hießen die Variablen `OPENROUTER_API_KEY` und `OPENROUTER_AI_MODEL`; sie wurden durch `OPENAI_API_KEY`, `OPENAI_MODEL` und optional `OPENAI_BASE_URL` ersetzt. Bestehende `.env` bitte entsprechend anpassen.
+Bis März 2026 hießen die Variablen `OPENROUTER_API_KEY` und `OPENROUTER_AI_MODEL`; sie wurden durch `OPENAI_API_KEY`, `OPENAI_MODEL` und optional `OPENAI_BASE_URL` ersetzt. Bestehende Env-Dateien bitte entsprechend anpassen. Das Frontend liest lokal ebenfalls aus dieser Root-`.env`.
 
 ```env
 # OpenAI-kompatible API (erforderlich). Base-URL optional, Default: OpenRouter.
@@ -76,8 +77,10 @@ OPENAI_MODEL=meta-llama/llama-3.1-70b-instruct
 
 # Telegram Benachrichtigungen (optional)
 TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_CHAT_ID=your_chat_id
 ```
+
+Hinweis: Die Chat-ID wird pro Benutzer in den User-Einstellungen gespeichert (kein globales
+Chat-ID-ENV mehr notwendig).
 
 ### Einstellungen in der App
 

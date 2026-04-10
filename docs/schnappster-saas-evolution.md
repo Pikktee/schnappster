@@ -403,7 +403,7 @@ Next.js und FastAPI teilen sich die Verantwortung: das **Frontend** hält die Su
 
 ### Supabase JS (`@supabase/supabase-js`)
 
-- Client mit `SUPABASE_URL` + **`anon` key** initialisieren (nie Service-Role im Browser)
+- Client mit `SUPABASE_URL` + **Publishable Key** initialisieren (nie Secret Key im Browser)
 - **`onAuthStateChange`** nutzen, um Session-Wechsel (Login, Logout, Token-Refresh) in React-State oder Context zu spiegeln
 - **Refresh:** Supabase-Client erneuert Access-Tokens **automatisch** mit dem Refresh-Token, solange die Session lebt — keine eigene Refresh-Logik duplizieren, außer es gibt besondere Anforderungen
 
@@ -463,8 +463,8 @@ Für **jedes** Projekt folgende Werte notieren (Settings → API und Settings �
 | Wert | Wo zu finden |
 |---|---|
 | **Project URL** | Settings → API → Project URL |
-| **anon key** | Settings → API → Project API keys |
-| **service_role key** | Settings → API → Project API keys (geheim — nie ins Frontend oder Repo) |
+| **Publishable key** | Settings → API → Project API keys |
+| **Secret key** | Settings → API → Project API keys (geheim — nie ins Frontend oder Repo) |
 | **Database URL** | Settings → Database → Connection string → URI (mit `[YOUR-PASSWORD]` ersetzen) |
 
 ---
@@ -475,20 +475,20 @@ Für **jedes** Projekt folgende Werte notieren (Settings → API und Settings �
 ```env
 # Supabase dev-Projekt
 SUPABASE_URL=https://<dev-ref>.supabase.co
-SUPABASE_ANON_KEY=<dev-anon-key>
-SUPABASE_SERVICE_ROLE_KEY=<dev-service-role-key>
+SUPABASE_PUBLISHABLE_KEY=<dev-publishable-key>
+SUPABASE_SECRET_KEY=<dev-secret-key>
 DATABASE_URL=postgresql://postgres:<password>@db.<dev-ref>.supabase.co:5432/postgres
 ```
 
 Produktion (Server-Umgebungsvariablen oder Secrets-Manager):
 ```env
 SUPABASE_URL=https://<prod-ref>.supabase.co
-SUPABASE_ANON_KEY=<prod-anon-key>
-SUPABASE_SERVICE_ROLE_KEY=<prod-service-role-key>
+SUPABASE_PUBLISHABLE_KEY=<prod-publishable-key>
+SUPABASE_SECRET_KEY=<prod-secret-key>
 DATABASE_URL=postgresql://postgres:<password>@db.<prod-ref>.supabase.co:5432/postgres
 ```
 
-`.env` in `.gitignore` eintragen — `SUPABASE_SERVICE_ROLE_KEY` darf das Repo nie verlassen.
+`.env` in `.gitignore` eintragen — `SUPABASE_SECRET_KEY` darf das Repo nie verlassen.
 
 ---
 
@@ -627,7 +627,7 @@ Testen im SQL Editor mit `SET LOCAL role = authenticated; SET LOCAL request.jwt.
 # app/core/auth.py — schematisch, aktuellen Code mit Context7 generieren
 from supabase import create_client
 
-supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_PUBLISHABLE_KEY)
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     response = supabase.auth.get_user(token)
@@ -654,7 +654,7 @@ async def require_admin(user = Depends(get_current_user)):
 
 **User-Context (`get_db_session`):** JWT-Claims werden als PostgreSQL-Session-Variable gesetzt → `auth.uid()` gibt die User-ID zurück → RLS filtert automatisch.
 
-**Admin-Context (`get_admin_session`):** Verbindung mit `SUPABASE_SERVICE_ROLE_KEY` → RLS ist bypassed → `owner_id` in alle Queries und Inserts explizit schreiben. **Nur** für **Background-Jobs**. **Admin-HTTP-Routen** nutzen **ausschließlich** `get_db_session()` nach `require_admin` — siehe **„Verbindliche Festlegung: Admin-HTTP = Variante B“** oben.
+**Admin-Context (`get_admin_session`):** Verbindung mit `SUPABASE_SECRET_KEY` → RLS ist bypassed → `owner_id` in alle Queries und Inserts explizit schreiben. **Nur** für **Background-Jobs**. **Admin-HTTP-Routen** nutzen **ausschließlich** `get_db_session()` nach `require_admin` — siehe **„Verbindliche Festlegung: Admin-HTTP = Variante B“** oben.
 
 > Für die konkrete Implementierung mit asyncpg + SQLAlchemy Events (SET LOCAL request.jwt.claims) **Context7 verwenden** — supabase-py ändert hier regelmäßig die empfohlene API.
 
@@ -1015,7 +1015,7 @@ Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
 **Backend-Migration:**
 - `uv add supabase asyncpg`
 - `app/core/db.py`: SQLite-Engine durch PostgreSQL-Engine ersetzen (`DATABASE_URL` aus Settings)
-- Pydantic Settings um `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` erweitern
+- Pydantic Settings um `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `DATABASE_URL` erweitern
 - `app/core/auth.py`: `get_current_user` + `require_admin` Dependencies implementieren (supabase-py, **Context7 nutzen** — siehe Schritt 8 „Abgleich JWT“)
 - `get_db_session()` (User-Context, RLS aktiv — **alle HTTP-Routen inkl. Admin**) und `get_admin_session()` (Service-Role — **nur Jobs**) implementieren
 - Optional früh: **`CORSMiddleware`** + `CORS_ORIGINS` für lokales `localhost:3000` ↔ `localhost:8000`, siehe **Deployment → CORS**

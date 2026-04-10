@@ -26,7 +26,7 @@ Robuste Session-Fuehrung zwischen Next.js Frontend und FastAPI API.
 
 ## Supabase JS Client
 
-- Initialisierung mit `SUPABASE_URL` + `SUPABASE_ANON_KEY`
+- Initialisierung mit `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY`
 - `onAuthStateChange` fuer Login/Logout/Refresh
 - Keine Service-Role Credentials im Browser
 
