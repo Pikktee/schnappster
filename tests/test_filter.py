@@ -22,6 +22,7 @@ def _make_detail(**kwargs) -> ScrapedAdDetail:
 def _make_adsearch(**kwargs) -> AdSearch:
     """Erstellt einen AdSearch mit optionalen Overrides und Defaults."""
     defaults = {
+        "owner_id": "00000000-0000-0000-0000-000000000001",
         "name": "Test",
         "url": "https://example.com",
         "min_price": None,
