@@ -27,7 +27,7 @@ def list_ads(
     """Gibt paginierte Anzeigen mit optionalen Filtern
     (adsearch_id, is_analyzed, min_score) und Sortierung zurück.
     """
-    query = select(Ad).where(Ad.owner_id == current_user.id)
+    query = select(Ad).where(Ad.owner_id == current_user.tenant_id)
 
     if adsearch_id is not None:
         query = query.where(Ad.adsearch_id == adsearch_id)
@@ -58,7 +58,9 @@ def get_ad(
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     """Gibt eine Anzeige anhand der ID zurück; 404 wenn nicht gefunden."""
-    ad = session.exec(select(Ad).where(Ad.id == ad_id, Ad.owner_id == current_user.id)).first()
+    ad = session.exec(
+        select(Ad).where(Ad.id == ad_id, Ad.owner_id == current_user.tenant_id)
+    ).first()
 
     if not ad:
         raise HTTPException(status_code=404, detail="Ad not found")

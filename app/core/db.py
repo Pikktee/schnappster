@@ -42,18 +42,20 @@ def get_user_db_session(current_user: CurrentUser = Depends(get_current_user)): 
         if _is_sqlite:
             session.execute(text("PRAGMA foreign_keys=ON"))
         else:
+            # JWT-`sub` fuer RLS; kein set_config('role') (entspricht SET ROLE, oft fehlerhaft).
             claims = json.dumps(
                 {
-                    "sub": str(current_user.id),
+                    "sub": current_user.tenant_id,
                     "role": "authenticated",
                     "app_metadata": current_user.app_metadata,
-                }
+                },
+                default=str,
+                allow_nan=False,
             )
             session.execute(
                 text("SELECT set_config('request.jwt.claims', :claims, true)"),
                 {"claims": claims},
             )
-            session.execute(text("SELECT set_config('role', 'authenticated', true)"))
         yield session
 
 
