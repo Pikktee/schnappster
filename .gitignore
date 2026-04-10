@@ -37,6 +37,7 @@ data/*
 .DS_Store
 
 # Web
+/.next/
 logs
 !web/app/(app)/logs/
 !web/app/(app)/logs/*
