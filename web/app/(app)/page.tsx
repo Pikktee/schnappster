@@ -152,7 +152,7 @@ export default function DashboardPage() {
                     className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline cursor-pointer"
                   >
                     <Settings className="size-4 shrink-0" aria-hidden />
-                    Einstellungen — z. B. Telegram-Benachrichtigungen
+                    Einstellungen
                   </Link>
                 </div>
               </div>
