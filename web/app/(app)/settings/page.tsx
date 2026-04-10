@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Save, User, Bell, Shield, Trash2, Lock } from "lucide-react"
+import { Save, User, Bell, Shield, Trash2, Lock, HelpCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -30,7 +30,6 @@ import {
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ContentReveal } from "@/components/content-reveal"
-import Link from "next/link"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +48,12 @@ import {
   settingsSaveHasErrors,
 } from "@/lib/settings-validation"
 import { cn } from "@/lib/utils"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export default function SettingsPage() {
   const [displayName, setDisplayName] = useState("")
@@ -118,6 +123,21 @@ export default function SettingsPage() {
   )
 
   const settingsFormInvalid = settingsSaveHasErrors(settingsValidation)
+
+  function HelpTip({ text }: { text: string }) {
+    return (
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <HelpCircle className="size-3.5 cursor-help text-muted-foreground/60" />
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs text-xs">
+            {text}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
 
   async function handleSave() {
     if (settingsFormInvalid) {
@@ -203,9 +223,21 @@ export default function SettingsPage() {
   return (
     <ContentReveal className="max-w-2xl">
       <Tabs defaultValue="general">
-        <TabsList>
-          <TabsTrigger value="general">Allgemein</TabsTrigger>
-          <TabsTrigger value="security">Sicherheit</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted/70 p-1">
+          <TabsTrigger
+            value="general"
+            className="rounded-lg px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          >
+            <User className="mr-2 size-4" />
+            Profil & Benachrichtigungen
+          </TabsTrigger>
+          <TabsTrigger
+            value="security"
+            className="rounded-lg px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          >
+            <Lock className="mr-2 size-4" />
+            Sicherheit & Konto
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="flex flex-col gap-6 pt-4">
@@ -262,12 +294,7 @@ export default function SettingsPage() {
                   <p id="display-name-error" role="alert" className="text-sm text-destructive">
                     {settingsValidation.displayName}
                   </p>
-                ) : (
-                  <p id="display-name-hint" className="text-sm text-muted-foreground">
-                    Wird in der App angezeigt. Wenn du nichts einträgst, wird der Name von deinem
-                    Anbieter (z. B. Google) verwendet, sofern vorhanden.
-                  </p>
-                )}
+                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -287,11 +314,24 @@ export default function SettingsPage() {
               )}
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-1">
+                  <Label htmlFor="notify-email" className="flex items-center gap-1.5">
+                    <span>Per E-Mail benachrichtigen</span>
+                    <HelpTip text="Sendet dir eine E-Mail, sobald ein passendes Angebot gefunden wurde." />
+                  </Label>
+                </div>
+                <Switch id="notify-email" checked={notifyEmail} onCheckedChange={setNotifyEmail} />
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
                   <Label
                     htmlFor="telegram-notifications"
-                    className={!telegramConfigured ? "opacity-60" : undefined}
+                    className={cn(
+                      "flex items-center gap-1.5",
+                      !telegramConfigured && "opacity-60",
+                    )}
                   >
-                    Telegram-Benachrichtigungen bei Angeboten
+                    <span>Auf Telegram benachrichtigen</span>
+                    <HelpTip text="Sendet dir eine Telegram-Nachricht zu passenden Angeboten." />
                   </Label>
                   <p className="text-sm leading-relaxed text-muted-foreground">
                     Bei passenden Angeboten eine Nachricht an den hinterlegten Telegram-Chat senden.
@@ -305,14 +345,11 @@ export default function SettingsPage() {
                   className={!telegramConfigured ? "opacity-60" : undefined}
                 />
               </div>
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <Label htmlFor="notify-email">E-Mail-Benachrichtigungen</Label>
-                </div>
-                <Switch id="notify-email" checked={notifyEmail} onCheckedChange={setNotifyEmail} />
-              </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="telegram-chat-id">Telegram Chat-ID (pro Nutzer)</Label>
+                <Label htmlFor="telegram-chat-id" className="flex items-center gap-1.5">
+                  <span>Telegram Chat-ID</span>
+                  <HelpTip text="Deine persönliche Chat-ID. Wird genutzt, wenn Telegram-Benachrichtigungen aktiv sind." />
+                </Label>
                 <Input
                   id="telegram-chat-id"
                   name="telegram_chat_id"
@@ -333,15 +370,13 @@ export default function SettingsPage() {
                   <p id="telegram-chat-id-error" role="alert" className="text-sm text-destructive">
                     {settingsValidation.telegramChatId}
                   </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Nur nötig, wenn Telegram-Benachrichtigungen eingeschaltet sind und das System sie
-                    anbietet.
-                  </p>
-                )}
+                ) : null}
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="notify-min-score">Mindest-Score</Label>
+                <Label htmlFor="notify-min-score" className="flex items-center gap-1.5">
+                  <span>Mindest-Score</span>
+                  <HelpTip text="Nur Angebote ab diesem KI-Score lösen Benachrichtigungen aus." />
+                </Label>
                 <Select value={notifyMinScore} onValueChange={setNotifyMinScore}>
                   <SelectTrigger id="notify-min-score" className="w-full max-w-xs">
                     <SelectValue />
@@ -407,21 +442,6 @@ export default function SettingsPage() {
             </Button>
           </div>
 
-          <Separator />
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Rechtliches</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3 text-sm">
-              <Link href="/datenschutz" className="underline underline-offset-4 hover:text-foreground">
-                Datenschutzerklärung
-              </Link>
-              <Link href="/impressum" className="underline underline-offset-4 hover:text-foreground">
-                Impressum
-              </Link>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="security" className="flex flex-col gap-6 pt-4">
