@@ -22,9 +22,9 @@ uv run docs [show]           # Generate API docs (pdoc), optionally open in brow
 uv run seed                  # Seed database with sample data
 uv run release               # Create a release
 uv run release-chrome-extension  # Package Chrome extension to extensions/dist/
-uv run mcp-server          # Remote MCP server (mcp-server package; same root .env)
-uv run mcp-server --tunnel # Quick Tunnel + MCP; öffentliche URL in der Konsole (kein .env nötig)
-uv run mcp-server --tunnel --mitmdump # optional mitmdump; Klartext-Log unter logs/ (Pfad auf stderr)
+uv run mcp-server              # TTY: Quick-Tunnel, URL einmal; ``r`` MCP neu, ``p`` Proxy, ``q`` Ende
+uv run mcp-server --tunnel     # nur ohne TTY: TryCloudflare + MCP (ein Lauf)
+uv run mcp-server --http-proxy # TTY: mitmdump von Anfang an; ``p`` schaltet Proxy; ohne TTY wie ``--tunnel``
 
 uv run pytest                # Run all tests
 uv run pytest tests/test_parser.py  # Run a single test file
@@ -59,9 +59,9 @@ Separate Python project in **`mcp-server/`** — proxies tools to the Schnappste
 
 ```bash
 # vom Repo-Root (siehe auch: uv run mcp-server in der Befehlsliste oben)
-uv run mcp-server   # default http://127.0.0.1:8766/ (STREAMABLE_HTTP_PATH=/)
-uv run mcp-server --tunnel   # Quick Tunnel + MCP (URL in der Konsole); Tunnel manuell: siehe .env.example (MCP_RESOURCE_SERVER_URL)
-uv run mcp-server --tunnel --mitmdump   # optional mitmdump; Logdatei logs/mcp_mitmdump_*.log
+uv run mcp-server   # TTY: Quick-Tunnel + MCP (``r``/``p``/``q``); ohne TTY: lokaler MCP ohne Tunnel
+uv run mcp-server --tunnel   # ohne TTY: TryCloudflare + MCP; im TTY ist der Tunnel ohnehin aktiv
+uv run mcp-server --http-proxy   # mitmdump; Log unter logs/mcp_mitmdump_*.log (Pfad beim TTY-Start)
 
 cd mcp-server && uv sync --all-groups && uv run schnappster-mcp   # nur Unterprojekt-venv
 uv run pytest            # im Repo-Root (inkl. MCP-Regex-Tests gegen schnappster_mcp.cli)

@@ -1,4 +1,4 @@
-"""mitmproxy-Addon für ``mitmdump -s …``: MCP-/mcp-Flows mit Body + redaktierter Authorization.
+"""mitmproxy-Addon für ``mitmdump -s …`` (von ``uv run mcp-server --http-proxy``): MCP-/mcp-Flows mit Body + redaktierter Authorization.
 
 Wird von ``mcp-server --tunnel`` gestartet; Pfad zu ``SCHNAPPSTER_MITM_MCP_PATH``
 (z. B. ``/`` oder ``/mcp``).

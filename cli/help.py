@@ -30,16 +30,18 @@ _COMMANDS = (
         (("\\[limit]", "Höchstens so viele Anzeigen (Standard: 10)"),),
     ),
     (
-        "mcp-server [--tunnel|-t] [--mitmdump] [--port PORT] […]",
+        "mcp-server [--http-proxy] [--port PORT] […]  bzw. ohne TTY [--tunnel|-t] …",
         "Startet den Remote-MCP-Server (Projekt mcp-server/, nutzt die .env im Repo-Root). "
-        "Mit --tunnel oder -t erhältst du eine öffentliche Test-URL (TryCloudflare), ohne "
-        "Account. Mit --mitmdump zusätzlich einen lesbaren HTTP-Mitschnitt unter logs/.",
+        "Im Terminal (TTY): Quick-Tunnel; MCP per ``r`` neu, HTTP-Proxy (mitmdump) per ``p``, "
+        "``q`` beenden (Hinweise in der Start-Box). "
+        "``--http-proxy``: mitmdump von Anfang an. Ohne TTY: einmaliger Start; ``--tunnel``.",
         (
-            ("`--tunnel`, `-t`", "Öffentliche URL + MCP (Standard-Port 8766)"),
-            ("`--mitmdump`", "Nur sinnvoll mit --tunnel: Mitschnitt in logs/mcp_mitmdump_*.log"),
+            ("Standard (TTY)", "TryCloudflare; Tasten ``r`` / ``p`` / ``q``"),
+            ("`--tunnel`, `-t`", "Nur ohne TTY: einmaliger Start mit TryCloudflare + MCP"),
+            ("`--http-proxy`", "mitmdump; im TTY von Anfang an, sonst impliziert ``--tunnel``"),
             (
                 "`--port PORT`, `-p`",
-                "Lokaler Port; mit --mitmdump: Proxy auf diesem Port, MCP eine Portnummer höher",
+                "Lokaler Port; mit --http-proxy: Proxy auf diesem Port, MCP eine Portnummer höher",
             ),
         ),
     ),
