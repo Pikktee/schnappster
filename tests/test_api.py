@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 def test_list_adsearches_empty(client):
     """GET /adsearches/ liefert 200 und leere Liste, wenn keine Suchen existieren."""
-    response = client.get("/api/adsearches/")
+    response = client.get("/adsearches/")
     assert response.status_code == 200
     assert response.json() == []
 
@@ -18,7 +18,7 @@ def test_create_adsearch(client):
         "name": "PodMic Frankfurt",
         "url": "https://www.kleinanzeigen.de/s-audio-hifi/60325/podmic/k0c172l4305r250",
     }
-    response = client.post("/api/adsearches/", json=data)
+    response = client.post("/adsearches/", json=data)
     assert response.status_code == 201
     result = response.json()
     assert result["name"] == "PodMic Frankfurt"
@@ -29,7 +29,7 @@ def test_create_adsearch(client):
 def test_create_adsearch_rejects_invalid_url(client):
     """POST lehnt Nicht-Kleinanzeigen-URLs mit 422 ab."""
     response = client.post(
-        "/api/adsearches/",
+        "/adsearches/",
         json={"name": "Test", "url": "https://www.ebay.de/sch/i.html?_nkw=podmic"},
     )
     assert response.status_code == 422
@@ -38,7 +38,7 @@ def test_create_adsearch_rejects_invalid_url(client):
 def test_create_adsearch_rejects_bare_prefix_url(client):
     """POST lehnt das reine Präfix https://www.kleinanzeigen.de/s- mit 422 ab."""
     response = client.post(
-        "/api/adsearches/",
+        "/adsearches/",
         json={"name": "Test", "url": "https://www.kleinanzeigen.de/s-"},
     )
     assert response.status_code == 422
@@ -47,7 +47,7 @@ def test_create_adsearch_rejects_bare_prefix_url(client):
 def test_create_adsearch_rejects_detail_page_url(client):
     """POST lehnt Kleinanzeigen-Detailseiten-URLs mit 422 ab."""
     response = client.post(
-        "/api/adsearches/",
+        "/adsearches/",
         json={"name": "Test", "url": "https://www.kleinanzeigen.de/s-anzeige/rode-podmic/123456"},
     )
     assert response.status_code == 422
@@ -56,7 +56,7 @@ def test_create_adsearch_rejects_detail_page_url(client):
 def test_patch_adsearch_rejects_detail_page_url(client, sample_adsearch):
     """PATCH lehnt Detailseiten-URL mit 422 ab."""
     response = client.patch(
-        f"/api/adsearches/{sample_adsearch.id}",
+        f"/adsearches/{sample_adsearch.id}",
         json={"url": "https://www.kleinanzeigen.de/s-anzeige/rode-podmic/123456"},
     )
     assert response.status_code == 422
@@ -67,7 +67,7 @@ def test_patch_adsearch_rejects_unreachable_url(mock_fetch, client, sample_adsea
     """PATCH lehnt URL ab, die 404 zurückgibt (serverseitige Validierung)."""
     mock_fetch.return_value = (404, "")
     response = client.patch(
-        f"/api/adsearches/{sample_adsearch.id}",
+        f"/adsearches/{sample_adsearch.id}",
         json={"url": "https://www.kleinanzeigen.de/s-some/category/k0c123"},
     )
     assert response.status_code == 422
@@ -81,7 +81,7 @@ def test_patch_adsearch_uses_title_when_name_cleared(mock_validate, client, samp
     mock_validate.return_value = "Neuer Titel von der Seite"
 
     response = client.patch(
-        f"/api/adsearches/{sample_adsearch.id}",
+        f"/adsearches/{sample_adsearch.id}",
         json={"name": ""},
     )
 
@@ -93,21 +93,21 @@ def test_patch_adsearch_uses_title_when_name_cleared(mock_validate, client, samp
 
 def test_get_adsearch(client, sample_adsearch):
     """GET /adsearches/{id} liefert 200 und Suchdaten für existierende id."""
-    response = client.get(f"/api/adsearches/{sample_adsearch.id}")
+    response = client.get(f"/adsearches/{sample_adsearch.id}")
     assert response.status_code == 200
     assert response.json()["name"] == "Test Search"
 
 
 def test_get_adsearch_not_found(client):
     """GET /adsearches/999 liefert 404, wenn die id nicht existiert."""
-    response = client.get("/api/adsearches/999")
+    response = client.get("/adsearches/999")
     assert response.status_code == 404
 
 
 def test_patch_adsearch(client, sample_adsearch):
     """PATCH /adsearches/{id} aktualisiert Felder und liefert 200."""
     response = client.patch(
-        f"/api/adsearches/{sample_adsearch.id}",
+        f"/adsearches/{sample_adsearch.id}",
         json={"name": "Updated Name"},
     )
     assert response.status_code == 200
@@ -116,10 +116,10 @@ def test_patch_adsearch(client, sample_adsearch):
 
 def test_delete_adsearch(client, sample_adsearch):
     """DELETE /adsearches/{id} liefert 204 und entfernt den Suchauftrag."""
-    response = client.delete(f"/api/adsearches/{sample_adsearch.id}")
+    response = client.delete(f"/adsearches/{sample_adsearch.id}")
     assert response.status_code == 204
 
-    response = client.get(f"/api/adsearches/{sample_adsearch.id}")
+    response = client.get(f"/adsearches/{sample_adsearch.id}")
     assert response.status_code == 404
 
 
@@ -128,15 +128,15 @@ def test_delete_adsearch_deletes_ads(client, sample_ads):
     adsearch_id = sample_ads[0].adsearch_id
     ad_id = sample_ads[0].id
 
-    response = client.delete(f"/api/adsearches/{adsearch_id}")
+    response = client.delete(f"/adsearches/{adsearch_id}")
     assert response.status_code == 204
 
     # Verify adsearch is deleted
-    response = client.get(f"/api/adsearches/{adsearch_id}")
+    response = client.get(f"/adsearches/{adsearch_id}")
     assert response.status_code == 404
 
     # Verify ads are also deleted
-    response = client.get(f"/api/ads/{ad_id}")
+    response = client.get(f"/ads/{ad_id}")
     assert response.status_code == 404
 
 
@@ -144,14 +144,14 @@ def test_delete_adsearch_deletes_ai_analysis_logs(client, sample_ads, sample_ai_
     """Beim Löschen eines Suchauftrags werden auch zugehörige KI-Analyse-Logs gelöscht."""
     adsearch_id = sample_ads[0].adsearch_id
 
-    response = client.get("/api/aianalysislogs/")
+    response = client.get("/aianalysislogs/")
     assert response.status_code == 200
     assert len(response.json()) == 1
 
-    response = client.delete(f"/api/adsearches/{adsearch_id}")
+    response = client.delete(f"/adsearches/{adsearch_id}")
     assert response.status_code == 204
 
-    response = client.get("/api/aianalysislogs/")
+    response = client.get("/aianalysislogs/")
     assert response.status_code == 200
     assert len(response.json()) == 0
 
@@ -161,14 +161,14 @@ def test_delete_adsearch_deletes_ai_analysis_logs(client, sample_ads, sample_ai_
 
 def test_list_ads_empty(client):
     """GET /ads/ liefert 200 und leere items, wenn keine Anzeigen existieren."""
-    response = client.get("/api/ads/")
+    response = client.get("/ads/")
     assert response.status_code == 200
     assert response.json() == {"items": [], "total": 0}
 
 
 def test_list_ads(client, sample_ads):
     """GET /ads/ liefert 200 und eine Liste von Anzeigen."""
-    response = client.get("/api/ads/")
+    response = client.get("/ads/")
     assert response.status_code == 200
     assert response.json()["total"] == 3
     assert len(response.json()["items"]) == 3
@@ -176,14 +176,14 @@ def test_list_ads(client, sample_ads):
 
 def test_list_ads_filter_by_adsearch(client, sample_ads, sample_adsearch):
     """GET /ads/?adsearch_id=X liefert nur Anzeigen für diese Suche."""
-    response = client.get(f"/api/ads/?adsearch_id={sample_adsearch.id}")
+    response = client.get(f"/ads/?adsearch_id={sample_adsearch.id}")
     assert response.status_code == 200
     assert len(response.json()["items"]) == 3
 
 
 def test_list_ads_filter_by_analyzed(client, sample_ads):
     """GET /ads/?is_analyzed=true liefert nur analysierte Anzeigen."""
-    response = client.get("/api/ads/?is_analyzed=true")
+    response = client.get("/ads/?is_analyzed=true")
     assert response.status_code == 200
     assert response.json()["total"] == 1
     assert response.json()["items"][0]["external_id"] == "1001"
@@ -192,7 +192,7 @@ def test_list_ads_filter_by_analyzed(client, sample_ads):
 def test_get_ad(client, sample_ads):
     """GET /ads/{id} liefert 200 und Anzeigendaten für existierende id."""
     ad = sample_ads[0]
-    response = client.get(f"/api/ads/{ad.id}")
+    response = client.get(f"/ads/{ad.id}")
     assert response.status_code == 200
     result = response.json()
     assert result["title"] == "Rode PodMic"
@@ -202,7 +202,7 @@ def test_get_ad(client, sample_ads):
 def test_get_ad_has_image_url(client, sample_ads):
     """AdRead enthält das berechnete image_url (erstes Bild aus image_urls)."""
     ad = sample_ads[0]
-    response = client.get(f"/api/ads/{ad.id}")
+    response = client.get(f"/ads/{ad.id}")
     assert response.status_code == 200
     result = response.json()
     assert result["image_url"] == "https://img.kleinanzeigen.de/test1.jpg"
@@ -211,14 +211,14 @@ def test_get_ad_has_image_url(client, sample_ads):
 def test_get_ad_image_url_none_when_no_images(client, sample_ads):
     """image_url ist None, wenn die Anzeige keine image_urls hat."""
     ad = sample_ads[2]  # No image_urls set
-    response = client.get(f"/api/ads/{ad.id}")
+    response = client.get(f"/ads/{ad.id}")
     assert response.status_code == 200
     assert response.json()["image_url"] is None
 
 
 def test_get_ad_not_found(client):
     """GET /ads/999 liefert 404, wenn die id nicht existiert."""
-    response = client.get("/api/ads/999")
+    response = client.get("/ads/999")
     assert response.status_code == 404
 
 
@@ -227,7 +227,7 @@ def test_get_ad_not_found(client):
 
 def test_list_settings(client):
     """GET /settings/ liefert 200 und Liste der Einstellungen mit Metadaten."""
-    response = client.get("/api/settings/")
+    response = client.get("/settings/")
     assert response.status_code == 200
     settings = response.json()
     assert len(settings) >= 2
@@ -239,7 +239,7 @@ def test_list_settings(client):
 
 def test_get_telegram_configured(client):
     """GET /settings/telegram-configured liefert configured true/false."""
-    response = client.get("/api/settings/telegram-configured")
+    response = client.get("/settings/telegram-configured")
     assert response.status_code == 200
     data = response.json()
     assert "configured" in data
@@ -248,21 +248,21 @@ def test_get_telegram_configured(client):
 
 def test_get_setting(client):
     """GET /settings/{key} liefert den Wert für einen unterstützten Schlüssel."""
-    response = client.get("/api/settings/exclude_commercial_sellers")
+    response = client.get("/settings/exclude_commercial_sellers")
     assert response.status_code == 200
     assert response.json()["value"] == "false"
 
 
 def test_get_setting_unknown(client):
     """GET /settings/nonexistent liefert 404."""
-    response = client.get("/api/settings/nonexistent")
+    response = client.get("/settings/nonexistent")
     assert response.status_code == 404
 
 
 def test_update_setting(client):
     """PUT /settings/{key} aktualisiert den Wert und liefert den neuen Wert."""
     response = client.put(
-        "/api/settings/exclude_commercial_sellers",
+        "/settings/exclude_commercial_sellers",
         json={"value": "true"},
     )
     assert response.status_code == 200
@@ -272,7 +272,7 @@ def test_update_setting(client):
 def test_update_setting_invalid_value(client):
     """PUT mit ungültigem Wert liefert 422."""
     response = client.put(
-        "/api/settings/exclude_commercial_sellers",
+        "/settings/exclude_commercial_sellers",
         json={"value": "maybe"},
     )
     assert response.status_code == 422
@@ -281,7 +281,7 @@ def test_update_setting_invalid_value(client):
 def test_update_setting_invalid_rating(client):
     """PUT min_seller_rating mit ungültigem Wert liefert 422."""
     response = client.put(
-        "/api/settings/min_seller_rating",
+        "/settings/min_seller_rating",
         json={"value": "5"},
     )
     assert response.status_code == 422
@@ -364,7 +364,7 @@ def test_identity_display_name_given_and_family():
 
 def test_get_version(client):
     """GET /version/ liefert die Version aus den Paket-Metadaten (pyproject.toml)."""
-    response = client.get("/api/version/")
+    response = client.get("/version/")
     assert response.status_code == 200
     data = response.json()
     assert "version" in data

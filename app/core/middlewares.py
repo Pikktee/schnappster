@@ -7,8 +7,26 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.config import config
 
+# Öffentliche REST-Pfade (ohne früheres globales /api-Prefix); für Cache-Control: no-store.
+_API_PATH_PREFIXES: tuple[str, ...] = (
+    "/ads",
+    "/adsearches",
+    "/aianalysislogs",
+    "/errorlogs",
+    "/scraperuns",
+    "/settings",
+    "/users",
+    "/version",
+)
+
 # Next-Dev: Browser oft localhost:3000, .env manchmal nur 127.0.0.1:3000 (oder umgekehrt).
 _DEV_NEXT_PAIR = ("http://localhost:3000", "http://127.0.0.1:3000")
+
+
+def _is_rest_api_path(path: str) -> bool:
+    if not path.startswith("/"):
+        return False
+    return any(path == prefix or path.startswith(prefix + "/") for prefix in _API_PATH_PREFIXES)
 
 
 def _is_loopback_http_origin(origin: str) -> bool:
@@ -31,7 +49,7 @@ def _ensure_dev_next_origin_aliases(origins: list[str]) -> list[str]:
 
 
 class NoStoreApiMiddleware:
-    """Setzt Cache-Control: no-store für /api/* über ASGI-send (kein BaseHTTPMiddleware).
+    """Setzt Cache-Control: no-store für REST-Pfade über ASGI-send (kein BaseHTTPMiddleware).
 
     BaseHTTPMiddleware kann bei Fehlern den Response-Pfad so umbrechen, dass aeussere
     Middleware (z. B. CORS) kein Access-Control-Allow-Origin mehr setzt — der Browser
@@ -49,7 +67,7 @@ class NoStoreApiMiddleware:
         path = scope.get("path") or ""
 
         async def send_wrapper(message: Message) -> None:
-            if message["type"] == "http.response.start" and path.startswith("/api/"):
+            if message["type"] == "http.response.start" and _is_rest_api_path(path):
                 headers = MutableHeaders(scope=message)
                 headers["Cache-Control"] = "no-store"
             await send(message)
@@ -87,5 +105,5 @@ def setup_cors(app: FastAPI) -> None:
 
 
 def setup_no_store_api(app: FastAPI) -> None:
-    """Setzt Cache-Control: no-store für /api/*, damit das Frontend aktuelle Daten erhält."""
+    """Setzt Cache-Control: no-store für REST-Pfade, damit das Frontend aktuelle Daten erhält."""
     app.add_middleware(NoStoreApiMiddleware)

@@ -1,4 +1,4 @@
-"""API-Routen-Module; api_router bündelt alle API-Router unter /api."""
+"""API-Routen-Module; api_router bündelt alle REST-Router (öffentliche Pfade ohne /api-Prefix)."""
 
 from fastapi import APIRouter
 
@@ -11,7 +11,7 @@ from app.routes.api.settings import router as settings_router
 from app.routes.api.users_me import router as users_me_router
 from app.routes.api.version import router as version_router
 
-api_router = APIRouter(prefix="/api")
+api_router = APIRouter()
 api_router.include_router(ads_router)
 api_router.include_router(adsearch_router)
 api_router.include_router(aianalysislogs_router)
