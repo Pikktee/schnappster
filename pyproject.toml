@@ -41,9 +41,6 @@ packages = ["app"]
 [tool.uv.sources]
 schnappster-mcp = { path = "mcp-server", editable = true }
 
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-
 [tool.ruff]
 target-version = "py312"
 line-length = 100
@@ -56,6 +53,8 @@ ignore = ["UP017"]  # datetime.UTC nicht in allen Laufzeiten; timezone.utc nutze
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.0.2",
+    "pytest-asyncio>=0.24.0",
+    "pytest-httpx>=0.34.0",
     "ruff>=0.15.4",
     "pdoc>=14",
     "markdown>=3.7",

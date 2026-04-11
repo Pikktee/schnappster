@@ -75,7 +75,7 @@ def run_tests() -> bool:
     print("🧪  RUNNING TESTS")
     print("=" * 60 + "\n")
 
-    result = subprocess.run(["uv", "run", "pytest", "tests/", "-v"], check=False)
+    result = subprocess.run(["uv", "run", "pytest", "-v"], check=False)
 
     # Klare Bestanden/Fehlgeschlagen-Fußzeile
     print("\n" + "=" * 60)

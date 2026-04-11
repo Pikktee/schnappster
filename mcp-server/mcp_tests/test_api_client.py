@@ -1,15 +1,16 @@
 """SchnappsterApiClient."""
 
-import httpx
 import pytest
 
 from schnappster_mcp.api_client import SchnappsterApiClient, SchnappsterApiError
 
 
 @pytest.mark.asyncio
-async def test_get_json(settings, respx_mock) -> None:
-    respx_mock.get("http://test-api.local/ads/").mock(
-        return_value=httpx.Response(200, json={"items": [], "total": 0})
+async def test_get_json(settings, httpx_mock) -> None:
+    httpx_mock.add_response(
+        url="http://test-api.local/ads/",
+        method="GET",
+        json={"items": [], "total": 0},
     )
     client = SchnappsterApiClient(settings, "tok")
     data = await client.request("GET", "/ads/")
@@ -17,9 +18,12 @@ async def test_get_json(settings, respx_mock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_raises_on_error_detail(settings, respx_mock) -> None:
-    respx_mock.get("http://test-api.local/x").mock(
-        return_value=httpx.Response(422, json={"detail": "nope"})
+async def test_raises_on_error_detail(settings, httpx_mock) -> None:
+    httpx_mock.add_response(
+        url="http://test-api.local/x",
+        method="GET",
+        status_code=422,
+        json={"detail": "nope"},
     )
     client = SchnappsterApiClient(settings, "tok")
     with pytest.raises(SchnappsterApiError) as ei:

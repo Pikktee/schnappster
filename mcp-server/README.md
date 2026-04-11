@@ -144,5 +144,5 @@ Dein MCP-Server läuft nur auf **`127.0.0.1`** — aus dem Internet (und manchma
 
 ```bash
 cd mcp-server
-uv run pytest
+uv run pytest   # entdeckt `mcp_tests/` automatisch
 ```

@@ -65,8 +65,8 @@ uv run mcp-server --http-proxy   # mitmdump; Log unter logs/mcp_mitmdump_*.log (
 
 cd mcp-server && uv sync --all-groups && uv run schnappster-mcp   # nur Unterprojekt-venv
 uv run pytest            # im Repo-Root (inkl. MCP-Regex-Tests gegen schnappster_mcp.cli)
-cd mcp-server && uv run pytest   # nur Tests unter mcp-server/tests
-cd mcp-server && uv run ruff check schnappster_mcp tests
+cd mcp-server && uv run pytest   # nur Tests unter mcp-server/mcp_tests
+cd mcp-server && uv run ruff check app mcp_tests
 ```
 
 ## Architecture
@@ -138,7 +138,7 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Build/dev workflow a
 
 - Prefer testing **observable behavior**, not private methods or implementation details.
 - New services and filter logic should get **unit tests** (same spirit as `test_scraper_filters.py`).
-- **`uv run pytest`** should stay green before merge.
+- **`uv run pytest`** should stay green before merge. Konfiguration: **`pytest.ini`** (Root; `testpaths` = `tests` + `mcp-server/mcp_tests` — zweiter Ordner heisst **`mcp_tests`**, damit kein `tests.conftest`-Kollision mit dem Hauptprojekt).
 
 ## Output Format
 

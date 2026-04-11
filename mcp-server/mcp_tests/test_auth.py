@@ -1,15 +1,16 @@
 """Supabase token verifier."""
 
-import httpx
 import pytest
 
 from schnappster_mcp.auth import SupabaseTokenVerifier
 
 
 @pytest.mark.asyncio
-async def test_verify_token_accepts_200(settings, respx_mock) -> None:
-    respx_mock.get("https://test.supabase.co/auth/v1/user").mock(
-        return_value=httpx.Response(200, json={"id": "u1", "email": "a@b.c"})
+async def test_verify_token_accepts_200(settings, httpx_mock) -> None:
+    httpx_mock.add_response(
+        url="https://test.supabase.co/auth/v1/user",
+        method="GET",
+        json={"id": "u1", "email": "a@b.c"},
     )
     v = SupabaseTokenVerifier(settings)
     result = await v.verify_token("good-token")
@@ -19,9 +20,11 @@ async def test_verify_token_accepts_200(settings, respx_mock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_verify_token_rejects_401(settings, respx_mock) -> None:
-    respx_mock.get("https://test.supabase.co/auth/v1/user").mock(
-        return_value=httpx.Response(401)
+async def test_verify_token_rejects_401(settings, httpx_mock) -> None:
+    httpx_mock.add_response(
+        url="https://test.supabase.co/auth/v1/user",
+        method="GET",
+        status_code=401,
     )
     v = SupabaseTokenVerifier(settings)
     assert await v.verify_token("bad") is None
