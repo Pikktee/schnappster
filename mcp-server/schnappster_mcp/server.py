@@ -1,6 +1,8 @@
 """FastMCP app: Streamable HTTP, Supabase auth, Schnappster API tools."""
 
+import base64
 from collections.abc import Awaitable
+from importlib.resources import files
 from typing import Literal
 from urllib.parse import urlparse
 
@@ -9,6 +11,7 @@ from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp.types import Icon
 from pydantic import AnyHttpUrl
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -39,6 +42,13 @@ def _api_client(settings: Settings) -> SchnappsterApiClient:
             "Nicht authentifiziert: gültiges Bearer-Token (Supabase Access Token) erforderlich."
         )
     return SchnappsterApiClient(settings, access.token)
+
+
+def _schnappster_mcp_icons() -> list[Icon]:
+    """Gleiches 32×32-PNG wie Next.js `app/icon.png` (für MCP-Client-Branding, z. B. Claude)."""
+    raw = files("schnappster_mcp").joinpath("icon.png").read_bytes()
+    b64 = base64.standard_b64encode(raw).decode("ascii")
+    return [Icon(src=f"data:image/png;base64,{b64}", mimeType="image/png", sizes=["32x32"])]
 
 
 def _transport_security(settings: Settings) -> TransportSecuritySettings | None:
@@ -87,6 +97,7 @@ def build_mcp(settings: Settings) -> FastMCP:
             "Benutzereinstellungen und Suchaufträge (Ad Searches). "
             "Authentifizierung: Supabase Access Token als Bearer (wie im Web-Frontend)."
         ),
+        icons=_schnappster_mcp_icons(),
         json_response=True,
         token_verifier=SupabaseTokenVerifier(settings),
         auth=AuthSettings(
