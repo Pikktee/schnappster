@@ -107,6 +107,8 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
   const [loadIssue, setLoadIssue] = useState<ConnectLoadIssue>(null)
   /** Nach Zulassen: OAuth-Rückleitung zur App (wenn von der API geliefert). */
   const [postApproveRedirectUrl, setPostApproveRedirectUrl] = useState<string | null>(null)
+  /** Nach `location.assign` (z. B. `cursor://`): Seite bleibt offen — Spinner aus, Abschluss-Text. */
+  const [approveRedirectDispatched, setApproveRedirectDispatched] = useState(false)
   /** Schlüssel der zuletzt fehlgeschlagenen Logo-URL (Authorization + URI). */
   const [brokenClientLogoKey, setBrokenClientLogoKey] = useState<string | null>(null)
 
@@ -117,6 +119,8 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
     const url = postApproveRedirectUrl
     const id = window.setTimeout(() => {
       window.location.assign(url)
+      setPostApproveRedirectUrl(null)
+      setApproveRedirectDispatched(true)
     }, APPROVE_SUCCESS_REDIRECT_DELAY_MS)
     return () => window.clearTimeout(id)
   }, [phase, postApproveRedirectUrl])
@@ -190,6 +194,7 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
       return
     }
     const redirectUrl = readOAuthRedirectUrl(data)
+    setApproveRedirectDispatched(false)
     setPostApproveRedirectUrl(redirectUrl)
     setPhase("approved")
   }
@@ -319,45 +324,63 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
 
   if (phase === "approved") {
     const clientName = details?.client.name ?? "Die App"
-    const willAutoRedirect = Boolean(postApproveRedirectUrl)
+    const waitingForRedirect = Boolean(postApproveRedirectUrl)
+    const afterRedirect = approveRedirectDispatched && !postApproveRedirectUrl
+    const noAutoUrl = !postApproveRedirectUrl && !approveRedirectDispatched
+
     return (
       <Card className={CARD}>
-        <CardHeader className="space-y-4 px-6 pb-0 pt-8 text-center sm:px-8 sm:text-left">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/12 text-primary sm:mx-0">
-            <CheckCircle2 className="size-8" aria-hidden />
+        <CardHeader className="space-y-6 px-6 pb-10 pt-9 text-center sm:px-8 sm:text-left">
+          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/12 text-primary sm:mx-0">
+            <CheckCircle2 className="size-9" aria-hidden />
           </div>
-          <div className="space-y-2">
-            <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl">
-              {willAutoRedirect ? "Verbindung hergestellt" : "Freigabe gespeichert"}
+
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/90">
+              {waitingForRedirect ? "Fast geschafft" : afterRedirect ? "Fertig" : "Gespeichert"}
+            </p>
+            <CardTitle className="text-pretty text-2xl font-bold leading-tight tracking-tight sm:text-[1.65rem]">
+              {noAutoUrl ? "Freigabe gespeichert" : "Verbindung hergestellt"}
             </CardTitle>
-            <CardDescription className="text-base leading-relaxed text-pretty text-muted-foreground">
-              {willAutoRedirect ? (
-                <>
-                  <span className="font-medium text-foreground">{clientName}</span> ist mit deinem Schnappster-Konto
-                  verbunden. Du wirst in wenigen Sekunden automatisch zur App weitergeleitet, damit die Verbindung dort
-                  abgeschlossen werden kann.
-                </>
-              ) : (
-                <>
-                  <span className="font-medium text-foreground">{clientName}</span> ist mit deinem Schnappster-Konto
-                  verbunden. Die Anwendung konnte nicht automatisch geöffnet werden — du kannst sie selbst wechseln oder
-                  Schnappster hier nutzen.
-                </>
-              )}
-            </CardDescription>
-            {willAutoRedirect ? (
-              <p className="flex items-center justify-center gap-2 pt-1 text-sm text-muted-foreground sm:justify-start">
-                <Loader2 className="size-4 animate-spin text-primary" aria-hidden />
-                Weiterleitung …
+          </div>
+
+          <div className="rounded-xl border border-border/70 bg-muted/25 px-4 py-4 text-left sm:px-5 sm:py-5">
+            {waitingForRedirect ? (
+              <div className="space-y-3">
+                <p className="text-[15px] leading-relaxed text-foreground/95">
+                  <span className="font-semibold text-foreground">{clientName}</span> ist mit deinem Schnappster-Konto
+                  verknüpft. Gleich öffnet sich die Rückleitung zur App — dort wird die Verbindung abgeschlossen.
+                </p>
+                <p className="flex items-center gap-2 border-t border-border/50 pt-3 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-hidden />
+                  <span>Weiterleitung wird vorbereitet …</span>
+                </p>
+              </div>
+            ) : null}
+
+            {afterRedirect ? (
+              <div className="space-y-3 text-[15px] leading-relaxed text-muted-foreground">
+                <p className="text-foreground/95">
+                  Die Freigabe ist gespeichert. Wenn sich{" "}
+                  <span className="font-semibold text-foreground">{clientName}</span> geöffnet hat, ist dort alles
+                  bereit.
+                </p>
+                <p>
+                  Dieses Browserfenster kannst du schließen — es wird für die Verbindung nicht mehr benötigt. Sollte
+                  sich nichts geöffnet haben, starte die Verbindung in der App erneut.
+                </p>
+              </div>
+            ) : null}
+
+            {noAutoUrl ? (
+              <p className="text-[15px] leading-relaxed text-muted-foreground">
+                <span className="font-semibold text-foreground">{clientName}</span> ist mit deinem Schnappster-Konto
+                verknüpft. Es wurde keine automatische Rückleitung zur App übermittelt — du kannst die App selbst
+                öffnen oder dieses Fenster schließen.
               </p>
             ) : null}
           </div>
         </CardHeader>
-        <CardFooter className="px-6 pb-8 pt-6 sm:px-8">
-          <Button asChild variant="outline" className={FOOTER_BTN}>
-            <Link href="/">Schnappster öffnen</Link>
-          </Button>
-        </CardFooter>
       </Card>
     )
   }
