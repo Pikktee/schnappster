@@ -99,7 +99,10 @@ def build_mcp(settings: Settings) -> FastMCP:
         instructions=(
             "Zugriff auf Schnappster: Schnäppchen (Ads mit Score), persönliche "
             "Benutzereinstellungen und Suchaufträge (Ad Searches). "
-            "Authentifizierung: Supabase Access Token als Bearer (wie im Web-Frontend)."
+            "Authentifizierung: Supabase Access Token als Bearer (wie im Web-Frontend). "
+            "In Antworten an Endnutzer keine internen numerischen IDs (z. B. von Anzeigen "
+            "oder Suchaufträgen) nennen; stattdessen Titel, Name des Suchauftrags oder "
+            "Kurzbeschreibung verwenden. IDs nur still für Folge-Tool-Aufrufe nutzen."
         ),
         icons=tool_icons,
         json_response=True,
@@ -197,7 +200,10 @@ def build_mcp(settings: Settings) -> FastMCP:
         is_active: bool = True,
         scrape_interval_minutes: int = 30,
     ) -> dict:
-        """Legt einen neuen Suchauftrag an (Kleinanzeigen-Suchergebnis-URL erforderlich)."""
+        """Legt einen neuen Suchauftrag für eine Kleinanzeigen-Suchergebnis-URL an.
+
+        Die Antwort enthält interne IDs nur für Folge-Tool-Aufrufe, nicht für Nutzerdialoge.
+        """
         raw: dict[str, str | float | bool | int | None] = {
             "url": url,
             "name": name,
