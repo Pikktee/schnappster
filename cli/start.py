@@ -88,56 +88,9 @@ def run_tests() -> bool:
     return result.returncode == 0
 
 
-def get_project_root() -> Path:
-    """Projekt-Root (gleich dem App-Root)."""
-    return get_app_root()
-
-
 def get_frontend_dir() -> Path:
     """Gibt den Pfad zum Web-Frontend-Verzeichnis (Next.js) zurück."""
     return get_app_root() / "web"
-
-
-def build_frontend() -> None:
-    """Legacy-Helfer; im getrennten Deployment aktuell nicht genutzt."""
-    frontend_dir = get_frontend_dir()
-    if not frontend_dir.exists():
-        logger.warning(
-            "Frontend directory %s does not exist. Skipping frontend build.", frontend_dir
-        )
-        return
-
-    print("\n" + "=" * 60)
-    print("📦  BUILDING FRONTEND")
-    print("=" * 60 + "\n")
-
-    print("Installing frontend dependencies (npm install)...\n")
-    result_install = subprocess.run(
-        ["npm", "install"],
-        cwd=str(frontend_dir),
-        check=False,
-    )
-    if result_install.returncode != 0:
-        print("\n" + "=" * 60)
-        print("❌  NPM INSTALL FAILED")
-        print("=" * 60 + "\n")
-        sys.exit(result_install.returncode)
-
-    print("\nBuilding frontend (npm run export)...\n")
-    result_export = subprocess.run(
-        ["npm", "run", "export"],
-        cwd=str(frontend_dir),
-        check=False,
-    )
-    if result_export.returncode != 0:
-        print("\n" + "=" * 60)
-        print("❌  FRONTEND BUILD FAILED")
-        print("=" * 60 + "\n")
-        sys.exit(result_export.returncode)
-
-    print("\n" + "=" * 60)
-    print("✅  FRONTEND BUILD COMPLETED")
-    print("=" * 60 + "\n")
 
 
 def start_frontend_dev(port: int) -> subprocess.Popen[bytes]:
@@ -169,7 +122,7 @@ def start_frontend_dev(port: int) -> subprocess.Popen[bytes]:
 
 
 def main() -> None:
-    """Parst Argumente, führt Tests aus (außer bei --skip-tests), baut Frontend oder startet Dev, startet uvicorn."""
+    """Argumente parsen, Tests (optional), Dev-Frontend bei --dev, Uvicorn starten."""
     setup_logging()
 
     port, skip_tests, dev_mode = _parse_start_args()
