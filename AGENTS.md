@@ -64,9 +64,9 @@ uv run mcp-server --tunnel   # ohne TTY: TryCloudflare + MCP; im TTY ist der Tun
 uv run mcp-server --http-proxy   # mitmdump; Log unter logs/mcp_mitmdump_*.log (Pfad beim TTY-Start)
 
 cd mcp-server && uv sync --all-groups && uv run schnappster-mcp   # nur Unterprojekt-venv
-uv run pytest            # im Repo-Root (inkl. MCP-Regex-Tests gegen schnappster_mcp.cli)
-cd mcp-server && uv run pytest   # nur Tests unter mcp-server/mcp_tests
-cd mcp-server && uv run ruff check app mcp_tests
+uv run pytest            # im Repo-Root (nur `tests/` des Hauptprojekts)
+cd mcp-server && uv run pytest   # nur `mcp-server/tests/` (eigenes Pytest-Projekt)
+cd mcp-server && uv run ruff check app tests
 ```
 
 ## Architecture
@@ -138,7 +138,7 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Build/dev workflow a
 
 - Prefer testing **observable behavior**, not private methods or implementation details.
 - New services and filter logic should get **unit tests** (same spirit as `test_scraper_filters.py`).
-- **`uv run pytest`** should stay green before merge. Konfiguration: **`pytest.ini`** (Root; `testpaths` = `tests` + `mcp-server/mcp_tests` — zweiter Ordner heisst **`mcp_tests`**, damit kein `tests.conftest`-Kollision mit dem Hauptprojekt).
+- **`uv run pytest`** (Root) und **`cd mcp-server && uv run pytest`** should stay green before merge. Root-**`pytest.ini`**: nur **`testpaths = tests`** — `mcp-server/tests/` wird separat gesammelt (**`mcp-server/pyproject.toml`** → `testpaths`), weil sonst zwei Ordner `tests/` als dasselbe Python-Paket `tests.*` kollidieren. Gemeinsame MCP-Fixtures: **`mcp-server/conftest.py`** (nicht unter `mcp-server/tests/`), damit `tests.conftest` nur im jeweiligen Pytest-Lauf jeweils einmal vorkommt.
 
 ## Output Format
 

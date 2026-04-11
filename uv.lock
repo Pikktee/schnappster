@@ -1232,6 +1232,7 @@ requires-dist = [
 dev = [
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.24.0" },
+    { name = "pytest-httpx", specifier = ">=0.34.0" },
     { name = "ruff", specifier = ">=0.8.0" },
 ]
 

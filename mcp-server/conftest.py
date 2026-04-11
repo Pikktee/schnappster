@@ -1,4 +1,10 @@
-"""Shared fixtures."""
+"""Gemeinsame pytest-Fixtures für `mcp-server/tests/`.
+
+Liegt unter `mcp-server/` (nicht unter `tests/`), damit beim Sammeln mit dem
+Root-`tests/`-Baum kein zweites Modul ``tests.conftest`` entsteht.
+"""
+
+from __future__ import annotations
 
 import pytest
 

@@ -69,23 +69,30 @@ def _parse_start_args() -> tuple[int, bool, bool]:
 
 
 def run_tests() -> bool:
-    """Führt pytest aus und gibt True zurück, wenn alle Tests bestehen."""
+    """Führt pytest im Repo-Root und unter `mcp-server/` aus (getrennte `tests/`-Pakete)."""
     # Deutlich sichtbare Kopfzeile ausgeben
     print("\n" + "=" * 60)
     print("🧪  RUNNING TESTS")
     print("=" * 60 + "\n")
 
-    result = subprocess.run(["uv", "run", "pytest", "-v"], check=False)
+    root = get_app_root()
+    result_root = subprocess.run(["uv", "run", "pytest", "-v"], cwd=root, check=False)
+    result_mcp = subprocess.run(
+        ["uv", "run", "pytest", "-v"],
+        cwd=root / "mcp-server",
+        check=False,
+    )
+    ok = result_root.returncode == 0 and result_mcp.returncode == 0
 
     # Klare Bestanden/Fehlgeschlagen-Fußzeile
     print("\n" + "=" * 60)
-    if result.returncode == 0:
+    if ok:
         print("✅  ALL TESTS PASSED")
     else:
         print("❌  TESTS FAILED")
     print("=" * 60 + "\n")
 
-    return result.returncode == 0
+    return ok
 
 
 def get_frontend_dir() -> Path:
