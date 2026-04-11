@@ -5,8 +5,14 @@ on:
     tags:
       - "v*"
 
+# Parallele Jobs: Vercel- und Railway-Deploy unabhängig sichtbar.
+# Vercel: `vercel pull` / `vercel build` / `vercel deploy` immer vom **Repo-Root** ausführen,
+# wenn im Vercel-Dashboard „Root Directory“ = `web` gesetzt ist. Sonst verdoppelt die CLI
+# den Pfad (`web/web`) → `Error: spawn sh ENOENT` beim Build (siehe Actions-Logs).
+
 jobs:
-  deploy:
+  vercel:
+    name: Deploy Vercel (prebuilt)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -31,19 +37,23 @@ jobs:
             exit 1
           fi
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-        working-directory: web
 
       - name: Build with Vercel CLI
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: vercel build --prod --token="$VERCEL_TOKEN"
-        working-directory: web
 
       - name: Deploy prebuilt output to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
-        working-directory: web
+
+  railway:
+    name: Deploy Railway (CLI)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Install Railway CLI
         run: npm install --global @railway/cli@latest
