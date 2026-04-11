@@ -18,12 +18,12 @@ mcp-server = "schnappster_mcp.cli:main"
 requires = ["setuptools>=75"]
 build-backend = "setuptools.build_meta"
 
-# Nur das Verzeichnis `app/`; Importname `schnappster_mcp` (setuptools package-dir, editable-kompatibel).
-[tool.setuptools]
-packages = ["schnappster_mcp"]
-
-[tool.setuptools.package-dir]
-"schnappster_mcp" = "app"
+# Physischer Code nur unter `app/`; Symlink `schnappster_mcp` → `app` für Import `schnappster_mcp`
+# (Pyright/setuptools/Wheel — keine zweite Quellkopie).
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["schnappster_mcp*"]
+namespaces = false
 
 [dependency-groups]
 dev = [
