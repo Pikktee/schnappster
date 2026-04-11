@@ -156,7 +156,10 @@ export default function SearchesPage() {
         setIsCreateOpen(open)
         if (!open) setFormDirty(false)
       }}>
-        <DialogContent className="sm:max-w-xl" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent
+          className="sm:max-w-xl max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-y-contain"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Neuen Suchauftrag erstellen</DialogTitle>
           </DialogHeader>
