@@ -8,10 +8,10 @@ A personal web app that periodically scrapes Kleinanzeigen.de search results, an
 
 ### Backend (Python)
 
-Package manager is `uv`. All Python entry points are defined in `pyproject.toml`.
+Package manager is `uv`. CLI entry points are mostly in root `pyproject.toml`; **`mcp-server`** comes from the editable dependency **`schnappster-mcp`** (`mcp-server/pyproject.toml`).
 
 ```bash
-uv run start              # Start FastAPI server (runs tests first, builds frontend)
+uv run start              # Start FastAPI server (runs tests first)
 uv run start --skip-tests # Start without running tests
 uv run start --dev        # Dev mode: Next.js on :3000 (hot reload) + backend on :8000
 uv run start --port 8080  # Custom port
@@ -22,6 +22,8 @@ uv run docs [show]           # Generate API docs (pdoc), optionally open in brow
 uv run seed                  # Seed database with sample data
 uv run release               # Create a release
 uv run release-chrome-extension  # Package Chrome extension to extensions/dist/
+uv run mcp-server          # Remote MCP server (mcp-server package; same root .env)
+uv run mcp-server --tunnel # Quick Tunnel + MCP; sets MCP_RESOURCE_SERVER_URL for child (no .env edit)
 
 uv run pytest                # Run all tests
 uv run pytest tests/test_parser.py  # Run a single test file
@@ -38,7 +40,7 @@ npm run build   # Static export to web/out/ (served by FastAPI)
 npm run lint    # ESLint
 ```
 
-Static export → `web/out/`, served by FastAPI after `npm run build`. `NEXT_PUBLIC_API_URL`: empty = same origin.
+Static export → `web/out/`, served by FastAPI after `npm run build`. `NEXT_PUBLIC_API_URL`: empty = same origin. Optional: `NEXT_PUBLIC_MCP_ENDPOINT_URL` — öffentliche MCP-URL für die Hilfsseite `/mcp-connect` (Kopier-Button).
 
 ### Docker
 
@@ -50,6 +52,21 @@ docker compose up -d    # Uses proxy-net external network, SQLite volume mount
 
 Source: `extensions/chrome/`. Package: **`uv run release-chrome-extension`** → `extensions/dist/` (also listed under Backend commands).
 
+### Remote MCP-Server (Streamable HTTP)
+
+Separate Python project in **`mcp-server/`** — proxies tools to the Schnappster API with Supabase Bearer auth.
+
+```bash
+# vom Repo-Root (siehe auch: uv run mcp-server in der Befehlsliste oben)
+uv run mcp-server   # default http://127.0.0.1:8766/mcp
+uv run mcp-server --tunnel   # TryCloudflare + MCP (public URL in logs); or cloudflared manually + MCP_RESOURCE_SERVER_URL in .env
+
+cd mcp-server && uv sync --all-groups && uv run schnappster-mcp   # nur Unterprojekt-venv
+uv run pytest            # im Repo-Root (inkl. MCP-Regex-Tests gegen schnappster_mcp.cli)
+cd mcp-server && uv run pytest   # nur Tests unter mcp-server/tests
+cd mcp-server && uv run ruff check schnappster_mcp tests
+```
+
 ## Architecture
 
 ### Backend layers
@@ -59,7 +76,7 @@ Source: `extensions/chrome/`. Package: **`uv run release-chrome-extension`** →
 - **`app/scraper/`** — Pure HTTP/HTML layer: `httpclient.py` (curl-cffi) and `parser.py` (BeautifulSoup). No business logic here.
 - **`app/services/`** — Business logic: `ScraperService` orchestrates scraping pipeline, `AIService` handles AI analysis (OpenAI-compatible API) with comparison prices, `SettingsService` reads runtime settings from DB.
 - **`app/routes/`** — FastAPI routers. All bundled via `routes/__init__.py` into `api_router`, which is included in `main.py`.
-- **`cli/`** — Entry points (`uv run <cmd>`). No shebangs needed.
+- **`cli/`** — Root CLI (`uv run <cmd>`). **`mcp-server`** / **`schnappster-mcp`** live in **`mcp-server/schnappster_mcp/`** (editable dependency).
 
 ### Scraping pipeline (ScraperService)
 
@@ -122,4 +139,5 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Build/dev workflow a
 - **`uv run pytest`** should stay green before merge.
 
 ## Output Format
+
 - Begin every response with "━━━" on its own line to visually separate it from previous content
