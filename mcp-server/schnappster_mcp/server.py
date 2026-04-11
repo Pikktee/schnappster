@@ -18,7 +18,11 @@ from starlette.responses import JSONResponse
 
 from schnappster_mcp.api_client import SchnappsterApiClient, SchnappsterApiError
 from schnappster_mcp.auth import SupabaseTokenVerifier
-from schnappster_mcp.bargain_detail_app import register_bargain_detail_mcp_app
+from schnappster_mcp.bargain_detail_app import (
+    ad_searches_tool_meta,
+    recent_bargains_tool_meta,
+    register_bargain_detail_mcp_app,
+)
 from schnappster_mcp.config import Settings
 
 
@@ -126,7 +130,7 @@ def build_mcp(settings: Settings) -> FastMCP:
     async def health_check(_request: Request) -> JSONResponse:  # noqa: ARG001
         return JSONResponse({"status": "ok"})
 
-    @mcp.tool(icons=tool_icons)
+    @mcp.tool(icons=tool_icons, meta=recent_bargains_tool_meta())
     async def list_recent_bargains(
         limit: int = 24,
         offset: int = 0,
@@ -179,7 +183,7 @@ def build_mcp(settings: Settings) -> FastMCP:
         client = _api_client(settings)
         return await _run_api(client.request("PATCH", "/users/me/settings", json_body=body))
 
-    @mcp.tool(icons=tool_icons)
+    @mcp.tool(icons=tool_icons, meta=ad_searches_tool_meta())
     async def list_ad_searches() -> list:
         """Listet alle Suchaufträge des Nutzers."""
         client = _api_client(settings)
