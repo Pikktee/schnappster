@@ -231,13 +231,15 @@ function ConnectConsentBody() {
 
   return (
     <Card className={CARD}>
-      <CardHeader className="relative space-y-4 px-6 pb-0 pt-7 sm:px-8">
+      <CardHeader className="relative space-y-4 border-b border-border/60 px-6 pb-5 pt-7 sm:px-8">
         <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/0 via-primary/70 to-primary/0"
+          className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-primary/70"
           aria-hidden
         />
         <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Zugriff</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Zugriffsanfrage
+          </p>
           <h1
             className="text-balance break-words text-2xl font-bold leading-none tracking-tight text-foreground sm:text-[1.75rem]"
             id="connect-heading"
@@ -245,7 +247,8 @@ function ConnectConsentBody() {
             {clientName}
           </h1>
           <p className="max-w-prose text-pretty text-sm leading-relaxed text-muted-foreground">
-            Fordert Zugriff auf dein Schnappster-Konto. Nur freigeben, wenn du der App vertraust.
+            <span className="font-semibold text-foreground">{clientName}</span> fordert Zugriff auf dein
+            Schnappster-Konto. Lasse dies nur zu, wenn du der App vertraust.
           </p>
         </div>
         {details.user?.email ? (
@@ -315,7 +318,7 @@ function ConnectConsentBody() {
 
 export default function ConnectPage() {
   return (
-    <main className="min-h-svh bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,theme(colors.primary/0.12),transparent)]">
+    <main className="min-h-svh bg-background">
       <div className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center gap-7 px-4 py-10 sm:gap-8 sm:py-14">
         <div className="flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element -- static logo SVG */}
