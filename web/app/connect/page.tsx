@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useEffect, useState } from "react"
 import { toast } from "sonner"
-import { Check, CheckCircle2, ExternalLink, Loader2, User, XCircle } from "lucide-react"
+import { AlertCircle, CalendarClock, Check, CheckCircle2, ExternalLink, Loader2, User, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
@@ -14,6 +14,40 @@ import { cn } from "@/lib/utils"
 import type { OAuthAuthorizationDetails } from "@supabase/auth-js"
 
 type ConsentPhase = "load" | "ready" | "busy" | "approved" | "denied"
+
+/** Abgelaufen / unbekannte OAuth-Authorization vs. sonstiger Ladefehler. */
+type ConnectLoadIssue = "expired" | "error" | null
+
+/** API-Meldungen (z. B. GoTrue), die für Nutzer als „abgelaufen / ungültig“ gelten sollen. */
+function isExpiredOrMissingAuthorizationMessage(message: string): boolean {
+  const m = message.trim().toLowerCase()
+  if (!m) {
+    return false
+  }
+  if (m.includes("authorization not found")) {
+    return true
+  }
+  if (m.includes("not found") && m.includes("authorization")) {
+    return true
+  }
+  if (m.includes("authorization") && (m.includes("expired") || m.includes("invalid"))) {
+    return true
+  }
+  if (m.includes("grant") && m.includes("invalid")) {
+    return true
+  }
+  if (m.includes("already been used") || m.includes("already used")) {
+    return true
+  }
+  return false
+}
+
+function oauthActionErrorGerman(message: string): string {
+  if (isExpiredOrMissingAuthorizationMessage(message)) {
+    return "Diese Freigabe ist nicht mehr gültig. Bitte starte die Verbindung in der App erneut."
+  }
+  return "Die Aktion konnte nicht ausgeführt werden. Bitte versuche es erneut."
+}
 
 const SCOPE_LINES = [
   "Einstellungen abrufen und ändern",
@@ -46,14 +80,13 @@ function ScopeRow({ children }: { children: string }) {
   )
 }
 
-function ConnectConsentBody() {
+function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const authorizationId = searchParams.get("authorization_id")?.trim() ?? ""
 
   const [phase, setPhase] = useState<ConsentPhase>("load")
   const [details, setDetails] = useState<OAuthAuthorizationDetails | null>(null)
   const [postConsentRedirectUrl, setPostConsentRedirectUrl] = useState<string | null>(null)
+  const [loadIssue, setLoadIssue] = useState<ConnectLoadIssue>(null)
   /** Schlüssel der zuletzt fehlgeschlagenen Logo-URL (Authorization + URI). */
   const [brokenClientLogoKey, setBrokenClientLogoKey] = useState<string | null>(null)
 
@@ -81,12 +114,12 @@ function ConnectConsentBody() {
         return
       }
       if (error) {
-        toast.error(error.message)
+        setLoadIssue(isExpiredOrMissingAuthorizationMessage(error.message) ? "expired" : "error")
         setPhase("ready")
         return
       }
       if (!data) {
-        toast.error("Diese Verbindungsanfrage ist ungültig oder abgelaufen.")
+        setLoadIssue("expired")
         setPhase("ready")
         return
       }
@@ -94,8 +127,9 @@ function ConnectConsentBody() {
         window.location.assign(data.redirect_url)
         return
       }
-      if ("authorization_id" in data) {
-        setDetails(data)
+      if ("authorization_id" in data && "client" in data) {
+        setDetails(data as OAuthAuthorizationDetails)
+        setLoadIssue(null)
       }
       setPhase("ready")
     })()
@@ -120,7 +154,7 @@ function ConnectConsentBody() {
       skipBrowserRedirect: true,
     })
     if (error) {
-      toast.error(error.message)
+      toast.error(oauthActionErrorGerman(error.message))
       setPhase("ready")
       return
     }
@@ -135,7 +169,7 @@ function ConnectConsentBody() {
       skipBrowserRedirect: true,
     })
     if (error) {
-      toast.error(error.message)
+      toast.error(oauthActionErrorGerman(error.message))
       setPhase("ready")
       return
     }
@@ -179,29 +213,78 @@ function ConnectConsentBody() {
     )
   }
 
-  if (phase === "load" || (phase === "ready" && !details)) {
+  if (phase === "load") {
     return (
       <Card className={CARD}>
         <CardContent className="flex flex-col items-center gap-5 px-6 py-14 sm:px-8">
           <Spinner className="size-9 text-primary" aria-hidden />
           <div className="max-w-sm text-center">
-            <p className="text-sm font-medium text-foreground">
-              {phase === "load" ? "Anfrage wird geladen" : "Anfrage nicht möglich"}
-            </p>
+            <p className="text-sm font-medium text-foreground">Anfrage wird geladen</p>
             <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-              {phase === "load"
-                ? "Wir holen die Angaben zu dieser Verbindung. Das dauert nur einen Moment."
-                : "Die Anfrage ist abgelaufen oder ungültig. Starte die Verbindung in der App erneut."}
+              Wir holen die Angaben zu dieser Verbindung. Das dauert nur einen Moment.
             </p>
           </div>
-          {!details && phase === "ready" ? (
-            <Button asChild variant="outline" className={FOOTER_BTN}>
-              <Link href="/">Zur Startseite</Link>
-            </Button>
-          ) : null}
         </CardContent>
       </Card>
     )
+  }
+
+  if (phase === "ready" && loadIssue === "expired") {
+    return (
+      <Card className={cn(CARD, "border-amber-200/90 bg-amber-50/35 dark:border-amber-900/40 dark:bg-amber-950/20")}>
+        <CardHeader className="space-y-4 px-6 pb-0 pt-8 text-center sm:px-8 sm:text-left">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-200 sm:mx-0">
+            <CalendarClock className="size-8" aria-hidden />
+          </div>
+          <div className="space-y-2">
+            <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl">Anfrage nicht mehr gültig</CardTitle>
+            <CardDescription className="text-base leading-relaxed text-pretty text-muted-foreground">
+              Dieser Verbindungslink ist abgelaufen oder wurde bereits verwendet. Das passiert z. B., wenn du die Seite
+              zu spät geöffnet hast oder die Freigabe schon in einem anderen Tab abgeschlossen hast.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardFooter className="flex flex-col gap-3 px-6 pb-8 pt-6 sm:flex-row sm:flex-wrap sm:gap-3 sm:px-8">
+          <Button asChild variant="outline" className={FOOTER_BTN}>
+            <Link href="/">Zur Startseite</Link>
+          </Button>
+          <Button asChild variant="secondary" className={FOOTER_BTN}>
+            <Link href="/mcp-connect">Hilfe: MCP verbinden</Link>
+          </Button>
+        </CardFooter>
+      </Card>
+    )
+  }
+
+  if (phase === "ready" && loadIssue === "error") {
+    return (
+      <Card className={CARD}>
+        <CardHeader className="space-y-4 px-6 pb-0 pt-8 text-center sm:px-8 sm:text-left">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-destructive/10 text-destructive sm:mx-0">
+            <AlertCircle className="size-8" aria-hidden />
+          </div>
+          <div className="space-y-2">
+            <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl">Anfrage konnte nicht geladen werden</CardTitle>
+            <CardDescription className="text-base leading-relaxed text-pretty text-muted-foreground">
+              Beim Abrufen der Verbindungsdaten ist ein Fehler aufgetreten. Bitte versuche es erneut oder starte die
+              Verbindung in der App noch einmal.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardFooter className="flex flex-col gap-3 px-6 pb-8 pt-6 sm:flex-row sm:flex-wrap sm:gap-3 sm:px-8">
+          <Button asChild variant="outline" className={FOOTER_BTN}>
+            <Link href="/">Zur Startseite</Link>
+          </Button>
+          <Button asChild className={FOOTER_BTN}>
+            <Link href="/mcp-connect">Zu MCP-Hilfe</Link>
+          </Button>
+        </CardFooter>
+      </Card>
+    )
+  }
+
+  if (phase === "ready" && !details) {
+    return null
   }
 
   if (phase === "approved") {
@@ -260,6 +343,10 @@ function ConnectConsentBody() {
         </CardFooter>
       </Card>
     )
+  }
+
+  if (!details) {
+    return null
   }
 
   const clientName = details.client.name
@@ -388,6 +475,12 @@ function ConnectConsentBody() {
   )
 }
 
+function ConnectConsentRoute() {
+  const searchParams = useSearchParams()
+  const authorizationId = searchParams.get("authorization_id")?.trim() ?? ""
+  return <ConnectConsentBody key={authorizationId} authorizationId={authorizationId} />
+}
+
 export default function ConnectPage() {
   return (
     <main className="min-h-svh bg-background">
@@ -411,7 +504,7 @@ export default function ConnectPage() {
             </Card>
           }
         >
-          <ConnectConsentBody />
+          <ConnectConsentRoute />
         </Suspense>
       </div>
     </main>
