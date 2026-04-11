@@ -14,6 +14,6 @@ def settings() -> Settings:
             "supabase_publishable_key": "test-publishable-key",
             "mcp_host": "127.0.0.1",
             "mcp_port": 8766,
-            "mcp_resource_server_url": "http://127.0.0.1:8766/mcp",
+            "mcp_resource_server_url": "http://127.0.0.1:8766/",
         }
     )

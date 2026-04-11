@@ -140,13 +140,13 @@ def build_mcp(settings: Settings) -> FastMCP:
         if adsearch_id is not None:
             params["adsearch_id"] = adsearch_id
         client = _api_client(settings)
-        return await _run_api(client.request("GET", "/api/ads/", params=params))
+        return await _run_api(client.request("GET", "/ads/", params=params))
 
     @mcp.tool(icons=tool_icons)
     async def get_my_settings() -> dict:
         """Liest persönliche Benutzereinstellungen (Benachrichtigungen, Telegram, Mindest-Score)."""
         client = _api_client(settings)
-        return await _run_api(client.request("GET", "/api/users/me/settings"))
+        return await _run_api(client.request("GET", "/users/me/settings"))
 
     @mcp.tool(icons=tool_icons)
     async def update_my_settings(
@@ -171,19 +171,19 @@ def build_mcp(settings: Settings) -> FastMCP:
         if not body:
             raise ToolError("Mindestens ein Feld zum Aktualisieren angeben.")
         client = _api_client(settings)
-        return await _run_api(client.request("PATCH", "/api/users/me/settings", json_body=body))
+        return await _run_api(client.request("PATCH", "/users/me/settings", json_body=body))
 
     @mcp.tool(icons=tool_icons)
     async def list_ad_searches() -> list:
         """Listet alle Suchaufträge des Nutzers."""
         client = _api_client(settings)
-        return await _run_api(client.request("GET", "/api/adsearches/"))
+        return await _run_api(client.request("GET", "/adsearches/"))
 
     @mcp.tool(icons=tool_icons)
     async def get_ad_search(adsearch_id: int) -> dict:
         """Holt einen Suchauftrag anhand der ID."""
         client = _api_client(settings)
-        return await _run_api(client.request("GET", f"/api/adsearches/{adsearch_id}"))
+        return await _run_api(client.request("GET", f"/adsearches/{adsearch_id}"))
 
     @mcp.tool(icons=tool_icons)
     async def create_ad_search(
@@ -211,7 +211,7 @@ def build_mcp(settings: Settings) -> FastMCP:
         }
         body = {k: v for k, v in raw.items() if v is not None}
         client = _api_client(settings)
-        return await _run_api(client.request("POST", "/api/adsearches/", json_body=body))
+        return await _run_api(client.request("POST", "/adsearches/", json_body=body))
 
     @mcp.tool(icons=tool_icons)
     async def update_ad_search(
@@ -250,14 +250,14 @@ def build_mcp(settings: Settings) -> FastMCP:
             raise ToolError("Mindestens ein Feld zum Aktualisieren angeben.")
         client = _api_client(settings)
         return await _run_api(
-            client.request("PATCH", f"/api/adsearches/{adsearch_id}", json_body=body)
+            client.request("PATCH", f"/adsearches/{adsearch_id}", json_body=body)
         )
 
     @mcp.tool(icons=tool_icons)
     async def delete_ad_search(adsearch_id: int) -> dict:
         """Löscht einen Suchauftrag inkl. zugehöriger Daten."""
         client = _api_client(settings)
-        await _run_api(client.request("DELETE", f"/api/adsearches/{adsearch_id}"))
+        await _run_api(client.request("DELETE", f"/adsearches/{adsearch_id}"))
         return {"deleted": True, "adsearch_id": adsearch_id}
 
     return mcp

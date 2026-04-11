@@ -141,7 +141,7 @@ async function addSearchToSchnappster(tab) {
   const name = buildSearchName(tab?.title);
 
   const baseUrl = await getBaseUrl();
-  const apiUrl = `${baseUrl}/api/adsearches/`;
+  const apiUrl = `${baseUrl}/adsearches/`;
 
   const body = {
     name,

@@ -1,6 +1,7 @@
 """mitmproxy-Addon für ``mitmdump -s …``: MCP-/mcp-Flows mit Body + redaktierter Authorization.
 
-Wird von ``mcp-server --tunnel`` gestartet; Pfad zu ``SCHNAPPSTER_MITM_MCP_PATH`` (z. B. ``/mcp``).
+Wird von ``mcp-server --tunnel`` gestartet; Pfad zu ``SCHNAPPSTER_MITM_MCP_PATH``
+(z. B. ``/`` oder ``/mcp``).
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ _MAX_BODY_CHARS = 200_000
 
 
 def _mcp_path_prefix() -> str:
-    raw = (os.environ.get("SCHNAPPSTER_MITM_MCP_PATH") or "/mcp").strip() or "/mcp"
+    raw = (os.environ.get("SCHNAPPSTER_MITM_MCP_PATH") or "/").strip() or "/"
     return raw if raw.startswith("/") else f"/{raw}"
 
 
@@ -47,13 +48,20 @@ def _body_preview(content: bytes | None) -> str:
         return "\n".join(f"    {line}" for line in text.splitlines())
 
 
+def _request_matches_mcp_path(request_path: str, prefix: str) -> bool:
+    """Root ``/`` darf nicht jeden Pfad matchen (würde sonst alles loggen)."""
+    if prefix == "/":
+        return request_path in ("/", "")
+    return request_path.startswith(prefix)
+
+
 class McpTunnelTrace:
     def __init__(self) -> None:
         self._prefix = _mcp_path_prefix()
 
     def response(self, flow: http.HTTPFlow) -> None:
         req = flow.request
-        if not req.path.startswith(self._prefix):
+        if not _request_matches_mcp_path(req.path, self._prefix):
             return
         parts: list[str] = [
             "",

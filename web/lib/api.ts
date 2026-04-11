@@ -94,14 +94,14 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // AdSearches
-export const fetchSearches = () => apiFetch<AdSearch[]>("/api/adsearches/")
-export const fetchSearch = (id: number) => apiFetch<AdSearch>(`/api/adsearches/${id}`)
+export const fetchSearches = () => apiFetch<AdSearch[]>("/adsearches/")
+export const fetchSearch = (id: number) => apiFetch<AdSearch>(`/adsearches/${id}`)
 export const createSearch = (data: Partial<AdSearch>) =>
-  apiFetch<AdSearch>("/api/adsearches/", { method: "POST", body: JSON.stringify(data) })
+  apiFetch<AdSearch>("/adsearches/", { method: "POST", body: JSON.stringify(data) })
 export const updateSearch = (id: number, data: Partial<AdSearch>) =>
-  apiFetch<AdSearch>(`/api/adsearches/${id}`, { method: "PATCH", body: JSON.stringify(data) })
+  apiFetch<AdSearch>(`/adsearches/${id}`, { method: "PATCH", body: JSON.stringify(data) })
 export const deleteSearch = (id: number) =>
-  apiFetch<void>(`/api/adsearches/${id}`, { method: "DELETE" })
+  apiFetch<void>(`/adsearches/${id}`, { method: "DELETE" })
 
 // Ads
 export const fetchAds = async (params?: { adsearch_id?: number; is_analyzed?: boolean }): Promise<Ad[]> => {
@@ -110,7 +110,7 @@ export const fetchAds = async (params?: { adsearch_id?: number; is_analyzed?: bo
   if (params?.is_analyzed !== undefined) searchParams.set("is_analyzed", String(params.is_analyzed))
   searchParams.set("limit", "100")
   const qs = searchParams.toString()
-  const res = await apiFetch<PaginatedAds>(`/api/ads/?${qs}`)
+  const res = await apiFetch<PaginatedAds>(`/ads/?${qs}`)
   return res.items
 }
 
@@ -129,11 +129,11 @@ export const fetchAdsPaginated = (params: {
   if (params.sort) sp.set("sort", params.sort)
   if (params.limit) sp.set("limit", String(params.limit))
   if (params.offset) sp.set("offset", String(params.offset))
-  return apiFetch<PaginatedAds>(`/api/ads/?${sp.toString()}`)
+  return apiFetch<PaginatedAds>(`/ads/?${sp.toString()}`)
 }
-export const fetchAd = (id: number) => apiFetch<Ad>(`/api/ads/${id}`)
+export const fetchAd = (id: number) => apiFetch<Ad>(`/ads/${id}`)
 export const deleteAd = (id: number) =>
-  apiFetch<void>(`/api/ads/${id}`, { method: "DELETE" })
+  apiFetch<void>(`/ads/${id}`, { method: "DELETE" })
 
 // ScrapeRuns
 export const fetchScrapeRuns = (params?: { adsearch_id?: number; limit?: number }) => {
@@ -141,10 +141,10 @@ export const fetchScrapeRuns = (params?: { adsearch_id?: number; limit?: number 
   if (params?.adsearch_id) searchParams.set("adsearch_id", String(params.adsearch_id))
   if (params?.limit) searchParams.set("limit", String(params.limit))
   const qs = searchParams.toString()
-  return apiFetch<ScrapeRun[]>(`/api/scraperuns/${qs ? `?${qs}` : ""}`)
+  return apiFetch<ScrapeRun[]>(`/scraperuns/${qs ? `?${qs}` : ""}`)
 }
 export const clearScrapeRuns = () =>
-  apiFetch<void>("/api/scraperuns/", { method: "DELETE" })
+  apiFetch<void>("/scraperuns/", { method: "DELETE" })
 
 // ErrorLogs
 export const fetchErrorLogs = (params?: { adsearch_id?: number; limit?: number }) => {
@@ -152,10 +152,10 @@ export const fetchErrorLogs = (params?: { adsearch_id?: number; limit?: number }
   if (params?.adsearch_id) searchParams.set("adsearch_id", String(params.adsearch_id))
   if (params?.limit) searchParams.set("limit", String(params.limit))
   const qs = searchParams.toString()
-  return apiFetch<ErrorLog[]>(`/api/errorlogs/${qs ? `?${qs}` : ""}`)
+  return apiFetch<ErrorLog[]>(`/errorlogs/${qs ? `?${qs}` : ""}`)
 }
 export const clearErrorLogs = () =>
-  apiFetch<void>("/api/errorlogs/", { method: "DELETE" })
+  apiFetch<void>("/errorlogs/", { method: "DELETE" })
 
 // AIAnalysisLogs
 export const fetchAIAnalysisLogs = (params?: { adsearch_id?: number; limit?: number }) => {
@@ -163,46 +163,46 @@ export const fetchAIAnalysisLogs = (params?: { adsearch_id?: number; limit?: num
   if (params?.adsearch_id) searchParams.set("adsearch_id", String(params.adsearch_id))
   if (params?.limit) searchParams.set("limit", String(params.limit))
   const qs = searchParams.toString()
-  return apiFetch<AIAnalysisLog[]>(`/api/aianalysislogs/${qs ? `?${qs}` : ""}`)
+  return apiFetch<AIAnalysisLog[]>(`/aianalysislogs/${qs ? `?${qs}` : ""}`)
 }
 export const clearAIAnalysisLogs = () =>
-  apiFetch<void>("/api/aianalysislogs/", { method: "DELETE" })
+  apiFetch<void>("/aianalysislogs/", { method: "DELETE" })
 
 // Settings
-export const fetchSettings = () => apiFetch<AppSetting[]>("/api/settings/")
-export const fetchSetting = (key: string) => apiFetch<AppSetting>(`/api/settings/${key}`)
+export const fetchSettings = () => apiFetch<AppSetting[]>("/settings/")
+export const fetchSetting = (key: string) => apiFetch<AppSetting>(`/settings/${key}`)
 export const fetchTelegramConfigured = () =>
-  apiFetch<{ configured: boolean }>("/api/settings/telegram-configured")
+  apiFetch<{ configured: boolean }>("/settings/telegram-configured")
 export const updateSetting = (key: string, value: string) =>
-  apiFetch<AppSetting>(`/api/settings/${key}`, {
+  apiFetch<AppSetting>(`/settings/${key}`, {
     method: "PUT",
     body: JSON.stringify({ value }),
   })
 
 // Version (from backend / pyproject.toml)
 export const fetchVersion = () =>
-  apiFetch<{ version: string }>("/api/version/")
+  apiFetch<{ version: string }>("/version/")
 
 // User / Account
-export const fetchMe = () => apiFetch<UserProfile>("/api/users/me/")
+export const fetchMe = () => apiFetch<UserProfile>("/users/me/")
 export const updateMe = (data: { display_name: string }) =>
-  apiFetch<UserProfile>("/api/users/me/", {
+  apiFetch<UserProfile>("/users/me/", {
     method: "PATCH",
     body: JSON.stringify(data),
   })
-export const fetchMySettings = () => apiFetch<UserSettings>("/api/users/me/settings")
+export const fetchMySettings = () => apiFetch<UserSettings>("/users/me/settings")
 export const updateMySettings = (data: Partial<UserSettings>) =>
-  apiFetch<UserSettings>("/api/users/me/settings", {
+  apiFetch<UserSettings>("/users/me/settings", {
     method: "PATCH",
     body: JSON.stringify(data),
   })
 export const changePassword = (oldPassword: string, newPassword: string) =>
-  apiFetch<void>("/api/users/me/change-password", {
+  apiFetch<void>("/users/me/change-password", {
     method: "POST",
     body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
   })
 export const deleteMyAccount = (confirmEmail: string) =>
-  apiFetch<void>("/api/users/me/", {
+  apiFetch<void>("/users/me/", {
     method: "DELETE",
     body: JSON.stringify({ confirm_email: confirmEmail }),
   })

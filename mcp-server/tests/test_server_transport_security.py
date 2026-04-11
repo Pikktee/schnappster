@@ -13,7 +13,7 @@ def test_transport_security_includes_trycloudflare_host() -> None:
             "supabase_publishable_key": "k",
             "mcp_host": "127.0.0.1",
             "mcp_port": 8766,
-            "mcp_resource_server_url": "https://abc.trycloudflare.com/mcp",
+            "mcp_resource_server_url": "https://abc.trycloudflare.com/",
         }
     )
     ts = _transport_security(s)
@@ -33,7 +33,7 @@ def test_transport_security_none_for_non_loopback_bind() -> None:
             "supabase_publishable_key": "k",
             "mcp_host": "0.0.0.0",
             "mcp_port": 8766,
-            "mcp_resource_server_url": "https://abc.trycloudflare.com/mcp",
+            "mcp_resource_server_url": "https://abc.trycloudflare.com/",
         }
     )
     assert _transport_security(s) is None

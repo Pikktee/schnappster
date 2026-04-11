@@ -155,7 +155,7 @@ def _schnappster_mcp_command(mcp_dir: Path, mcp_argv: list[str]) -> list[str]:
 
 
 def _mcp_path_from_env() -> str:
-    path = os.environ.get("STREAMABLE_HTTP_PATH", "/mcp").strip() or "/mcp"
+    path = os.environ.get("STREAMABLE_HTTP_PATH", "/").strip() or "/"
     return path if path.startswith("/") else f"/{path}"
 
 
@@ -441,7 +441,7 @@ def main() -> None:
             "    Quick Tunnel und MCP zusammen; öffentliche URL erscheint oben.\n"
             "  cloudflared tunnel --url http://127.0.0.1:8766\n"
             "    Nur Tunnel; MCP separat mit „uv run mcp-server“ "
-            "(öffentliche URL ggf. in .env, siehe .env.example).",
+            "(öffentliche URL inkl. Pfad ggf. in .env, siehe .env.example).",
             file=sys.stderr,
         )
         sys.exit(2)
