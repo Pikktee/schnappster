@@ -24,6 +24,7 @@ uv run release               # Create a release
 uv run release-chrome-extension  # Package Chrome extension to extensions/dist/
 uv run mcp-server          # Remote MCP server (mcp-server package; same root .env)
 uv run mcp-server --tunnel # Quick Tunnel + MCP; öffentliche URL in der Konsole (kein .env nötig)
+uv run mcp-server --tunnel --mitmdump # optional mitmdump; Klartext-Log unter logs/ (Pfad auf stderr)
 
 uv run pytest                # Run all tests
 uv run pytest tests/test_parser.py  # Run a single test file
@@ -60,6 +61,7 @@ Separate Python project in **`mcp-server/`** — proxies tools to the Schnappste
 # vom Repo-Root (siehe auch: uv run mcp-server in der Befehlsliste oben)
 uv run mcp-server   # default http://127.0.0.1:8766/mcp
 uv run mcp-server --tunnel   # Quick Tunnel + MCP (URL in der Konsole); Tunnel manuell: siehe .env.example (MCP_RESOURCE_SERVER_URL)
+uv run mcp-server --tunnel --mitmdump   # optional mitmdump; Logdatei logs/mcp_mitmdump_*.log
 
 cd mcp-server && uv sync --all-groups && uv run schnappster-mcp   # nur Unterprojekt-venv
 uv run pytest            # im Repo-Root (inkl. MCP-Regex-Tests gegen schnappster_mcp.cli)

@@ -7,7 +7,7 @@ Dieses Dokument fasst die wichtigsten Entscheidungen und Konzepte rund um den **
 - **MCP-Paket:** [`mcp-server/schnappster_mcp/`](../mcp-server/schnappster_mcp/) — Streamable HTTP, FastMCP, Tools rufen die Schnappster-API mit Bearer-Token auf.
 - **Zwei CLI-Einstiege** (im Unterprojekt [`mcp-server/pyproject.toml`](../mcp-server/pyproject.toml)):
   - **`schnappster-mcp`** — nur der HTTP-Server.
-  - **`mcp-server`** — startet denselben Server oder **Quick Tunnel + Server** (`--tunnel`), setzt dabei `MCP_RESOURCE_SERVER_URL` für den Kindprozess (ohne `.env` zu ändern).
+  - **`mcp-server`** — startet denselben Server oder **Quick Tunnel + Server** (`--tunnel`), setzt dabei `MCP_RESOURCE_SERVER_URL` für den Kindprozess (ohne `.env` zu ändern). Optional **`--mitmdump`**: mitmproxy mit Klartext-Log unter **`logs/`** (siehe README).
 - **Root-Projekt:** `schnappster-mcp` ist als **editable** Abhängigkeit eingetragen; `uv run mcp-server` / `uv run schnappster-mcp` funktionieren vom Repo-Root nach `uv sync`.
 
 ## Tunnel: nur Quick Tunnel (TryCloudflare)
