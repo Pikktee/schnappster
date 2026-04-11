@@ -25,7 +25,7 @@ sind absichtlich ausgelagert nach `90-manual-supabase-and-external-setup.md`.
   aber kein hartes FK-Design auf `auth.users` voraussetzen
 - SQLModel und DB-Schema 1:1 synchron halten
 - MVP: Schema-Aenderungen als versionierte SQL-Dateien im Repo verwalten
-  (z. B. `db/migrations/001_init.sql`, `002_add_owner_id.sql`, `003_rls_policies.sql`)
+  (z. B. `docs/db/migrations/001_init.sql`, `002_add_owner_id.sql`, `003_rls_policies.sql`)
 - Migrationen manuell und in Reihenfolge ausfuehren (dev/prod), inkl. kurzer Apply-Dokumentation
 - `uv run dbreset` bleibt nur fuer lokale Entwicklung; Produktion ueber versionierte SQL-Migrationen
 - RLS-Policies als eigene SQL-Migrationen pflegen (nicht ad hoc im Dashboard)

@@ -8,8 +8,8 @@ Die Migrationen werden manuell und in Reihenfolge ausgefuehrt:
 Beispiel (psql):
 
 ```bash
-psql "$DATABASE_URL" -f db/migrations/001_init.sql
-psql "$DATABASE_URL" -f db/migrations/002_rls_policies.sql
+psql "$DATABASE_URL" -f docs/db/migrations/001_init.sql
+psql "$DATABASE_URL" -f docs/db/migrations/002_rls_policies.sql
 ```
 
 Hinweis: `uv run dbreset` bleibt ein lokales Dev-Werkzeug; Produktivumgebungen sollen diese SQL-Migrationen verwenden.
