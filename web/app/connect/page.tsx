@@ -348,8 +348,8 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
             {waitingForRedirect ? (
               <div className="space-y-3">
                 <p className="text-[15px] leading-relaxed text-foreground/95">
-                  <span className="font-semibold text-foreground">{clientName}</span> ist mit deinem Schnappster-Konto
-                  verknüpft. Gleich öffnet sich die Rückleitung zur App — dort wird die Verbindung abgeschlossen.
+                  <span className="font-semibold text-foreground">{clientName}</span> wird mit deinem Konto verknüpft —
+                  die Rückleitung zur App startet in einem Moment.
                 </p>
                 <p className="flex items-center gap-2 border-t border-border/50 pt-3 text-sm text-muted-foreground">
                   <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-hidden />
@@ -359,24 +359,17 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
             ) : null}
 
             {afterRedirect ? (
-              <div className="space-y-3 text-[15px] leading-relaxed text-muted-foreground">
-                <p className="text-foreground/95">
-                  Die Freigabe ist gespeichert. Wenn sich{" "}
-                  <span className="font-semibold text-foreground">{clientName}</span> geöffnet hat, ist dort alles
-                  bereit.
-                </p>
-                <p>
-                  Dieses Browserfenster kannst du schließen — es wird für die Verbindung nicht mehr benötigt. Sollte
-                  sich nichts geöffnet haben, starte die Verbindung in der App erneut.
-                </p>
-              </div>
+              <p className="text-[15px] leading-relaxed text-muted-foreground">
+                <span className="font-semibold text-foreground">{clientName}</span> ist mit Schnappster verbunden —
+                weiter geht&apos;s in der App.{" "}
+                <span className="text-foreground/90">Dieses Fenster kannst du schließen.</span>
+              </p>
             ) : null}
 
             {noAutoUrl ? (
               <p className="text-[15px] leading-relaxed text-muted-foreground">
-                <span className="font-semibold text-foreground">{clientName}</span> ist mit deinem Schnappster-Konto
-                verknüpft. Es wurde keine automatische Rückleitung zur App übermittelt — du kannst die App selbst
-                öffnen oder dieses Fenster schließen.
+                <span className="font-semibold text-foreground">{clientName}</span> ist mit Schnappster verknüpft. Es
+                gab keine automatische Rückkehr zur App — öffne sie bei Bedarf selbst oder schließe dieses Fenster.
               </p>
             ) : null}
           </div>
