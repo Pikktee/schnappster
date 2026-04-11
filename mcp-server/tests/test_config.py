@@ -1,5 +1,7 @@
 """Settings defaults."""
 
+import pytest
+
 from schnappster_mcp.config import Settings
 
 
@@ -15,3 +17,27 @@ def test_default_resource_server_url_from_host_port() -> None:
         }
     )
     assert str(s.mcp_resource_server_url) == "http://127.0.0.1:9999/"
+
+
+def test_mcp_port_from_port_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PORT", "3000")
+    monkeypatch.delenv("MCP_PORT", raising=False)
+    s = Settings.model_validate(
+        {
+            "supabase_url": "https://x.supabase.co",
+            "supabase_publishable_key": "k",
+        }
+    )
+    assert s.mcp_port == 3000
+
+
+def test_mcp_port_prefers_mcp_port_over_port(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PORT", "3000")
+    monkeypatch.setenv("MCP_PORT", "8767")
+    s = Settings.model_validate(
+        {
+            "supabase_url": "https://x.supabase.co",
+            "supabase_publishable_key": "k",
+        }
+    )
+    assert s.mcp_port == 8767

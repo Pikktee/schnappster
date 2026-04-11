@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Self
 
-from pydantic import AnyHttpUrl, Field, TypeAdapter, model_validator
+from pydantic import AliasChoices, AnyHttpUrl, Field, TypeAdapter, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _AnyHttpUrlAdapter = TypeAdapter(AnyHttpUrl)
@@ -43,6 +43,7 @@ class Settings(BaseSettings):
         env_file=_dotenv_files(),
         env_file_encoding="utf-8",
         extra="ignore",
+        populate_by_name=True,
     )
 
     schnappster_api_base_url: AnyHttpUrl = Field(
@@ -53,7 +54,11 @@ class Settings(BaseSettings):
     supabase_publishable_key: str = Field(..., min_length=1)
 
     mcp_host: str = "127.0.0.1"
-    mcp_port: int = 8766
+    mcp_port: int = Field(
+        default=8766,
+        validation_alias=AliasChoices("MCP_PORT", "PORT"),
+        description="Listen port; Railway/Heroku set PORT, local dev often MCP_PORT.",
+    )
     streamable_http_path: str = "/"
     mcp_resource_server_url: AnyHttpUrl | None = Field(
         default=None,
