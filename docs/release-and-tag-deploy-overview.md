@@ -58,8 +58,8 @@ Diese enthalten Vercel- und Railway-CLI-Zugangsdaten sowie Ziel-Service/-Environ
 ### 3) Railway
 
 - Project Token erstellen und als `RAILWAY_TOKEN` in GitHub speichern
-- Service-Name des Backends als `RAILWAY_SERVICE_NAME` in GitHub speichern (z. B. `schnappster`)
-- Service-Name des MCP-Servers als `RAILWAY_MCP_SERVICE_NAME` speichern (wie im Railway-Dashboard, z. B. `schnappster-mcp`)
+- Service-Name des Backends als `RAILWAY_SERVICE_NAME` in GitHub speichern (z. B. `backend`)
+- Service-Name des MCP-Servers als `RAILWAY_MCP_SERVICE_NAME` speichern (wie im Railway-Dashboard, z. B. `mcp-server`)
 - Environment-Name als `RAILWAY_ENVIRONMENT_NAME` in GitHub speichern (z. B. `production`)
 - Auto-Deploy bei Push auf `main` deaktivieren
 
