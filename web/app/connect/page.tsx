@@ -76,6 +76,9 @@ const CARD =
 
 const FOOTER_BTN = "min-h-11 w-full px-5 text-[15px] sm:w-auto sm:min-w-[9.5rem]"
 
+/** Kurz Erfolg anzeigen, dann OAuth-`redirect_url` öffnen (vollständige Verbindung in der App). */
+const APPROVE_SUCCESS_REDIRECT_DELAY_MS = 2200
+
 /** Kurzer Link-Text (Hostname), volle URL bleibt im href und title. */
 function websiteLinkLabel(href: string): string {
   try {
@@ -102,8 +105,21 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
   const [phase, setPhase] = useState<ConsentPhase>("load")
   const [details, setDetails] = useState<OAuthAuthorizationDetails | null>(null)
   const [loadIssue, setLoadIssue] = useState<ConnectLoadIssue>(null)
+  /** Nach Zulassen: OAuth-Rückleitung zur App (wenn von der API geliefert). */
+  const [postApproveRedirectUrl, setPostApproveRedirectUrl] = useState<string | null>(null)
   /** Schlüssel der zuletzt fehlgeschlagenen Logo-URL (Authorization + URI). */
   const [brokenClientLogoKey, setBrokenClientLogoKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (phase !== "approved" || !postApproveRedirectUrl) {
+      return
+    }
+    const url = postApproveRedirectUrl
+    const id = window.setTimeout(() => {
+      window.location.assign(url)
+    }, APPROVE_SUCCESS_REDIRECT_DELAY_MS)
+    return () => window.clearTimeout(id)
+  }, [phase, postApproveRedirectUrl])
 
   useEffect(() => {
     if (!authorizationId || !supabase) {
@@ -174,10 +190,7 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
       return
     }
     const redirectUrl = readOAuthRedirectUrl(data)
-    if (redirectUrl) {
-      window.location.assign(redirectUrl)
-      return
-    }
+    setPostApproveRedirectUrl(redirectUrl)
     setPhase("approved")
   }
 
@@ -306,6 +319,7 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
 
   if (phase === "approved") {
     const clientName = details?.client.name ?? "Die App"
+    const willAutoRedirect = Boolean(postApproveRedirectUrl)
     return (
       <Card className={CARD}>
         <CardHeader className="space-y-4 px-6 pb-0 pt-8 text-center sm:px-8 sm:text-left">
@@ -313,12 +327,30 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
             <CheckCircle2 className="size-8" aria-hidden />
           </div>
           <div className="space-y-2">
-            <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl">Freigabe gespeichert</CardTitle>
+            <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl">
+              {willAutoRedirect ? "Verbindung hergestellt" : "Freigabe gespeichert"}
+            </CardTitle>
             <CardDescription className="text-base leading-relaxed text-pretty text-muted-foreground">
-              <span className="font-medium text-foreground">{clientName}</span> ist mit deinem Schnappster-Konto
-              verbunden. Die Anwendung konnte nicht automatisch geöffnet werden — du kannst sie selbst wechseln oder
-              Schnappster hier nutzen.
+              {willAutoRedirect ? (
+                <>
+                  <span className="font-medium text-foreground">{clientName}</span> ist mit deinem Schnappster-Konto
+                  verbunden. Du wirst in wenigen Sekunden automatisch zur App weitergeleitet, damit die Verbindung dort
+                  abgeschlossen werden kann.
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-foreground">{clientName}</span> ist mit deinem Schnappster-Konto
+                  verbunden. Die Anwendung konnte nicht automatisch geöffnet werden — du kannst sie selbst wechseln oder
+                  Schnappster hier nutzen.
+                </>
+              )}
             </CardDescription>
+            {willAutoRedirect ? (
+              <p className="flex items-center justify-center gap-2 pt-1 text-sm text-muted-foreground sm:justify-start">
+                <Loader2 className="size-4 animate-spin text-primary" aria-hidden />
+                Weiterleitung …
+              </p>
+            ) : null}
           </div>
         </CardHeader>
         <CardFooter className="px-6 pb-8 pt-6 sm:px-8">
