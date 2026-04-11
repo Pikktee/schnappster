@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from schnappster_mcp.cli import (
     _cloudflared_line_is_likely_error,
+    _env_for_mcp_tunnel_warmup,
     _mitmdump_addon_script,
+    _mitmdump_logs_dir,
     _mitmdump_reverse_command,
     extract_trycloudflare_public_base,
     quick_tunnel_backend_port,
-    quick_tunnel_use_mitmdump,
+    quick_tunnel_with_mitmdump,
 )
 
 
@@ -41,10 +43,34 @@ def test_quick_tunnel_backend_port() -> None:
     assert quick_tunnel_backend_port(8766) == 8767
 
 
-def test_quick_tunnel_use_mitmdump_respects_direct_flag() -> None:
-    assert quick_tunnel_use_mitmdump(tunnel_direct=False, mitmdump_executable="/x/mitmdump")
-    assert not quick_tunnel_use_mitmdump(tunnel_direct=True, mitmdump_executable="/x/mitmdump")
-    assert not quick_tunnel_use_mitmdump(tunnel_direct=False, mitmdump_executable=None)
+def test_quick_tunnel_with_mitmdump_rules() -> None:
+    assert quick_tunnel_with_mitmdump(
+        with_mitmdump=True,
+        mitmdump_executable="/x/mitmdump",
+    )
+    assert not quick_tunnel_with_mitmdump(
+        with_mitmdump=False,
+        mitmdump_executable="/x/mitmdump",
+    )
+    assert not quick_tunnel_with_mitmdump(
+        with_mitmdump=True,
+        mitmdump_executable=None,
+    )
+
+
+def test_mitmdump_logs_dir_next_to_mcp_server() -> None:
+    from pathlib import Path
+
+    from schnappster_mcp import cli as cli_mod
+
+    mcp_dir = Path(cli_mod.__file__).resolve().parent.parent
+    assert _mitmdump_logs_dir(mcp_dir) == mcp_dir.parent / "logs"
+
+
+def test_env_for_mcp_tunnel_warmup() -> None:
+    env = _env_for_mcp_tunnel_warmup(8767)
+    assert env["MCP_PORT"] == "8767"
+    assert "MCP_RESOURCE_SERVER_URL" not in env
 
 
 def test_mitmdump_reverse_command_shape() -> None:

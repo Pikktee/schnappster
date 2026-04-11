@@ -90,6 +90,10 @@ def build_mcp(settings: Settings) -> FastMCP:
     resource = settings.mcp_resource_server_url
     assert resource is not None
 
+    # Pro Tool in tools/list — viele Clients (z. B. Claude „Tool Use“) nutzen diese Felder,
+    # nicht nur serverInfo.icons aus initialize.
+    tool_icons = _schnappster_mcp_icons()
+
     mcp = FastMCP(
         name="Schnappster",
         instructions=(
@@ -97,7 +101,7 @@ def build_mcp(settings: Settings) -> FastMCP:
             "Benutzereinstellungen und Suchaufträge (Ad Searches). "
             "Authentifizierung: Supabase Access Token als Bearer (wie im Web-Frontend)."
         ),
-        icons=_schnappster_mcp_icons(),
+        icons=tool_icons,
         json_response=True,
         token_verifier=SupabaseTokenVerifier(settings),
         auth=AuthSettings(
@@ -116,7 +120,7 @@ def build_mcp(settings: Settings) -> FastMCP:
     async def health_check(_request: Request) -> JSONResponse:  # noqa: ARG001
         return JSONResponse({"status": "ok"})
 
-    @mcp.tool()
+    @mcp.tool(icons=tool_icons)
     async def list_recent_bargains(
         limit: int = 24,
         offset: int = 0,
@@ -138,13 +142,13 @@ def build_mcp(settings: Settings) -> FastMCP:
         client = _api_client(settings)
         return await _run_api(client.request("GET", "/api/ads/", params=params))
 
-    @mcp.tool()
+    @mcp.tool(icons=tool_icons)
     async def get_my_settings() -> dict:
         """Liest persönliche Benutzereinstellungen (Benachrichtigungen, Telegram, Mindest-Score)."""
         client = _api_client(settings)
         return await _run_api(client.request("GET", "/api/users/me/settings"))
 
-    @mcp.tool()
+    @mcp.tool(icons=tool_icons)
     async def update_my_settings(
         display_name: str | None = None,
         telegram_chat_id: str | None = None,
@@ -169,19 +173,19 @@ def build_mcp(settings: Settings) -> FastMCP:
         client = _api_client(settings)
         return await _run_api(client.request("PATCH", "/api/users/me/settings", json_body=body))
 
-    @mcp.tool()
+    @mcp.tool(icons=tool_icons)
     async def list_ad_searches() -> list:
         """Listet alle Suchaufträge des Nutzers."""
         client = _api_client(settings)
         return await _run_api(client.request("GET", "/api/adsearches/"))
 
-    @mcp.tool()
+    @mcp.tool(icons=tool_icons)
     async def get_ad_search(adsearch_id: int) -> dict:
         """Holt einen Suchauftrag anhand der ID."""
         client = _api_client(settings)
         return await _run_api(client.request("GET", f"/api/adsearches/{adsearch_id}"))
 
-    @mcp.tool()
+    @mcp.tool(icons=tool_icons)
     async def create_ad_search(
         url: str,
         name: str = "",
@@ -209,7 +213,7 @@ def build_mcp(settings: Settings) -> FastMCP:
         client = _api_client(settings)
         return await _run_api(client.request("POST", "/api/adsearches/", json_body=body))
 
-    @mcp.tool()
+    @mcp.tool(icons=tool_icons)
     async def update_ad_search(
         adsearch_id: int,
         name: str | None = None,
@@ -249,7 +253,7 @@ def build_mcp(settings: Settings) -> FastMCP:
             client.request("PATCH", f"/api/adsearches/{adsearch_id}", json_body=body)
         )
 
-    @mcp.tool()
+    @mcp.tool(icons=tool_icons)
     async def delete_ad_search(adsearch_id: int) -> dict:
         """Löscht einen Suchauftrag inkl. zugehöriger Daten."""
         client = _api_client(settings)

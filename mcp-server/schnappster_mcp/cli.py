@@ -2,10 +2,10 @@
 
 Aus dem Schnappster-Repository-Root (nach ``uv sync``):
 
-    uv run mcp-server                  # delegiert zu ``schnappster-mcp``
-    uv run mcp-server --tunnel         # Quick Tunnel + MCP; optional mitmproxy-Trace
-    uv run mcp-server --tunnel-direct  # Tunnel ohne mitm (auch wenn mitmdump installiert)
-    uv run mcp-server -- …             # Argumente an ``schnappster-mcp`` durchreichen
+    uv run mcp-server                    # delegiert zu ``schnappster-mcp``
+    uv run mcp-server --tunnel           # Quick Tunnel + MCP (ein lokaler Port)
+    uv run mcp-server --tunnel --mitmdump   # zusätzlich mitmdump; Klartext → logs/
+    uv run mcp-server -- …               # Argumente an ``schnappster-mcp`` durchreichen
 
 Nur Tunnel ohne MCP: ``cloudflared tunnel --url http://127.0.0.1:8766``.
 """
@@ -23,6 +23,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import TextIO
 
 QUICK_TUNNEL_URL_RE = re.compile(
     r"https://[a-z0-9-]+\.trycloudflare\.com",
@@ -33,6 +34,7 @@ TUNNEL_URL_TIMEOUT_S = 90
 _CHILD_TERMINATE_TIMEOUT_S = 5.0
 _MAX_TUNNEL_STARTUP_LOG_LINES = 120
 _MITM_LISTEN_WAIT_S = 10.0
+_MCP_BIND_WAIT_S = 30.0
 _MAX_FRONT_PORT = 65534
 
 
@@ -41,9 +43,25 @@ def quick_tunnel_backend_port(front_port: int) -> int:
     return front_port + 1
 
 
-def quick_tunnel_use_mitmdump(*, tunnel_direct: bool, mitmdump_executable: str | None) -> bool:
-    """True, wenn mitmdump für Reverse-HTTP-Trace vor dem Tunnel gestartet werden soll."""
-    return mitmdump_executable is not None and not tunnel_direct
+def quick_tunnel_with_mitmdump(*, with_mitmdump: bool, mitmdump_executable: str | None) -> bool:
+    """True, wenn ``--mitmdump`` gesetzt und ``mitmdump`` im PATH ist."""
+    return with_mitmdump and mitmdump_executable is not None
+
+
+def _mitmdump_logs_dir(mcp_dir: Path) -> Path:
+    """Repo-``logs/`` (Schwester von ``mcp-server/``)."""
+    return mcp_dir.parent / "logs"
+
+
+def _open_new_mitmdump_trace_log(mcp_dir: Path) -> tuple[Path, TextIO]:
+    log_dir = _mitmdump_logs_dir(mcp_dir)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    path = log_dir / f"mcp_mitmdump_{stamp}.log"
+    fp = path.open("w", encoding="utf-8", buffering=1)
+    fp.write(f"# Schnappster mcp-server mitmdump ({time.strftime('%Y-%m-%d %H:%M:%S')})\n\n")
+    fp.flush()
+    return path, fp
 
 
 def extract_trycloudflare_public_base(line: str) -> str | None:
@@ -166,6 +184,14 @@ def _wait_tcp_accept(host: str, port: int, timeout_s: float) -> bool:
     return False
 
 
+def _env_for_mcp_tunnel_warmup(backend_port: int) -> dict[str, str]:
+    """Warmup-MCP vor mitm: ohne MCP_RESOURCE_SERVER_URL (Default localhost)."""
+    env = dict(os.environ)
+    env.pop("MCP_RESOURCE_SERVER_URL", None)
+    env["MCP_PORT"] = str(backend_port)
+    return env
+
+
 def _mitmdump_addon_script() -> Path:
     return Path(__file__).resolve().parent / "mitm_tunnel_trace_addon.py"
 
@@ -195,34 +221,39 @@ def _mitmdump_reverse_command(
 class _ChildProcs:
     cf: subprocess.Popen[str] | None = None
     mitm: subprocess.Popen[str] | None = None
+    mitm_log_file: TextIO | None = None
     mcp: subprocess.Popen[str] | None = None
 
 
-def run_with_quick_tunnel(port: int, mcp_argv: list[str], *, tunnel_direct: bool = False) -> None:
-    if port > _MAX_FRONT_PORT:
-        need = port + 1
-        msg = f"--port muss ≤ {_MAX_FRONT_PORT} sein (mit Trace: MCP auf {need})."
-        print(msg, file=sys.stderr)
-        raise SystemExit(1)
-
+def run_with_quick_tunnel(
+    port: int,
+    mcp_argv: list[str],
+    *,
+    with_mitmdump: bool = False,
+) -> None:
     mcp_dir = _resolve_mcp_dir()
     cf_exe = ensure_cloudflared()
     mitmdump_exe = shutil.which("mitmdump")
-    use_mitm = quick_tunnel_use_mitmdump(
-        tunnel_direct=tunnel_direct,
+    use_mitm = quick_tunnel_with_mitmdump(
+        with_mitmdump=with_mitmdump,
         mitmdump_executable=mitmdump_exe,
     )
+    if with_mitmdump and mitmdump_exe is None:
+        print(
+            "mitmdump nicht im PATH — für --mitmdump installieren: "
+            "brew install mitmproxy (oder pipx install mitmproxy).",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    if use_mitm and port > _MAX_FRONT_PORT:
+        need = port + 1
+        msg = f"--port muss ≤ {_MAX_FRONT_PORT} sein (mit --mitmdump: MCP auf {need})."
+        print(msg, file=sys.stderr)
+        raise SystemExit(1)
+
     backend_port = quick_tunnel_backend_port(port) if use_mitm else port
     local_url = f"http://127.0.0.1:{port}"
-
-    if not tunnel_direct and mitmdump_exe is None:
-        print(
-            "Hinweis: mitmdump nicht im PATH — HTTP-Verkehr wird nicht im Klartext protokolliert. "
-            "Optional: brew install mitmproxy (oder pipx install mitmproxy). "
-            "Mit --tunnel-direct erzwingst du diesen Modus auch mit installiertem mitmproxy.",
-            file=sys.stderr,
-            flush=True,
-        )
 
     url_ready = threading.Event()
     public_base_holder: list[str] = []
@@ -233,6 +264,13 @@ def run_with_quick_tunnel(port: int, mcp_argv: list[str], *, tunnel_direct: bool
     def cleanup() -> None:
         _terminate(procs.mcp)
         _terminate(procs.mitm)
+        if procs.mitm_log_file is not None:
+            try:
+                procs.mitm_log_file.flush()
+                procs.mitm_log_file.close()
+            except OSError:
+                pass
+            procs.mitm_log_file = None
         _terminate(procs.cf)
 
     def on_signal(_signum: int, _frame: object | None) -> None:
@@ -241,12 +279,30 @@ def run_with_quick_tunnel(port: int, mcp_argv: list[str], *, tunnel_direct: bool
 
     if use_mitm:
         assert mitmdump_exe is not None
-        trace_msg = f"mitmdump: HTTP-Trace aktiv (127.0.0.1:{port} → MCP 127.0.0.1:{backend_port})."
-        print(trace_msg, file=sys.stderr, flush=True)
+        procs.mcp = subprocess.Popen(
+            _schnappster_mcp_command(mcp_dir, mcp_argv),
+            env=_env_for_mcp_tunnel_warmup(backend_port),
+            text=True,
+        )
+        if not _wait_tcp_accept("127.0.0.1", backend_port, _MCP_BIND_WAIT_S):
+            w = int(_MCP_BIND_WAIT_S)
+            msg = f"MCP (Warmup) lauscht nach {w}s nicht auf 127.0.0.1:{backend_port}."
+            print(msg, file=sys.stderr)
+            cleanup()
+            raise SystemExit(1)
+        mitm_log_path, mitm_fp = _open_new_mitmdump_trace_log(mcp_dir)
+        procs.mitm_log_file = mitm_fp
+        print(
+            f"mitmdump: Klartext-Log → {mitm_log_path.resolve()}",
+            file=sys.stderr,
+            flush=True,
+        )
         mitm_env = os.environ | {"SCHNAPPSTER_MITM_MCP_PATH": _mcp_path_from_env()}
         procs.mitm = subprocess.Popen(
             _mitmdump_reverse_command(mitmdump_exe, front_port=port, backend_port=backend_port),
             stdin=subprocess.DEVNULL,
+            stdout=mitm_fp,
+            stderr=subprocess.STDOUT,
             text=True,
             env=mitm_env,
         )
@@ -314,6 +370,10 @@ def run_with_quick_tunnel(port: int, mcp_argv: list[str], *, tunnel_direct: bool
             print("mitmdump ist während des Tunnel-Starts beendet worden.", file=sys.stderr)
             cleanup()
             raise SystemExit(1)
+        if use_mitm and procs.mcp is not None and procs.mcp.poll() is not None:
+            print("MCP (Warmup) ist während des Tunnel-Starts beendet worden.", file=sys.stderr)
+            cleanup()
+            raise SystemExit(1)
 
     if not url_ready.is_set():
         print(
@@ -337,8 +397,7 @@ def run_with_quick_tunnel(port: int, mcp_argv: list[str], *, tunnel_direct: bool
     child_env = os.environ | {"MCP_RESOURCE_SERVER_URL": resource_url}
     if use_mitm:
         child_env = child_env | {"MCP_PORT": str(backend_port)}
-
-    _print_tunnel_ready_banner(resource_url)
+        _terminate(procs.mcp)
 
     old_int = signal.signal(signal.SIGINT, on_signal)
     old_term: object | None = None
@@ -353,6 +412,14 @@ def run_with_quick_tunnel(port: int, mcp_argv: list[str], *, tunnel_direct: bool
             text=True,
         )
         procs.mcp = mcp_proc
+        if use_mitm and not _wait_tcp_accept("127.0.0.1", backend_port, _MCP_BIND_WAIT_S):
+            print(
+                f"MCP lauscht nach Setzen der Tunnel-URL nicht auf 127.0.0.1:{backend_port}.",
+                file=sys.stderr,
+            )
+            cleanup()
+            raise SystemExit(1)
+        _print_tunnel_ready_banner(resource_url)
         code = mcp_proc.wait()
     except KeyboardInterrupt:
         code = 130
@@ -388,15 +455,25 @@ def main() -> None:
     )
     parser.add_argument("--tunnel", "-t", action="store_true")
     parser.add_argument(
-        "--tunnel-direct",
+        "--mitmdump",
         action="store_true",
-        help=("Nur mit --tunnel: ohne mitmdump, ein Port (auch wenn mitmdump installiert ist)."),
+        help=(
+            "Nur mit --tunnel: mitmdump-Reverse vor cloudflared; MCP-Klartext in logs/ "
+            "(Dateipfad auf stderr)."
+        ),
     )
     parser.add_argument("--port", "-p", type=int, default=8766, metavar="PORT")
     ns, rest = parser.parse_known_args(argv)
 
+    if ns.mitmdump and not ns.tunnel:
+        parser.error("--mitmdump setzt --tunnel voraus.")
+
     if ns.tunnel:
-        run_with_quick_tunnel(port=ns.port, mcp_argv=rest, tunnel_direct=ns.tunnel_direct)
+        run_with_quick_tunnel(
+            port=ns.port,
+            mcp_argv=rest,
+            with_mitmdump=ns.mitmdump,
+        )
         return
 
     mcp_dir = _resolve_mcp_dir()
