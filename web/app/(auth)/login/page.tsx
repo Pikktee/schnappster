@@ -1,13 +1,15 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from "@/components/ui/spinner"
+import { getSafeConnectReturnPath } from "@/lib/connect-return-path"
 import { supabase } from "@/lib/supabase"
 
 function GoogleIcon() {
@@ -44,8 +46,11 @@ function FacebookIcon() {
   )
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const postAuthPath = getSafeConnectReturnPath(searchParams.get("next"))
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -63,7 +68,7 @@ export default function LoginPage() {
       toast.error(error.message)
       return
     }
-    router.replace("/")
+    router.replace(postAuthPath)
   }
 
   async function socialLogin(provider: "google" | "facebook") {
@@ -71,7 +76,8 @@ export default function LoginPage() {
       toast.error("Anmeldung ist derzeit nicht verfuegbar.")
       return
     }
-    const redirectTo = `${window.location.origin}/`
+    const origin = window.location.origin.replace(/\/$/, "")
+    const redirectTo = postAuthPath === "/" ? `${origin}/` : `${origin}${postAuthPath}`
     const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } })
     if (error) toast.error(error.message)
   }
@@ -86,11 +92,11 @@ export default function LoginPage() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-2">
-          <Button type="button" variant="outline" onClick={() => socialLogin("google")}>
+          <Button type="button" variant="outline" onClick={() => void socialLogin("google")}>
             <GoogleIcon />
             Google
           </Button>
-          <Button type="button" variant="outline" onClick={() => socialLogin("facebook")}>
+          <Button type="button" variant="outline" onClick={() => void socialLogin("facebook")}>
             <FacebookIcon />
             Facebook
           </Button>
@@ -101,7 +107,7 @@ export default function LoginPage() {
             oder
           </span>
         </div>
-        <form className="space-y-3" onSubmit={onSubmit}>
+        <form className="space-y-3" onSubmit={(e) => void onSubmit(e)}>
           <div className="space-y-2">
             <Label htmlFor="email">E-Mail</Label>
             <Input
@@ -139,5 +145,21 @@ export default function LoginPage() {
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <Card className="shadow-md">
+          <CardContent className="flex justify-center py-12">
+            <Spinner className="size-8" />
+          </CardContent>
+        </Card>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   )
 }

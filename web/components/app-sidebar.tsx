@@ -242,9 +242,13 @@ export function AppSidebar() {
             </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
-        <div className="mx-3 flex items-center justify-center gap-1.5 border-t border-border/40 pt-2 pb-0.5 text-[10px] tracking-wide text-muted-foreground/50 group-data-[collapsible=icon]:hidden">
+        <div className="mx-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 border-t border-border/40 pt-2 pb-0.5 text-[10px] tracking-wide text-muted-foreground/50 group-data-[collapsible=icon]:hidden">
           <Link href="/impressum" className="transition-colors hover:text-muted-foreground">
             Impressum
+          </Link>
+          <span>·</span>
+          <Link href="/mcp-connect" className="transition-colors hover:text-muted-foreground">
+            MCP
           </Link>
           <span>·</span>
           <span className="tabular-nums">{versionLabel}</span>

@@ -1,20 +1,40 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useEffect } from "react"
 import { useAuth } from "@/components/auth-provider"
+import { getSafeConnectReturnPath } from "@/lib/connect-return-path"
 import { Spinner } from "@/components/ui/spinner"
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+function normalizePath(pathname: string): string {
+  const trimmed = pathname.replace(/\/$/, "")
+  return trimmed === "" ? "/" : trimmed
+}
+
+function AuthSessionRedirect() {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { session, loading } = useAuth()
 
   useEffect(() => {
-    if (!loading && session) {
-      router.replace("/")
+    if (loading || !session) {
+      return
     }
-  }, [loading, session, router])
+    const normalized = normalizePath(pathname)
+    if (normalized === "/login") {
+      router.replace(getSafeConnectReturnPath(searchParams.get("next")))
+      return
+    }
+    router.replace("/")
+  }, [loading, session, router, pathname, searchParams])
+
+  return null
+}
+
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  const { loading } = useAuth()
 
   if (loading) {
     return (
@@ -26,6 +46,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <main className="min-h-svh bg-gradient-to-b from-background to-muted/30">
+      <Suspense fallback={null}>
+        <AuthSessionRedirect />
+      </Suspense>
       <div className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center gap-6 px-4 py-10">
         <div className="flex flex-col items-center gap-3 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element -- static logo SVG */}
