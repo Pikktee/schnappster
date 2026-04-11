@@ -1,7 +1,14 @@
-# Explizit Bookworm: `python:3.13-slim` folgt Debian-Default (z. B. Trixie) — NodeSource/apt
-# für Node 20 bricht dort häufig; offizielles Node-Image + passende Python-Basis bleiben stabil.
-FROM node:20-bookworm-slim AS node_upstream
+# Frontend in eigenem Node-Stage: `npm` per COPY aus dem Node-Image ins Python-Image
+# übernimmt oft keine gültigen Symlinks/Pfade (Cannot find module '../lib/cli.js').
+FROM node:20-bookworm-slim AS web_build
+WORKDIR /app
+COPY web/package.json web/package-lock.json ./web/
+RUN cd web && npm ci
+COPY web/ ./web/
+ENV NODE_ENV=production
+RUN cd web && npm run build
 
+# Explizit Bookworm — stabil gegen Debian-Wechsel bei `python:3.13-slim`.
 FROM python:3.13-slim-bookworm
 
 # System-Abhängigkeiten (curl-cffi braucht libcurl + gcc für native Extensions)
@@ -11,12 +18,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcurl4-openssl-dev \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
-
-# Node 20 + npm aus offiziellem Image (kein NodeSource — zu fragil bei neuen Debian-Releases)
-COPY --from=node_upstream /usr/local/bin/node /usr/local/bin/node
-COPY --from=node_upstream /usr/local/bin/npm /usr/local/bin/npm
-COPY --from=node_upstream /usr/local/bin/npx /usr/local/bin/npx
-COPY --from=node_upstream /usr/local/lib/node_modules /usr/local/lib/node_modules
 
 # uv installieren
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -32,7 +33,7 @@ COPY mcp-server/ ./mcp-server/
 RUN uv sync --frozen --no-dev
 
 COPY web/ ./web/
-RUN cd web && npm ci && npm run build
+COPY --from=web_build /app/web/out ./web/out/
 
 # Rest des Projekts
 COPY . .
