@@ -231,9 +231,9 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
 
   if (phase === "ready" && loadIssue === "expired") {
     return (
-      <Card className={cn(CARD, "border-amber-200/90 bg-amber-50/35 dark:border-amber-900/40 dark:bg-amber-950/20")}>
+      <Card className={CARD}>
         <CardHeader className="space-y-4 px-6 pb-0 pt-8 text-center sm:px-8 sm:text-left">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-200 sm:mx-0">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/12 text-primary sm:mx-0">
             <CalendarClock className="size-8" aria-hidden />
           </div>
           <div className="space-y-2">
@@ -244,12 +244,9 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
             </CardDescription>
           </div>
         </CardHeader>
-        <CardFooter className="flex flex-col gap-3 px-6 pb-8 pt-6 sm:flex-row sm:flex-wrap sm:gap-3 sm:px-8">
+        <CardFooter className="px-6 pb-8 pt-6 sm:px-8">
           <Button asChild variant="outline" className={FOOTER_BTN}>
             <Link href="/">Zur Startseite</Link>
-          </Button>
-          <Button asChild variant="secondary" className={FOOTER_BTN}>
-            <Link href="/mcp-connect">Hilfe: MCP verbinden</Link>
           </Button>
         </CardFooter>
       </Card>
@@ -260,7 +257,7 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
     return (
       <Card className={CARD}>
         <CardHeader className="space-y-4 px-6 pb-0 pt-8 text-center sm:px-8 sm:text-left">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-destructive/10 text-destructive sm:mx-0">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground sm:mx-0">
             <AlertCircle className="size-8" aria-hidden />
           </div>
           <div className="space-y-2">
@@ -271,12 +268,9 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
             </CardDescription>
           </div>
         </CardHeader>
-        <CardFooter className="flex flex-col gap-3 px-6 pb-8 pt-6 sm:flex-row sm:flex-wrap sm:gap-3 sm:px-8">
+        <CardFooter className="px-6 pb-8 pt-6 sm:px-8">
           <Button asChild variant="outline" className={FOOTER_BTN}>
             <Link href="/">Zur Startseite</Link>
-          </Button>
-          <Button asChild className={FOOTER_BTN}>
-            <Link href="/mcp-connect">Zu MCP-Hilfe</Link>
           </Button>
         </CardFooter>
       </Card>

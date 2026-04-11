@@ -43,8 +43,7 @@ Dieses Dokument fasst die wichtigsten Entscheidungen und Konzepte rund um den **
 
 ### Branding / „Login-Seite“
 
-- **Verbindungsfreigabe (Endnutzer):** Route **`/connect`** — dort landen Nutzer, nachdem Supabase zur eigenen UI weiterleitet (nur wenn **OAuth 2.1 Server** aktiv ist und der **Authorization Path** in Supabase exakt **`/connect`** ist). Technisch nutzt die Seite `supabase.auth.oauth.*` (siehe [Supabase Getting Started](https://supabase.com/docs/guides/auth/oauth-server/getting-started)). Ohne OAuth-Server bleibt die Seite wirkungslos. Kurzinfo für Nutzer bleibt auf **`/mcp-connect`** (Hilfe/Kopier-URL), nicht mit **`/connect`** verwechseln.
-- **Optional:** Hilfsseite **`/mcp-connect`** (Kurzanleitung Cursor). Öffentliche MCP-URL optional per **`NEXT_PUBLIC_MCP_ENDPOINT_URL`** (Kopier-Button).
+- **Verbindungsfreigabe (Endnutzer):** Route **`/connect`** — dort landen Nutzer, nachdem Supabase zur eigenen UI weiterleitet (nur wenn **OAuth 2.1 Server** aktiv ist und der **Authorization Path** in Supabase exakt **`/connect`** ist). Technisch nutzt die Seite `supabase.auth.oauth.*` (siehe [Supabase Getting Started](https://supabase.com/docs/guides/auth/oauth-server/getting-started)). Ohne OAuth-Server bleibt die Seite wirkungslos.
 - Nach **Cursor-initiiertem** OAuth endet der Browser-Teil typischerweise bei **Cursor** („Tab schließen“) — nicht zwingend auf eurer Domain.
 
 ### Vollständiger Remote-MCP-OAuth-Flow (Supabase OAuth 2.1 Server + Cursor)
@@ -115,7 +114,6 @@ Remote-MCP mit der Tunnel-**HTTPS**-URL inkl. **`/mcp`** eintragen und **OAuth**
 | -------- | ----- |
 | Befehle, Env, Tunnel, Clients | [`mcp-server/README.md`](../mcp-server/README.md) |
 | Root-Befehle inkl. `mcp-server` | [`AGENTS.md`](../AGENTS.md) |
-| MCP-Connect-Webseite | `web/app/mcp-connect/` |
 | Verbindungsfreigabe (Supabase OAuth Server) | `web/app/connect/` |
 | MCP-Server-Build / Auth-Code | [`mcp-server/schnappster_mcp/server.py`](../mcp-server/schnappster_mcp/server.py) |
 | Supabase: MCP + OAuth-Client-Setup | [MCP Authentication → OAuth client setup](https://supabase.com/docs/guides/auth/oauth-server/mcp-authentication#oauth-client-setup) |

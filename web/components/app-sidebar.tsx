@@ -247,10 +247,6 @@ export function AppSidebar() {
             Impressum
           </Link>
           <span>·</span>
-          <Link href="/mcp-connect" className="transition-colors hover:text-muted-foreground">
-            MCP
-          </Link>
-          <span>·</span>
           <span className="tabular-nums">{versionLabel}</span>
         </div>
       </SidebarFooter>

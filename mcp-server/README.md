@@ -28,12 +28,6 @@ Reihenfolge: zuerst Repository-Root `.env`, dann `mcp-server/.env`. Abweichendes
 | `STREAMABLE_HTTP_PATH` | MCP-Pfad (Standard `/mcp`) — muss zu `MCP_RESOURCE_SERVER_URL` passen |
 | `LOG_LEVEL` | `DEBUG`, `INFO`, … (Standard `INFO`) |
 
-### Web-Frontend: Onboarding-Seite `/mcp-connect`
-
-Die Next.js-App kann unter **`/mcp-connect`** eine kurze Anleitung mit Schnappster-Branding anzeigen (öffentlich, ohne Login).
-
-- **`NEXT_PUBLIC_MCP_ENDPOINT_URL`** (Web-`.env` / Build): Optional: öffentliche MCP-URL inkl. Pfad (z. B. `https://mcp.deinedomain.de/mcp`). Wenn gesetzt, erscheint auf `/mcp-connect` ein Kopier-Button für Nutzer.
-
 ## Start
 
 ### CLI-Einstiege (im `mcp-server`-Paket)

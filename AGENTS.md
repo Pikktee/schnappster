@@ -41,7 +41,7 @@ npm run build   # Static export to web/out/ (served by FastAPI)
 npm run lint    # ESLint
 ```
 
-Static export → `web/out/`, served by FastAPI after `npm run build`. `NEXT_PUBLIC_API_URL`: empty = same origin. Optional: `NEXT_PUBLIC_MCP_ENDPOINT_URL` — öffentliche MCP-URL für die Hilfsseite `/mcp-connect` (Kopier-Button).
+Static export → `web/out/`, served by FastAPI after `npm run build`. `NEXT_PUBLIC_API_URL`: empty = same origin.
 
 ### Docker
 
