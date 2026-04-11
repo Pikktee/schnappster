@@ -154,8 +154,17 @@ def _schnappster_mcp_command(mcp_dir: Path, mcp_argv: list[str]) -> list[str]:
     return ["uv", "run", "--project", str(mcp_dir), "schnappster-mcp", *mcp_argv]
 
 
-def _mcp_path_from_env() -> str:
-    path = os.environ.get("STREAMABLE_HTTP_PATH", "/").strip() or "/"
+def _effective_streamable_http_path() -> str:
+    """Gleicher MCP-Pfad wie im Server (Settings inkl. .env), nicht nur ``os.environ``.
+
+    Der Tunnel setzt ``MCP_RESOURCE_SERVER_URL`` im Parent-Prozess; ``os.environ`` enthält
+    ``STREAMABLE_HTTP_PATH`` oft nicht, obwohl er in der Repo-``.env`` steht — dann wäre
+    die öffentliche URL (z. B. ``…/mcp``) falsch und OAuth/Clients würden am falschen Pfad
+    landen.
+    """
+    from schnappster_mcp.config import Settings
+
+    path = Settings().streamable_http_path.strip() or "/"
     return path if path.startswith("/") else f"/{path}"
 
 
@@ -297,7 +306,7 @@ def run_with_quick_tunnel(
             file=sys.stderr,
             flush=True,
         )
-        mitm_env = os.environ | {"SCHNAPPSTER_MITM_MCP_PATH": _mcp_path_from_env()}
+        mitm_env = os.environ | {"SCHNAPPSTER_MITM_MCP_PATH": _effective_streamable_http_path()}
         procs.mitm = subprocess.Popen(
             _mitmdump_reverse_command(mitmdump_exe, front_port=port, backend_port=backend_port),
             stdin=subprocess.DEVNULL,
@@ -393,7 +402,7 @@ def run_with_quick_tunnel(
         raise SystemExit(1)
 
     public_base = public_base_holder[0]
-    resource_url = f"{public_base}{_mcp_path_from_env()}"
+    resource_url = f"{public_base}{_effective_streamable_http_path()}"
     child_env = os.environ | {"MCP_RESOURCE_SERVER_URL": resource_url}
     if use_mitm:
         child_env = child_env | {"MCP_PORT": str(backend_port)}

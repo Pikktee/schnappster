@@ -14,4 +14,4 @@ def test_default_resource_server_url_from_host_port() -> None:
             "mcp_resource_server_url": None,
         }
     )
-    assert str(s.mcp_resource_server_url) == "http://127.0.0.1:9999/"
+    assert str(s.mcp_resource_server_url) == "http://127.0.0.1:9999/mcp"

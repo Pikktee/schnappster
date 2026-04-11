@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 from schnappster_mcp.cli import (
     _cloudflared_line_is_likely_error,
+    _effective_streamable_http_path,
     _env_for_mcp_tunnel_warmup,
     _mitmdump_addon_script,
     _mitmdump_logs_dir,
@@ -12,6 +15,20 @@ from schnappster_mcp.cli import (
     quick_tunnel_backend_port,
     quick_tunnel_with_mitmdump,
 )
+
+
+def test_effective_streamable_http_path_reads_settings_not_only_os_environ() -> None:
+    fake = MagicMock()
+    fake.streamable_http_path = "/custom-mcp"
+    with patch("schnappster_mcp.config.Settings", return_value=fake):
+        assert _effective_streamable_http_path() == "/custom-mcp"
+
+
+def test_effective_streamable_http_path_adds_leading_slash() -> None:
+    fake = MagicMock()
+    fake.streamable_http_path = "mcp"
+    with patch("schnappster_mcp.config.Settings", return_value=fake):
+        assert _effective_streamable_http_path() == "/mcp"
 
 
 def test_extract_trycloudflare_from_typical_log_line() -> None:
