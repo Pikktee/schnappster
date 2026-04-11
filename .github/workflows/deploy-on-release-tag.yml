@@ -71,3 +71,25 @@ jobs:
           # Kein `railway up .`: explizites `.` kann gegenüber dem verlinkten Projekt-Prefix
           # zu `prefix not found` führen (CLI strip_prefix), siehe railwayapp/cli#595.
           railway up --service="$RAILWAY_SERVICE_NAME" --environment="$RAILWAY_ENVIRONMENT_NAME" --ci
+
+  railway-mcp:
+    name: Deploy MCP server to Railway
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install --global @railway/cli@latest
+
+      - name: Deploy MCP to Railway with CLI
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_MCP_SERVICE_NAME: ${{ secrets.RAILWAY_MCP_SERVICE_NAME }}
+          RAILWAY_ENVIRONMENT_NAME: ${{ secrets.RAILWAY_ENVIRONMENT_NAME }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ] || [ -z "$RAILWAY_MCP_SERVICE_NAME" ] || [ -z "$RAILWAY_ENVIRONMENT_NAME" ]; then
+            echo "Railway MCP-Secrets fehlen: RAILWAY_TOKEN, RAILWAY_MCP_SERVICE_NAME, RAILWAY_ENVIRONMENT_NAME"
+            exit 1
+          fi
+          railway up --service="$RAILWAY_MCP_SERVICE_NAME" --environment="$RAILWAY_ENVIRONMENT_NAME" --ci

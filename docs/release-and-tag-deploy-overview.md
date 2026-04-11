@@ -17,7 +17,8 @@ In diesem Projekt verwenden wir einen Workflow, der nur auf Release-Tags (`v*`) 
 - Ein Deployment soll nur starten, wenn ein Release-Tag gepusht wird (z. B. `v1.2.3`).
 - Der Workflow `.github/workflows/deploy-on-release-tag.yml` triggert dann:
   - einen Vercel Deploy per Vercel CLI
-  - einen Railway Deploy per Railway CLI
+  - einen Railway Deploy per Railway CLI (API-Backend)
+  - einen zweiten Railway Deploy fuer den **MCP-Server** (eigener Service, Image aus `mcp-server/Dockerfile`)
 
 ## Ablauf fuer das Team
 
@@ -26,8 +27,8 @@ In diesem Projekt verwenden wir einen Workflow, der nur auf Release-Tags (`v*`) 
 3. Wenn ein Release gewuenscht ist: `uv run release [major|minor|patch]`
 4. Das Script erstellt und pusht einen neuen Tag (`vX.Y.Z`)
 5. GitHub Workflow startet durch den Tag-Push
-6. Workflow deployed Vercel per CLI und deployed Railway per CLI
-7. Beide Plattformen deployen die neue Version
+6. Workflow deployed Vercel per CLI und deployed beide Railway-Services per CLI
+7. Vercel und Railway deployen die neue Version
 
 ## Einmalige Einrichtung
 
@@ -41,7 +42,8 @@ Diese Secrets anlegen:
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
 - `RAILWAY_TOKEN`
-- `RAILWAY_SERVICE_NAME`
+- `RAILWAY_SERVICE_NAME` (FastAPI-Backend)
+- `RAILWAY_MCP_SERVICE_NAME` (MCP-Server, eigener Railway-Service)
 - `RAILWAY_ENVIRONMENT_NAME`
 
 Diese enthalten Vercel- und Railway-CLI-Zugangsdaten sowie Ziel-Service/-Environment.
@@ -56,7 +58,8 @@ Diese enthalten Vercel- und Railway-CLI-Zugangsdaten sowie Ziel-Service/-Environ
 ### 3) Railway
 
 - Project Token erstellen und als `RAILWAY_TOKEN` in GitHub speichern
-- Service-Name als `RAILWAY_SERVICE_NAME` in GitHub speichern (z. B. `schnappster`)
+- Service-Name des Backends als `RAILWAY_SERVICE_NAME` in GitHub speichern (z. B. `schnappster`)
+- Service-Name des MCP-Servers als `RAILWAY_MCP_SERVICE_NAME` speichern (wie im Railway-Dashboard, z. B. `schnappster-mcp`)
 - Environment-Name als `RAILWAY_ENVIRONMENT_NAME` in GitHub speichern (z. B. `production`)
 - Auto-Deploy bei Push auf `main` deaktivieren
 
@@ -75,7 +78,7 @@ Trigger:
 
 ## Kurzer Test nach Setup
 
-1. Sicherstellen, dass alle sechs Secrets in GitHub gesetzt sind
+1. Sicherstellen, dass alle sieben Secrets in GitHub gesetzt sind (Vercel drei, Railway vier inkl. `RAILWAY_MCP_SERVICE_NAME`)
 2. Test-Release erstellen: `uv run release patch`
 3. In GitHub unter `Actions` pruefen, ob der Workflow laeuft
 4. In Vercel/Railway pruefen, ob jeweils ein Deployment gestartet wurde
