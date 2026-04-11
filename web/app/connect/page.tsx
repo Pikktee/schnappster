@@ -101,7 +101,6 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
 
   const [phase, setPhase] = useState<ConsentPhase>("load")
   const [details, setDetails] = useState<OAuthAuthorizationDetails | null>(null)
-  const [postConsentRedirectUrl, setPostConsentRedirectUrl] = useState<string | null>(null)
   const [loadIssue, setLoadIssue] = useState<ConnectLoadIssue>(null)
   /** Schlüssel der zuletzt fehlgeschlagenen Logo-URL (Authorization + URI). */
   const [brokenClientLogoKey, setBrokenClientLogoKey] = useState<string | null>(null)
@@ -174,7 +173,11 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
       setPhase("ready")
       return
     }
-    setPostConsentRedirectUrl(readOAuthRedirectUrl(data))
+    const redirectUrl = readOAuthRedirectUrl(data)
+    if (redirectUrl) {
+      window.location.assign(redirectUrl)
+      return
+    }
     setPhase("approved")
   }
 
@@ -189,7 +192,11 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
       setPhase("ready")
       return
     }
-    setPostConsentRedirectUrl(readOAuthRedirectUrl(data))
+    const redirectUrl = readOAuthRedirectUrl(data)
+    if (redirectUrl) {
+      window.location.assign(redirectUrl)
+      return
+    }
     setPhase("denied")
   }
 
@@ -306,22 +313,18 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
             <CheckCircle2 className="size-8" aria-hidden />
           </div>
           <div className="space-y-2">
-            <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl">Verbindung hergestellt</CardTitle>
+            <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl">Freigabe gespeichert</CardTitle>
             <CardDescription className="text-base leading-relaxed text-pretty text-muted-foreground">
-              <span className="font-medium text-foreground">{clientName}</span> darf nun im Namen deines Kontos auf
-              Schnappster zugreifen.
+              <span className="font-medium text-foreground">{clientName}</span> ist mit deinem Schnappster-Konto
+              verbunden. Die Anwendung konnte nicht automatisch geöffnet werden — du kannst sie selbst wechseln oder
+              Schnappster hier nutzen.
             </CardDescription>
           </div>
         </CardHeader>
-        <CardFooter className="flex flex-col gap-3 px-6 pb-8 pt-6 sm:flex-row sm:justify-end sm:px-8">
+        <CardFooter className="px-6 pb-8 pt-6 sm:px-8">
           <Button asChild variant="outline" className={FOOTER_BTN}>
             <Link href="/">Schnappster öffnen</Link>
           </Button>
-          {postConsentRedirectUrl ? (
-            <Button type="button" className={FOOTER_BTN} onClick={() => window.location.assign(postConsentRedirectUrl)}>
-              Weiter zu {clientName}
-            </Button>
-          ) : null}
         </CardFooter>
       </Card>
     )
@@ -337,19 +340,15 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
           <div className="space-y-2">
             <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl">Nicht verbunden</CardTitle>
             <CardDescription className="text-base leading-relaxed text-pretty text-muted-foreground">
-              Es wurde kein Zugriff gewährt. Du kannst die App schließen oder es später erneut versuchen.
+              Es wurde kein Zugriff gewährt. Die Anwendung konnte nicht automatisch geöffnet werden — du kannst dieses
+              Fenster schließen oder es später erneut versuchen.
             </CardDescription>
           </div>
         </CardHeader>
-        <CardFooter className="flex flex-col gap-3 px-6 pb-8 pt-6 sm:flex-row sm:justify-end sm:px-8">
+        <CardFooter className="px-6 pb-8 pt-6 sm:px-8">
           <Button asChild variant="outline" className={FOOTER_BTN}>
             <Link href="/">Zur Startseite</Link>
           </Button>
-          {postConsentRedirectUrl ? (
-            <Button type="button" variant="secondary" className={FOOTER_BTN} onClick={() => window.location.assign(postConsentRedirectUrl)}>
-              Zurück zur App
-            </Button>
-          ) : null}
         </CardFooter>
       </Card>
     )
@@ -402,7 +401,6 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
             </h1>
             <p className="text-pretty text-sm leading-relaxed text-muted-foreground sm:text-[0.9375rem]">
               fordert Zugriff auf dein Schnappster-Konto an. Lasse die Verbindung nur zu, wenn du der App vertraust.
-              bist.
             </p>
           </div>
         </div>
