@@ -24,8 +24,8 @@ Reihenfolge: zuerst Repository-Root `.env`, dann `mcp-server/.env`. Abweichendes
 | `SUPABASE_PUBLISHABLE_KEY` | wie Haupt-App (typisch schon in Root-`.env`) |
 | `MCP_HOST` | Bind-Adresse (Standard `127.0.0.1`) |
 | `MCP_PORT` | Port (Standard `8766`) |
-| `MCP_RESOURCE_SERVER_URL` | Öffentliche MCP-URL inkl. Pfad, z. B. `https://dein-tunnel.example/mcp`. Wenn nicht gesetzt: `http://MCP_HOST:MCP_PORT/mcp` |
-| `STREAMABLE_HTTP_PATH` | MCP-Pfad (Standard `/mcp`) — muss zu `MCP_RESOURCE_SERVER_URL` passen |
+| `MCP_RESOURCE_SERVER_URL` | Öffentliche MCP-URL inkl. Pfad, z. B. `https://mcp.example.com/` (Root auf eigener Subdomain) oder `https://tunnel…/mcp`. Wenn nicht gesetzt: `http://MCP_HOST:MCP_PORT` + `STREAMABLE_HTTP_PATH` |
+| `STREAMABLE_HTTP_PATH` | URL-Pfad des Streamable-HTTP-Endpunkts (Standard **`/`**) — muss zu `MCP_RESOURCE_SERVER_URL` passen. Nur ändern, wenn der MCP nicht an der Wurzel hängt (z. B. `/mcp` hinter einem gemeinsamen Host) |
 | `LOG_LEVEL` | `DEBUG`, `INFO`, … (Standard `INFO`) |
 
 ## Start
@@ -45,7 +45,7 @@ Nach `uv sync` im **Schnappster-Root** ist `schnappster-mcp` als **editable** Ab
 uv run mcp-server
 ```
 
-**Öffentliche URL in einem Schritt (TryCloudflare + MCP):** Startet `cloudflared` (Quick Tunnel), erkennt die `https://….trycloudflare.com`-URL aus den Logs und startet den MCP mit gesetzter **`MCP_RESOURCE_SERVER_URL`** (inkl. `STREAMABLE_HTTP_PATH`, Standard `/mcp`) — **ohne** `.env` zu ändern. Strg+C beendet Tunnel, ggf. mitmproxy und MCP.
+**Öffentliche URL in einem Schritt (TryCloudflare + MCP):** Startet `cloudflared` (Quick Tunnel), erkennt die `https://….trycloudflare.com`-URL aus den Logs und startet den MCP mit gesetzter **`MCP_RESOURCE_SERVER_URL`** (Suffix wie in **`STREAMABLE_HTTP_PATH`** aus der `.env`, Standard **`/`**) — **ohne** `.env` zu ändern. Strg+C beendet Tunnel, ggf. mitmproxy und MCP.
 
 ```bash
 uv run mcp-server --tunnel
@@ -68,7 +68,7 @@ uv run schnappster-mcp
 
 Voraussetzung: Root-`.env` enthält mindestens die Supabase-Keys (wie für die FastAPI). Läuft die API auf einem anderen Host/Port, `SCHNAPPSTER_API_BASE_URL` in Root- oder `mcp-server/.env` setzen.
 
-- MCP-Endpunkt: `http://MCP_HOST:MCP_PORT` + `STREAMABLE_HTTP_PATH` (Standard **`http://127.0.0.1:8766/mcp`**)
+- MCP-Endpunkt: `http://MCP_HOST:MCP_PORT` + `STREAMABLE_HTTP_PATH` (Standard **`http://127.0.0.1:8766/`**). Produktion oft eigene Subdomain mit Pfad **`/`** (z. B. `https://mcp.schnappster.…/`).
 - Healthcheck (ohne Auth): **`GET /health`**
 
 ## Clients (Cursor, Claude Desktop, ChatGPT)
@@ -109,9 +109,9 @@ Dein MCP-Server läuft nur auf **`127.0.0.1`** — aus dem Internet (und manchma
    uv run mcp-server --tunnel
    ```
 
-   In der Ausgabe erscheint die gesetzte **`MCP_RESOURCE_SERVER_URL`** (inkl. `/mcp`). Im **MCP-Client** dieselbe URL eintragen und **`Authorization: Bearer <Supabase Access Token>`** setzen.
+   In der Ausgabe erscheint die gesetzte **`MCP_RESOURCE_SERVER_URL`** (inkl. Pfad wie in `STREAMABLE_HTTP_PATH`, Standard **`/`**). Im **MCP-Client** dieselbe URL eintragen und **`Authorization: Bearer <Supabase Access Token>`** setzen.
 
-   **Alternativen:** MCP und Tunnel getrennt (z. B. zwei Terminals): `cloudflared tunnel --url http://127.0.0.1:8766` und **`uv run mcp-server`** (oder `uv run schnappster-mcp`). Dann **`MCP_RESOURCE_SERVER_URL`** in Root- oder `mcp-server/.env` setzen (z. B. `https://abc.trycloudflare.com/mcp`) und **MCP neu starten**.
+   **Alternativen:** MCP und Tunnel getrennt (z. B. zwei Terminals): `cloudflared tunnel --url http://127.0.0.1:8766` und **`uv run mcp-server`** (oder `uv run schnappster-mcp`). Dann **`MCP_RESOURCE_SERVER_URL`** in Root- oder `mcp-server/.env` setzen (z. B. `https://abc.trycloudflare.com/` bei Standard-Pfad `/`) und **MCP neu starten**.
 
 3. **Variante B (ngrok)** — wenn du kein Quick Tunnel willst oder SSE-Probleme hast:
 
@@ -120,7 +120,7 @@ Dein MCP-Server läuft nur auf **`127.0.0.1`** — aus dem Internet (und manchma
    ngrok http 8766
    ```
 
-   Öffentliche **HTTPS-URL** aus der ngrok-Ausgabe notieren, **`/mcp` anhängen**, in `.env` als `MCP_RESOURCE_SERVER_URL` setzen und MCP neu starten (wie oben).
+   Öffentliche **HTTPS-URL** aus der ngrok-Ausgabe notieren; bei abweichendem **`STREAMABLE_HTTP_PATH`** (nicht `/`) den Pfad anhängen. In `.env` als `MCP_RESOURCE_SERVER_URL` setzen und MCP neu starten (wie oben).
 
 **Sicherheit:** Solange der Tunnel läuft, ist dein lokaler MCP aus dem Netz erreichbar — Tunnel bei Nichtgebrauch **beenden**; keine Secrets in Repos committen.
 

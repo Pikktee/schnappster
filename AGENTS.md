@@ -59,7 +59,7 @@ Separate Python project in **`mcp-server/`** — proxies tools to the Schnappste
 
 ```bash
 # vom Repo-Root (siehe auch: uv run mcp-server in der Befehlsliste oben)
-uv run mcp-server   # default http://127.0.0.1:8766/mcp
+uv run mcp-server   # default http://127.0.0.1:8766/ (STREAMABLE_HTTP_PATH=/)
 uv run mcp-server --tunnel   # Quick Tunnel + MCP (URL in der Konsole); Tunnel manuell: siehe .env.example (MCP_RESOURCE_SERVER_URL)
 uv run mcp-server --tunnel --mitmdump   # optional mitmdump; Logdatei logs/mcp_mitmdump_*.log
 

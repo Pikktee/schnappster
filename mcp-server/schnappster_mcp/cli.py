@@ -159,7 +159,7 @@ def _effective_streamable_http_path() -> str:
 
     Der Tunnel setzt ``MCP_RESOURCE_SERVER_URL`` im Parent-Prozess; ``os.environ`` enthält
     ``STREAMABLE_HTTP_PATH`` oft nicht, obwohl er in der Repo-``.env`` steht — dann wäre
-    die öffentliche URL (z. B. ``…/mcp``) falsch und OAuth/Clients würden am falschen Pfad
+    die öffentliche URL (Pfad-Suffix) falsch und OAuth/Clients würden am falschen Pfad
     landen.
     """
     from schnappster_mcp.config import Settings

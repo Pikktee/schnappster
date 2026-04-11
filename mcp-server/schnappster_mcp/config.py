@@ -54,11 +54,14 @@ class Settings(BaseSettings):
 
     mcp_host: str = "127.0.0.1"
     mcp_port: int = 8766
-    streamable_http_path: str = "/mcp"
+    streamable_http_path: str = "/"
     mcp_resource_server_url: AnyHttpUrl | None = Field(
         default=None,
-        description="Public MCP endpoint URL for OAuth metadata (e.g. https://mcp.example.com/). "
-        "Defaults to http://mcp_host:mcp_port/streamable_http_path.",
+        description=(
+            "Public MCP endpoint URL for OAuth metadata (e.g. https://mcp.example.com/ when the "
+            "server uses path / on a dedicated host). Defaults to "
+            "http://mcp_host:mcp_port/streamable_http_path."
+        ),
     )
     log_level: str = "INFO"
 

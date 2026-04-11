@@ -19,7 +19,7 @@ Dieses Dokument fasst die wichtigsten Entscheidungen und Konzepte rund um den **
 ## stdio vs. Remote MCP
 
 - **stdio:** Konfiguration mit **`command`** + **`args`** (z. B. `npx @railway/mcp-server`) — lokaler Prozess, MCP über stdin/stdout.
-- **Remote (Schnappster):** **HTTPS-URL** zum Endpunkt (inkl. Pfad, typisch `/mcp`), kein `npx`-Wrapper in Cursor nötig.
+- **Remote (Schnappster):** **HTTPS-URL** zum Endpunkt (inkl. Pfad; Standard **`/`**, z. B. eigene Subdomain `https://mcp.…/`), kein `npx`-Wrapper in Cursor nötig.
 
 ## Authentifizierung
 
@@ -88,7 +88,7 @@ Dynamic Registration bedeutet nicht ohne Redirect-Regeln: Supabase weist u. a.
 
 #### 5. Cursor
 
-Remote-MCP mit der Tunnel-**HTTPS**-URL inkl. **`/mcp`** eintragen und **OAuth** / Anmeldung wählen (kein manuelles Bearer nötig). Beim ersten Connect sollte der Browser Supabase → ggf. Login → **`/connect`** → danach Rückleitung zu Cursor öffnen.
+Remote-MCP mit der Tunnel-**HTTPS**-URL eintragen (**exakt** wie in der Konsole bzw. wie `MCP_RESOURCE_SERVER_URL`, inkl. Pfad — Standard **`/`**) und **OAuth** / Anmeldung wählen (kein manuelles Bearer nötig). Beim ersten Connect sollte der Browser Supabase → ggf. Login → **`/connect`** → danach Rückleitung zu Cursor öffnen.
 
 #### 6. Typische Fehler
 
