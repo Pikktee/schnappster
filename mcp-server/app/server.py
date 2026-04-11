@@ -2,6 +2,7 @@
 
 import base64
 from collections.abc import Awaitable
+from functools import lru_cache
 from importlib.resources import files
 from typing import Literal
 from urllib.parse import urlparse
@@ -14,7 +15,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import Icon
 from pydantic import AnyHttpUrl
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 from schnappster_mcp.api_client import SchnappsterApiClient, SchnappsterApiError
 from schnappster_mcp.auth import SupabaseTokenVerifier
@@ -24,6 +25,14 @@ from schnappster_mcp.bargain_detail_app import (
     register_bargain_detail_mcp_app,
 )
 from schnappster_mcp.config import Settings
+
+_FAVICON_CACHE_CONTROL_MAX_AGE_S = 86400
+
+
+@lru_cache(maxsize=1)
+def _schnappster_mcp_icon_png_bytes() -> bytes:
+    """PNG-Rohbytes für MCP-Icons und Favicon-Routen (wie ``web/app/icon.png``)."""
+    return files("schnappster_mcp").joinpath("icon.png").read_bytes()
 
 
 async def _run_api[T](coro: Awaitable[T]) -> T:
@@ -51,7 +60,7 @@ def _api_client(settings: Settings) -> SchnappsterApiClient:
 
 def _schnappster_mcp_icons() -> list[Icon]:
     """Gleiches 32×32-PNG wie Next.js `app/icon.png` (für MCP-Client-Branding, z. B. Claude)."""
-    raw = files("schnappster_mcp").joinpath("icon.png").read_bytes()
+    raw = _schnappster_mcp_icon_png_bytes()
     b64 = base64.standard_b64encode(raw).decode("ascii")
     return [Icon(src=f"data:image/png;base64,{b64}", mimeType="image/png", sizes=["32x32"])]
 
@@ -129,6 +138,28 @@ def build_mcp(settings: Settings) -> FastMCP:
     @mcp.custom_route("/health", methods=["GET"])
     async def health_check(_request: Request) -> JSONResponse:  # noqa: ARG001
         return JSONResponse({"status": "ok"})
+
+    def _branding_png_response() -> Response:
+        return Response(
+            content=_schnappster_mcp_icon_png_bytes(),
+            media_type="image/png",
+            headers={
+                "Cache-Control": f"public, max-age={_FAVICON_CACHE_CONTROL_MAX_AGE_S}",
+            },
+        )
+
+    @mcp.custom_route("/favicon.ico", methods=["GET"])
+    async def favicon_ico(_request: Request) -> Response:  # noqa: ARG001
+        """Favicon: Clients holen Icons oft von der Connector-Origin, nicht nur ``initialize``."""
+        return _branding_png_response()
+
+    @mcp.custom_route("/apple-touch-icon.png", methods=["GET"])
+    async def apple_touch_icon(_request: Request) -> Response:  # noqa: ARG001
+        return _branding_png_response()
+
+    @mcp.custom_route("/icon.png", methods=["GET"])
+    async def icon_png(_request: Request) -> Response:  # noqa: ARG001
+        return _branding_png_response()
 
     @mcp.tool(icons=tool_icons, meta=recent_bargains_tool_meta())
     async def list_recent_bargains(
@@ -262,9 +293,7 @@ def build_mcp(settings: Settings) -> FastMCP:
         if not body:
             raise ToolError("Mindestens ein Feld zum Aktualisieren angeben.")
         client = _api_client(settings)
-        return await _run_api(
-            client.request("PATCH", f"/adsearches/{adsearch_id}", json_body=body)
-        )
+        return await _run_api(client.request("PATCH", f"/adsearches/{adsearch_id}", json_body=body))
 
     @mcp.tool(icons=tool_icons)
     async def delete_ad_search(adsearch_id: int) -> dict:

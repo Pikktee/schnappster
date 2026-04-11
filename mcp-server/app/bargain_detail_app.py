@@ -12,9 +12,7 @@ from mcp.types import Icon, TextContent
 from schnappster_mcp.api_client import SchnappsterApiClient
 
 # Gleiche CDN-Zeile wie im offiziellen ext-apps qr-server-Beispiel (stabile 0.4.x).
-_EXT_APPS_APP_WITH_DEPS = (
-    "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.0/app-with-deps"
-)
+_EXT_APPS_APP_WITH_DEPS = "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.0/app-with-deps"
 
 
 class BargainDetailMcpApp:

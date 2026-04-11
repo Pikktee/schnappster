@@ -1,4 +1,8 @@
-FROM python:3.13-slim
+# Explizit Bookworm: `python:3.13-slim` folgt Debian-Default (z. B. Trixie) — NodeSource/apt
+# für Node 20 bricht dort häufig; offizielles Node-Image + passende Python-Basis bleiben stabil.
+FROM node:20-bookworm-slim AS node_upstream
+
+FROM python:3.13-slim-bookworm
 
 # System-Abhängigkeiten (curl-cffi braucht libcurl + gcc für native Extensions)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -8,10 +12,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Node.js 20 via NodeSource (npm aus apt ist zu alt für Next.js 16)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
+# Node 20 + npm aus offiziellem Image (kein NodeSource — zu fragil bei neuen Debian-Releases)
+COPY --from=node_upstream /usr/local/bin/node /usr/local/bin/node
+COPY --from=node_upstream /usr/local/bin/npm /usr/local/bin/npm
+COPY --from=node_upstream /usr/local/bin/npx /usr/local/bin/npx
+COPY --from=node_upstream /usr/local/lib/node_modules /usr/local/lib/node_modules
 
 # uv installieren
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
