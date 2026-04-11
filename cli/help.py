@@ -14,7 +14,7 @@ console = Console()
 _COMMANDS = (
     (
         "start \\[--skip-tests] \\[--dev] \\[--port PORT]",
-        "Server starten: Tests, Frontend-Build, FastAPI mit statischem Frontend.",
+        "Server starten: Tests, dann FastAPI; mit --dev zusätzlich Next.js auf :3000.",
         (
             ("--skip-tests", "Tests überspringen"),
             ("--dev", "Dev-Modus: Next.js :3000, Backend mit Reload"),
@@ -30,6 +30,19 @@ _COMMANDS = (
         "analyze \\[limit]",
         "KI-Auswertung für unverarbeitete Anzeigen.",
         (("\\[limit]", "Max. Anzahl (Standard: 10)"),),
+    ),
+    (
+        "mcp-server [--tunnel|-t] [--port PORT] […]",
+        "Schnappster Remote-MCP (Unterprojekt `mcp-server/`, Root-.env). "
+        "Ohne Flags: startet den MCP-Server (`schnappster-mcp`). "
+        "`--tunnel` / `-t`: Cloudflare Quick Tunnel + MCP; setzt `MCP_RESOURCE_SERVER_URL` "
+        "nur für den Kindprozess (kein .env-Eintrag nötig). "
+        "Kein Cloudflare-Account; auf macOS wird `cloudflared` per Homebrew installiert, "
+        "falls es fehlt.",
+        (
+            ("`--tunnel`, `-t`", "TryCloudflare + MCP, Standard-Port 8766"),
+            ("`--port PORT`, `-p`", "Lokaler MCP-Port (nur mit `--tunnel`)"),
+        ),
     ),
     (
         "dbreset",
