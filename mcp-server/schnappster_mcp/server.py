@@ -2,11 +2,13 @@
 
 from collections.abc import Awaitable
 from typing import Literal
+from urllib.parse import urlparse
 
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import AnyHttpUrl
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -39,6 +41,41 @@ def _api_client(settings: Settings) -> SchnappsterApiClient:
     return SchnappsterApiClient(settings, access.token)
 
 
+def _transport_security(settings: Settings) -> TransportSecuritySettings | None:
+    """DNS-Rebinding-Schutz wie FastMCP für Loopback, plus Host aus öffentlicher MCP-URL (Tunnel).
+
+    Ohne Eintrag für z. B. ``*.trycloudflare.com`` lehnt Starlette POSTs nach OAuth mit
+    ``Invalid Host header`` ab (Host-Header = öffentliche Domain, Server bindet auf 127.0.0.1).
+    """
+    if settings.mcp_host not in ("127.0.0.1", "localhost", "::1"):
+        return None
+
+    allowed_hosts = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
+    allowed_origins = [
+        "http://127.0.0.1:*",
+        "http://localhost:*",
+        "http://[::1]:*",
+    ]
+    public = settings.mcp_resource_server_url
+    assert public is not None
+    parsed = urlparse(str(public))
+    hostname = parsed.hostname
+    if hostname and hostname not in ("127.0.0.1", "localhost", "::1"):
+        port = parsed.port
+        if port is not None and port not in (80, 443):
+            allowed_hosts.append(f"{hostname}:{port}")
+        else:
+            allowed_hosts.append(hostname)
+        scheme = parsed.scheme if parsed.scheme in ("http", "https") else "https"
+        allowed_origins.append(f"{scheme}://{hostname}:*")
+
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=allowed_hosts,
+        allowed_origins=allowed_origins,
+    )
+
+
 def build_mcp(settings: Settings) -> FastMCP:
     resource = settings.mcp_resource_server_url
     assert resource is not None
@@ -61,6 +98,7 @@ def build_mcp(settings: Settings) -> FastMCP:
         port=settings.mcp_port,
         streamable_http_path=settings.streamable_http_path,
         log_level=_log_level(settings.log_level),
+        transport_security=_transport_security(settings),
     )
 
     @mcp.custom_route("/health", methods=["GET"])

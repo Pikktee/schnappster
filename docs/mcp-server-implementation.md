@@ -12,8 +12,8 @@ Dieses Dokument fasst die wichtigsten Entscheidungen und Konzepte rund um den **
 
 ## Tunnel: nur Quick Tunnel (TryCloudflare)
 
-- **Gewählt:** Cloudflare **Quick Tunnel** (`*.trycloudflare.com`) — kein Cloudflare-Account, keine Nameserver-Umstellung, keine Tunnel-API.
-- **Benannter / „richtiger“ Cloudflare-Tunnel** (eigene Domain, DNS-API, Connector-Token) wurde bewusst **nicht** verfolgt (höherer Betriebsaufwand).
+- **Gewählt:** Cloudflare **Quick Tunnel** (`*.trycloudflare.com`) — kein Cloudflare-Account nötig für den Quick-Flow, keine Nameserver-Umstellung, keine Tunnel-API.
+- **Benannter / „richtiger“ Cloudflare-Tunnel** (eigene Domain, DNS, Connector) ist im Projekt **nicht** dokumentiert (höherer Betriebsaufwand); bei Bedarf [Cloudflare Tunnel Guide](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/tunnel-guide/) konsultieren.
 - **Limit:** Quick Tunnels unterstützen **kein SSE**; siehe [TryCloudflare Limitations](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/). Der Schnappster-MCP nutzt **`json_response=True`** — der Kern-RPC über **POST + JSON** ist davon unabhängig; Clients, die **zwingend SSE über GET** brauchen, sind mit TryCloudflare schlecht beraten (Alternativen: z. B. ngrok, siehe README).
 
 ## stdio vs. Remote MCP
@@ -99,6 +99,7 @@ Remote-MCP mit der Tunnel-**HTTPS**-URL inkl. **`/mcp`** eintragen und **OAuth**
 | `authorization_id` fehlt | Authorization Path in Supabase muss **`/connect`** sein; Route `web/app/connect/` |
 | Discovery / Registration schlägt fehl | OAuth 2.1 Server wirklich aktiv; ggf. Dynamic Registration; Projekt-URL erreichbar |
 | Cursor-Callback abgelehnt | `cursor://anysphere.cursor-mcp/oauth/callback` in Redirect URLs |
+| Cursor: **Invalid Host header** nach OAuth (Streamable HTTP) | FastMCP DNS-Rebinding: öffentlicher Host muss zu **`MCP_RESOURCE_SERVER_URL`** passen (Tunnel-URL setzt die CLI); in aktuellen Schnappster-Versionen wird der Host daraus automatisch erlaubt. |
 
 ## Tests und Konfiguration (Kurz)
 

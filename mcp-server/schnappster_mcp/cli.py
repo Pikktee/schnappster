@@ -3,7 +3,7 @@
 Aus dem Schnappster-Repository-Root (nach ``uv sync``):
 
     uv run mcp-server                  # delegiert zu ``schnappster-mcp``
-    uv run mcp-server --tunnel         # TryCloudflare + MCP (MCP_RESOURCE_SERVER_URL gesetzt)
+    uv run mcp-server --tunnel         # Cloudflare Quick Tunnel + MCP
     uv run mcp-server -- …             # Argumente an ``schnappster-mcp`` durchreichen
 
 Nur Tunnel ohne MCP: ``cloudflared tunnel --url http://127.0.0.1:8766``.
@@ -29,6 +29,7 @@ QUICK_TUNNEL_URL_RE = re.compile(
 
 TUNNEL_URL_TIMEOUT_S = 90
 _CHILD_TERMINATE_TIMEOUT_S = 5.0
+_MAX_TUNNEL_STARTUP_LOG_LINES = 120
 
 
 def extract_trycloudflare_public_base(line: str) -> str | None:
@@ -36,6 +37,31 @@ def extract_trycloudflare_public_base(line: str) -> str | None:
     if not m:
         return None
     return m.group(0).rstrip("/")
+
+
+def _cloudflared_line_is_likely_error(line: str) -> bool:
+    """Nur auffällige Log-Level durchreichen (nachdem die Tunnel-URL schon da ist)."""
+    return bool(re.search(r"\b(ERR|FTL|CRIT|PANIC)\b", line))
+
+
+def _print_tunnel_ready_banner(resource_url: str) -> None:
+    """Kompakte, gut lesbare Ausgabe des öffentlichen MCP-Endpunkts (stdout)."""
+    body = [
+        "Öffentlicher MCP-Endpunkt",
+        "",
+        "Diese URL im MCP-Client eintragen; Authentifizierung mit Supabase Access Token (Bearer).",
+        "",
+        resource_url,
+    ]
+    inner_w = max(len(line) for line in body)
+    rule = "─" * (inner_w + 2)
+    lines = [f"│ {line:<{inner_w}} │" for line in body]
+    print()
+    print(f"╭{rule}╮", flush=True)
+    for row in lines:
+        print(row, flush=True)
+    print(f"╰{rule}╯", flush=True)
+    print(flush=True)
 
 
 def ensure_cloudflared() -> str:
@@ -126,6 +152,8 @@ def run_with_quick_tunnel(port: int, mcp_argv: list[str]) -> None:
     local_url = f"http://127.0.0.1:{port}"
     url_ready = threading.Event()
     public_base_holder: list[str] = []
+    startup_log: list[str] = []
+    startup_log_lock = threading.Lock()
     procs = _ChildProcs()
 
     def cleanup() -> None:
@@ -140,10 +168,14 @@ def run_with_quick_tunnel(port: int, mcp_argv: list[str]) -> None:
         assert procs.cf is not None and procs.cf.stderr is not None
         try:
             for line in procs.cf.stderr:
-                sys.stderr.write(line)
-                sys.stderr.flush()
                 if url_ready.is_set():
+                    if _cloudflared_line_is_likely_error(line):
+                        sys.stderr.write(line)
+                        sys.stderr.flush()
                     continue
+                with startup_log_lock:
+                    if len(startup_log) < _MAX_TUNNEL_STARTUP_LOG_LINES:
+                        startup_log.append(line)
                 base = extract_trycloudflare_public_base(line)
                 if base:
                     public_base_holder.append(base)
@@ -165,18 +197,35 @@ def run_with_quick_tunnel(port: int, mcp_argv: list[str]) -> None:
             break
         if procs.cf.poll() is not None:
             print(
-                "cloudflared ist beendet, bevor eine TryCloudflare-URL erkannt wurde.",
+                "cloudflared ist beendet, bevor eine Quick-Tunnel-URL (*.trycloudflare.com) "
+                "erkannt wurde.",
                 file=sys.stderr,
             )
+            with startup_log_lock:
+                tail = "".join(startup_log)
+            if tail.strip():
+                print("Ausgabe von cloudflared:", file=sys.stderr)
+                sys.stderr.write(tail)
+                if not tail.endswith("\n"):
+                    sys.stderr.write("\n")
+                sys.stderr.flush()
             cleanup()
             raise SystemExit(1)
 
     if not url_ready.is_set():
         print(
-            f"Keine TryCloudflare-URL innerhalb von {TUNNEL_URL_TIMEOUT_S}s "
+            f"Keine Quick-Tunnel-URL (*.trycloudflare.com) innerhalb von {TUNNEL_URL_TIMEOUT_S}s "
             "in der cloudflared-Ausgabe.",
             file=sys.stderr,
         )
+        with startup_log_lock:
+            tail = "".join(startup_log)
+        if tail.strip():
+            print("Ausgabe von cloudflared:", file=sys.stderr)
+            sys.stderr.write(tail)
+            if not tail.endswith("\n"):
+                sys.stderr.write("\n")
+            sys.stderr.flush()
         cleanup()
         raise SystemExit(1)
 
@@ -184,11 +233,7 @@ def run_with_quick_tunnel(port: int, mcp_argv: list[str]) -> None:
     resource_url = f"{public_base}{_mcp_path_from_env()}"
     child_env = os.environ | {"MCP_RESOURCE_SERVER_URL": resource_url}
 
-    print(
-        f"MCP_RESOURCE_SERVER_URL gesetzt (nur für diesen MCP-Prozess): {resource_url}\n"
-        "Kein Eintrag in .env nötig. Strg+C beendet Tunnel und MCP.",
-        file=sys.stderr,
-    )
+    _print_tunnel_ready_banner(resource_url)
 
     old_int = signal.signal(signal.SIGINT, on_signal)
     old_term: object | None = None
@@ -221,10 +266,10 @@ def main() -> None:
         print(
             "Der Unterbefehl „mcp tunnel“ gibt es nicht mehr.\n"
             "  uv run mcp-server --tunnel\n"
-            "    Quick Tunnel und MCP zusammen; MCP_RESOURCE_SERVER_URL wird gesetzt.\n"
+            "    Quick Tunnel und MCP zusammen; öffentliche URL erscheint oben.\n"
             "  cloudflared tunnel --url http://127.0.0.1:8766\n"
             "    Nur Tunnel; MCP separat mit „uv run mcp-server“ "
-            "und MCP_RESOURCE_SERVER_URL in .env.",
+            "(öffentliche URL ggf. in .env, siehe .env.example).",
             file=sys.stderr,
         )
         sys.exit(2)
@@ -233,7 +278,7 @@ def main() -> None:
         prog="mcp-server",
         description=(
             "Schnappster Remote-MCP: ohne --tunnel wird schnappster-mcp gestartet; "
-            "mit --tunnel Quick Tunnel (TryCloudflare) plus MCP mit MCP_RESOURCE_SERVER_URL."
+            "mit --tunnel zusätzlich Cloudflare Quick Tunnel und ausgegebener öffentlicher URL."
         ),
     )
     parser.add_argument("--tunnel", "-t", action="store_true")

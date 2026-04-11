@@ -12,7 +12,7 @@ on:
 
 jobs:
   vercel:
-    name: Deploy Vercel (prebuilt)
+    name: Deploy Frontend to Vercel
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -49,7 +49,7 @@ jobs:
         run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
 
   railway:
-    name: Deploy Railway (CLI)
+    name: Deploy Backend/API to Railway
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

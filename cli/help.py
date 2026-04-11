@@ -35,12 +35,12 @@ _COMMANDS = (
         "mcp-server [--tunnel|-t] [--port PORT] […]",
         "Schnappster Remote-MCP (Unterprojekt `mcp-server/`, Root-.env). "
         "Ohne Flags: startet den MCP-Server (`schnappster-mcp`). "
-        "`--tunnel` / `-t`: Cloudflare Quick Tunnel + MCP; setzt `MCP_RESOURCE_SERVER_URL` "
-        "nur für den Kindprozess (kein .env-Eintrag nötig). "
+        "`--tunnel` / `-t`: Cloudflare Quick Tunnel + MCP; die öffentliche MCP-URL "
+        "wird ausgegeben (kein .env-Eintrag nötig). "
         "Kein Cloudflare-Account; auf macOS wird `cloudflared` per Homebrew installiert, "
         "falls es fehlt.",
         (
-            ("`--tunnel`, `-t`", "TryCloudflare + MCP, Standard-Port 8766"),
+            ("`--tunnel`, `-t`", "Quick Tunnel + MCP, Standard-Port 8766"),
             ("`--port PORT`, `-p`", "Lokaler MCP-Port (nur mit `--tunnel`)"),
         ),
     ),
