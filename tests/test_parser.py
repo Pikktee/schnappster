@@ -71,7 +71,7 @@ def test_parse_ad_detail_for_free_ad():
 
 
 def test_parse_ad_detail_for_vb_with_price():
-    """Anzeige mit VB und angegebenem Preis (z.B. 1.999 € VB): Preis und Kategorie werden geparst."""
+    """VB mit angegebenem Preis (z. B. 1.999 € VB): Preis und Kategorie parsen."""
     html = (FIXTURES_DIR / "ad-with-vb-and-price.html").read_text()
     ad = parse_ad_detail(
         html,

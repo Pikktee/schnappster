@@ -1,4 +1,7 @@
-"""KI-Service: Anzeigen per OpenAI-kompatibler API analysieren, Bewertungen speichern, optional Telegram."""
+"""KI-Service: Anzeigen per OpenAI-kompatibler API analysieren und speichern.
+
+Optional Telegram-Benachrichtigungen.
+"""
 
 import base64
 import json
@@ -26,7 +29,7 @@ COMPARISON_TITLE_MAX_LEN = 80
 
 
 class AIService:
-    """Analysiert Anzeigen per OpenAI-API; vergibt Schnäppchen-Score, Zusammenfassung, Begründung; optional Telegram."""
+    """KI-Analyse per OpenAI-API: Score, Zusammenfassung, Begründung; optional Telegram."""
 
     def __init__(self, session: Session):
         """Erstellt den KI-Client; wirft ValueError, wenn OPENAI_API_KEY nicht gesetzt ist."""
@@ -43,7 +46,7 @@ class AIService:
         )
 
     def analyze_unprocessed(self, limit: int = 10) -> int:
-        """Analysiert bis zu limit unbearbeitete Anzeigen (älteste zuerst); gibt die Anzahl zurück."""
+        """Analysiert bis zu ``limit`` unbearbeitete Anzeigen (älteste zuerst); Anzahl zurück."""
         ads = self.session.exec(
             select(Ad)
             .where(Ad.is_analyzed.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
@@ -58,7 +61,7 @@ class AIService:
         return self._analyze_ads(ads)
 
     def _analyze_ads(self, ads: Sequence[Ad]) -> int:
-        """Verarbeitet Anzeigen nacheinander; bei Fehler loggen und weitermachen; gibt Anzahl erfolgreich Analysierter zurück."""
+        """Anzeigen nacheinander; Fehler loggen und weitermachen; Zahl der Erfolge."""
         analyzed = 0
         for ad in ads:
             prompt_text_for_error = self._build_prompt_text_for_log(ad)
@@ -132,7 +135,7 @@ class AIService:
         self.session.commit()
 
     def _analyze_ad(self, ad: Ad, prompt_text_for_log: str) -> None:
-        """Führt KI-Analyse für eine Anzeige aus; aktualisiert Score/Zusammenfassung/Begründung; Telegram bei Score >= 8."""
+        """KI-Analyse für eine Anzeige; Score/Zusammenfassung/Begründung; Telegram ab Score 8."""
         adsearch = self.session.get(AdSearch, ad.adsearch_id)
         context = self._build_user_context(ad, adsearch)
         user_content = render_user_prompt(context)
@@ -217,7 +220,7 @@ class AIService:
         }
 
     def _download_images(self, ad: Ad, max_images: int = 1) -> list[dict]:
-        """Lädt bis zu max_images von der Anzeige; liefert Liste von image_url-Dicts (Base64-Data-URLs)."""
+        """Lädt bis zu ``max_images`` Bilder; Liste von ``image_url``-Dicts (Base64-Data-URLs)."""
         if not ad.image_urls:
             return []
 
@@ -257,7 +260,7 @@ class AIService:
         return None
 
     def _build_messages(self, user_content: str, images: list[dict]) -> list[dict]:
-        """Baut die Nachrichtenliste für die Chat-Completion: System-Prompt + Nutzerinhalt (Text + Bilder)."""
+        """Nachrichtenliste für Chat-Completion: System-Prompt + Nutzerinhalt (Text + Bilder)."""
         content: list[dict] = [{"type": "text", "text": user_content}]
         content.extend(images)
 
@@ -308,7 +311,7 @@ class AIService:
 
     @staticmethod
     def _parse_response(content: str | None) -> dict:
-        """Parst JSON aus der Modellantwort; liefert Dict mit score, summary, reasoning; wirft bei ungültigem Inhalt."""
+        """JSON aus der Modellantwort → score, summary, reasoning; wirft bei Ungültigkeit."""
         if not content:
             raise ValueError("Leere Antwort von der KI")
 

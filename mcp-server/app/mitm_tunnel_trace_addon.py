@@ -1,7 +1,7 @@
-"""mitmproxy-Addon für ``mitmdump -s …`` (von ``uv run mcp-server --http-proxy``): MCP-/mcp-Flows mit Body + redaktierter Authorization.
+"""mitmproxy-Addon für ``mitmdump -s …`` (von ``uv run mcp-server --http-proxy``).
 
-Wird von ``mcp-server --tunnel`` gestartet; Pfad zu ``SCHNAPPSTER_MITM_MCP_PATH``
-(z. B. ``/`` oder ``/mcp``).
+MCP-/mcp-Flows mit Body + redaktierter Authorization. Start durch ``mcp-server --tunnel``;
+Pfad zu ``SCHNAPPSTER_MITM_MCP_PATH`` (z. B. ``/`` oder ``/mcp``).
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import json
 import os
 from typing import Any
 
-from mitmproxy import http
+from mitmproxy import http  # pyright: ignore[reportMissingImports]
 
 _MAX_BODY_CHARS = 200_000
 

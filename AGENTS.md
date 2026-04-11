@@ -78,7 +78,7 @@ cd mcp-server && uv run ruff check schnappster_mcp tests
 - **`app/scraper/`** — Pure HTTP/HTML layer: `httpclient.py` (curl-cffi) and `parser.py` (BeautifulSoup). No business logic here.
 - **`app/services/`** — Business logic: `ScraperService` orchestrates scraping pipeline, `AIService` handles AI analysis (OpenAI-compatible API) with comparison prices, `SettingsService` reads runtime settings from DB.
 - **`app/routes/`** — FastAPI routers. All bundled via `routes/__init__.py` into `api_router`, which is included in `main.py`.
-- **`cli/`** — Root CLI (`uv run <cmd>`). **`mcp-server`** / **`schnappster-mcp`** live in **`mcp-server/schnappster_mcp/`** (editable dependency).
+- **`cli/`** — Root CLI (`uv run <cmd>`). **`mcp-server`** / **`schnappster-mcp`**: Quellcode unter **`mcp-server/app/`** (Import-Paket **`schnappster_mcp`** per Symlink im gleichen Verzeichnis; editable dependency).
 
 ### Scraping pipeline (ScraperService)
 

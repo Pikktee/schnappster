@@ -18,6 +18,7 @@ mcp-server = "schnappster_mcp.cli:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# Quellcode liegt unter `app/`; Symlink `schnappster_mcp` → `app` (Importname, kein Konflikt mit Root-`app`).
 [tool.hatch.build.targets.wheel]
 packages = ["schnappster_mcp"]
 

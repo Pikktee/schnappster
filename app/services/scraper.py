@@ -23,14 +23,14 @@ logger = logging.getLogger(__name__)
 
 
 class ScraperService:
-    """Orchestriert das Scraping: fällige Suchen laden, Seiten holen, Anzeigen filtern, in DB speichern."""
+    """Scraping orchestrieren: fällige Suchen, Seiten holen, filtern, in der DB speichern."""
 
     def __init__(self, session: Session):
         """Erstellt den Service mit der übergebenen Datenbank-Session."""
         self.session = session
 
     def scrape_due_searches(self) -> int:
-        """Führt Scrape für alle aktiven, fälligen Suchaufträge aus; gibt die Gesamtzahl neu gespeicherter Anzeigen zurück."""
+        """Scrape für alle aktiven, fälligen Suchaufträge; Zahl neu gespeicherter Anzeigen."""
         searches = self.session.exec(
             select(AdSearch).where(col(AdSearch.is_active).is_(True))
         ).all()
@@ -136,7 +136,7 @@ class ScraperService:
     def _filter_ads(
         self, details: list[ScrapedAdDetail], adsearch: AdSearch
     ) -> list[ScrapedAdDetail]:
-        """Filtert Details nach Suchauftrag und globalen Einstellungen (Preis, Blacklist, Verkäufer, Rating)."""
+        """Filtert Details nach Suchauftrag und globalen Einstellungen (Preis, Blacklist, …)."""
         settings = SettingsService(self.session)
         exclude_commercial = settings.get_bool("exclude_commercial_sellers")
         min_rating = settings.get_int("min_seller_rating")
@@ -260,8 +260,10 @@ class ScraperService:
 
         return details
 
-    def _save_ads(self, details: list[ScrapedAdDetail], adsearch_id: int, owner_id: str) -> list[Ad]:
-        """Fügt die gescrapten Anzeigendetails in die ads-Tabelle ein und gibt die erstellten Ad-Instanzen zurück."""
+    def _save_ads(
+        self, details: list[ScrapedAdDetail], adsearch_id: int, owner_id: str
+    ) -> list[Ad]:
+        """Speichert gescrapte Details in ``ads`` und gibt die neuen ``Ad``-Instanzen zurück."""
         ads: list[Ad] = []
 
         for detail in details:

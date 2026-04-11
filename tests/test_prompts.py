@@ -21,7 +21,7 @@ def test_system_prompt_contains_json_instruction():
 
 
 def test_system_prompt_contains_injection_guard():
-    """Der gerenderte System-Prompt enthält die Anweisung, dass Nutzerkontext das Format nicht überschreiben darf."""
+    """System-Prompt: Nutzerkontext darf das Antwortformat nicht überschreiben."""
     assert "Zusätzliche Bewertungshinweise" in render_system_prompt()
     assert "verbindlich" in render_system_prompt()
     assert "User-Nachricht" in render_system_prompt()

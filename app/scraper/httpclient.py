@@ -1,4 +1,7 @@
-"""HTTP-Client: HTML und Binärdaten mit Begrenzung der Parallelität und Verzögerungen (curl_cffi)."""
+"""HTTP-Client: HTML und Binärdaten mit Begrenzung der Parallelität und Verzögerungen.
+
+Nutzt curl_cffi.
+"""
 
 import asyncio
 import os
@@ -30,7 +33,7 @@ def _float_env(name: str, default: float) -> float:
 # Maximale gleichzeitige Anfragen (env: SCRAPE_MAX_CONCURRENT)
 MAX_CONCURRENT = _int_env("SCRAPE_MAX_CONCURRENT", 6)
 
-# Minimale und maximale Pause zwischen Anfragen in Sekunden (env: SCRAPE_DELAY_MIN, SCRAPE_DELAY_MAX)
+# Min./max. Pause zwischen Anfragen in Sekunden (env: SCRAPE_DELAY_MIN, SCRAPE_DELAY_MAX)
 DELAY_MIN = _float_env("SCRAPE_DELAY_MIN", 0.25)
 DELAY_MAX = _float_env("SCRAPE_DELAY_MAX", 1.0)
 
@@ -46,7 +49,7 @@ def fetch_pages(urls: list[str]) -> list[str]:
 
 
 def fetch_page(url: str) -> str:
-    """Lädt eine URL; gibt den Response-Body oder leeren String zurück; HTTP-Status wird ignoriert."""
+    """Lädt eine URL; Body oder leerer String; HTTP-Status wird ignoriert."""
     results = fetch_pages([url])
     return results[0] if results else ""
 

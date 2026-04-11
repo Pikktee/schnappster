@@ -1,4 +1,7 @@
-"""127.0.0.1:front → 127.0.0.1:back (TCP); Ersatz für mitmdump, wenn Quick-Tunnel gleiche URL behalten soll."""
+"""127.0.0.1:front → 127.0.0.1:back (TCP).
+
+Ersatz für mitmdump, wenn der Quick-Tunnel dieselbe URL behalten soll.
+"""
 
 from __future__ import annotations
 

@@ -128,7 +128,7 @@ def test_filter_blacklist_case_insensitive():
 
 
 def test_filter_rejects_commercial_seller():
-    """Anzeige wird gefiltert, wenn Verkäufer gewerblich ist und die globale Einstellung Gewerbe ausschließt."""
+    """Filter bei gewerblichem Verkäufer, wenn global Gewerbe ausgeschlossen wird."""
     detail = _make_detail(seller_type="Gewerblich")
     adsearch = _make_adsearch()
     reason = ScraperService._get_filter_reason(detail, adsearch, True, 0)

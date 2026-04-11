@@ -26,7 +26,7 @@ import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO, cast
 
 QUICK_TUNNEL_URL_RE = re.compile(
     r"https://[a-z0-9-]+\.trycloudflare\.com",
@@ -212,7 +212,7 @@ def ensure_cloudflared() -> str:
 
 
 def _mcp_project_dir() -> Path:
-    """Absolute path to ``mcp-server/`` (parent of package ``schnappster_mcp``)."""
+    """Pfad zu ``mcp-server/`` (Elternverzeichnis von ``app/``, Import ``schnappster_mcp``)."""
     return Path(__file__).resolve().parent.parent
 
 
@@ -221,7 +221,7 @@ def _resolve_mcp_dir() -> Path:
     if not (mcp_dir / "pyproject.toml").is_file():
         print(
             "mcp-server/pyproject.toml nicht gefunden — "
-            "cli.py muss im Paket schnappster_mcp liegen.",
+            "cli.py muss im Verzeichnis mcp-server/app liegen.",
             file=sys.stderr,
         )
         raise SystemExit(1)
@@ -245,7 +245,8 @@ def _effective_streamable_http_path() -> str:
     """
     from schnappster_mcp.config import Settings
 
-    path = Settings().streamable_http_path.strip() or "/"
+    # BaseSettings liest Pflichtfelder aus .env; basedpyright kennt das nicht.
+    path = cast(Any, Settings)().streamable_http_path.strip() or "/"
     return path if path.startswith("/") else f"/{path}"
 
 
@@ -790,7 +791,7 @@ def run_interactive_supervisor(
     mcp_child: subprocess.Popen[str] | None = None
     shutting_down = False
     exit_code = 0
-    tty_restore: list[tuple[int, object] | None] = [None]
+    tty_restore: list[tuple[int, Any] | None] = [None]
 
     def restore_tty() -> None:
         pair = tty_restore[0]
@@ -800,7 +801,8 @@ def run_interactive_supervisor(
         import termios  # noqa: PLC0415
 
         with contextlib.suppress(OSError):
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_attrs)
+            # typeshed: ``_Attr`` ist invariant; ``tcgetattr``-Rückgabe passt zur Laufzeit.
+            termios.tcsetattr(fd, termios.TCSADRAIN, cast(Any, old_attrs))
         sys.stdout.write("\033[?25h")
         sys.stdout.flush()
         tty_restore[0] = None

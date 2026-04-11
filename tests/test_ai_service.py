@@ -84,7 +84,7 @@ def test_detect_unknown():
 
 
 def test_build_price_context(session, sample_adsearch, sample_ads):
-    """Preiskontext liefert Dict mit Einträgen (Titel+Preis), Durchschnitt und Median aus demselben Suchauftrag."""
+    """Preiskontext: Einträge (Titel+Preis), Durchschnitt, Median im selben Suchauftrag."""
     ai_service = AIService.__new__(AIService)
     ai_service.session = session
 
@@ -159,7 +159,7 @@ def test_build_user_context_seller_rating_labels(session, sample_adsearch, sampl
 
 
 def test_build_user_context_without_prompt_addition(session, sample_adsearch, sample_ads):
-    """Gerenderter Nutzerinhalt hat keinen Anweisungsblock, wenn prompt_addition nicht gesetzt ist."""
+    """Ohne ``prompt_addition`` kein Anweisungsblock im gerenderten Nutzerinhalt."""
     ai_service = AIService.__new__(AIService)
     ai_service.session = session
     ad = sample_ads[0]

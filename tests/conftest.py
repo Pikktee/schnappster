@@ -141,7 +141,7 @@ def sample_ads(session, sample_adsearch):
 
 @pytest.fixture
 def sample_ai_analysis_log(session, sample_ads, sample_adsearch):
-    """Erstellt einen KI-Analyse-Log-Eintrag für die erste Beispielanzeige (und ihren Suchauftrag)."""
+    """KI-Analyse-Log für die erste Beispielanzeige (inkl. Suchauftrag)."""
     ad = sample_ads[0]
     log = AIAnalysisLog(
         ad_id=ad.id,

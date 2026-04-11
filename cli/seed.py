@@ -77,5 +77,6 @@ def main() -> None:
         session.commit()
 
     logger.info(
-        "Seed completed: 1 AdSearch, 4 AppSettings, 1 ScrapeRun, 2 ErrorLogs (keine Ads – werden vom Scraper gefüllt)"
+        "Seed completed: 1 AdSearch, 4 AppSettings, 1 ScrapeRun, 2 ErrorLogs "
+        "(keine Ads – werden vom Scraper gefüllt)"
     )

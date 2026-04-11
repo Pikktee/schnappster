@@ -42,7 +42,10 @@ def get_current_version() -> tuple[int, int, int]:
     # Kein Tag vorhanden – aus pyproject.toml lesen
     version = get_version_from_pyproject()
     if any(version):
-        print(f"ℹ️  Kein Git-Tag gefunden, nutze Version aus pyproject.toml: {version[0]}.{version[1]}.{version[2]}")
+        print(
+            "ℹ️  Kein Git-Tag gefunden, nutze Version aus pyproject.toml: "
+            f"{version[0]}.{version[1]}.{version[2]}"
+        )
     return version
 
 
@@ -102,7 +105,7 @@ def main() -> None:
 
     print(f"\n🏷️  {old_tag} → {new_tag}")
     print(f"   Typ: {part}")
-    print(f"\nVersion bumpen, committen und pushen? [y/N] ", end="")
+    print("\nVersion bumpen, committen und pushen? [y/N] ", end="")
     if input().strip().lower() != "y":
         print("Abgebrochen.")
         sys.exit(0)

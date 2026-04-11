@@ -19,7 +19,7 @@ class TelegramService:
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
 
     def send_bargain_notification(self, ad: Ad) -> None:
-        """Sendet formatierte Anzeigen-Nachricht an den konfigurierten Telegram-Chat; ohne Wirkung wenn nicht konfiguriert."""
+        """Sendet die formatierte Anzeige an den Telegram-Chat; no-op wenn nicht konfiguriert."""
         if not self.is_configured:
             logger.debug("Telegram is not configured, skipping notification")
             return
@@ -49,7 +49,7 @@ class TelegramService:
         return bool(self.bot_token and self.chat_id)
 
     def _format_message(self, ad: Ad) -> str:
-        """Formatiert die Anzeige als Markdown für Telegram (Titel, URL, Preis, Score, Zusammenfassung, Begründung)."""
+        """Markdown für Telegram: Titel, URL, Preis, Score, Zusammenfassung, Begründung."""
         price_str = f"{ad.price:.0f} €" if ad.price is not None else "VB"
         score_str = f"{ad.bargain_score:.1f}" if ad.bargain_score is not None else "–"
 

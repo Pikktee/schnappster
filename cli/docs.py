@@ -239,7 +239,7 @@ def main() -> None:
                     shutil.copy2(f, screenshots_out / f.name)
         print("Copied praesentation.html (and screenshots) into build")
 
-    # 6. Startseite (Übersicht mit Kacheln): Backend, Frontend, Architektur, Chrome Extension, Präsentation
+    # 6. Startseite: Kacheln Backend, Frontend, Architektur, Chrome Extension, Präsentation
     cards = []
     cards.append(
         '<a href="app.html" class="doc-card">'
@@ -262,17 +262,20 @@ def main() -> None:
         cards.append(
             '<a href="extension.html" class="doc-card">'
             "<h2>Chrome Extension</h2>"
-            "<p>Kleinanzeigen-Suchergebnisseite per Klick als Suchauftrag in Schnappster hinzufügen.</p></a>"
+            "<p>Kleinanzeigen-Suchergebnisseite per Klick als Suchauftrag in Schnappster "
+            "hinzufügen.</p></a>"
         )
     if (build_dir / "praesentation.html").exists():
         cards.append(
             '<a href="praesentation.html" class="doc-card">'
             "<h2>Präsentation</h2>"
-            "<p>Reveal.js-Folien: Projektvorstellung, Backend/Frontend, Technik, Screenshots.</p></a>"
+            "<p>Reveal.js-Folien: Projektvorstellung, Backend/Frontend, Technik, "
+            "Screenshots.</p></a>"
         )
     body = (
         "<h1>Dokumentation</h1>"
-        '<p class="doc-intro">Übersicht über Backend-Code, Frontend, Architektur und Chrome Extension.</p>'
+        '<p class="doc-intro">Übersicht über Backend-Code, Frontend, Architektur und '
+        "Chrome Extension.</p>"
         '<div class="doc-cards">' + "".join(cards) + "</div>"
     )
     index_html = _doc_page("Dokumentation", body, active=None)

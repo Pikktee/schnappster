@@ -171,7 +171,7 @@ def _parse_search_item(item: Tag) -> ScrapedAdPreview | None:
 
 
 def parse_search_title(html: str) -> str | None:
-    """Extrahiert den Seitentitel aus dem Such-HTML; zuerst <title>, dann <h1>, Kleinanzeigen-Branding entfernen."""
+    """Seitentitel aus Such-HTML: zuerst <title>, dann <h1>; Kleinanzeigen-Suffix entfernen."""
     soup = BeautifulSoup(html, "lxml")
     title_tag = soup.find("title")
     if title_tag:
@@ -210,7 +210,7 @@ _RE_AD_PRICE_TYPE = re.compile(r"adPriceType:\s*'([^']*)'")
 
 
 def _parse_detail_js_meta(html: str) -> tuple[str | None, str | None, str | None]:
-    """Extrahiert category_l1, category_l2, price_type aus der eingebetteten JS-Konfiguration der Detailseite."""
+    """Liest category_l1, category_l2, price_type aus dem eingebetteten JS der Detailseite."""
     l1 = _RE_AD_L1_CATEGORY.search(html)
     l2 = _RE_AD_L2_CATEGORY.search(html)
     pt = _RE_AD_PRICE_TYPE.search(html)
@@ -305,7 +305,7 @@ def _parse_detail_seller(
     str | None,
     str | None,
 ]:
-    """Extrahiert Verkäuferfelder aus der Profil-Box (Name, URL, Rating, Badges, Typ, aktiv seit)."""
+    """Verkäuferfelder aus der Profil-Box (Name, URL, Rating, Badges, Typ, aktiv seit)."""
     seller_name = None
     seller_url = None
     seller_rating = None
@@ -367,7 +367,7 @@ def _parse_detail_seller(
 
 
 def parse_ad_detail(html: str, url: str, external_id: str) -> ScrapedAdDetail | None:
-    """Parst vollständige Anzeigendetails von einer Detailseite; None wenn Titel fehlt (ungültige Seite)."""
+    """Vollständige Anzeigendetails von der Detailseite; None wenn der Titel fehlt."""
     soup = BeautifulSoup(html, "lxml")
 
     title = _parse_detail_title(soup)
