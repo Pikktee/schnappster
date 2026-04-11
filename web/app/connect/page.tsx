@@ -52,8 +52,24 @@ function oauthActionErrorGerman(message: string): string {
 const SCOPE_LINES = [
   "Einstellungen abrufen und ändern",
   "Suchaufträge anlegen, ändern und löschen",
-  "Schnäppchen & Anzeigen",
+  "Schnäppchen & Anzeigen abrufen",
 ] as const
+
+/**
+ * Logo-URL für die Anzeige: zuerst Supabase `logo_uri` (OAuth-Client-Registrierung).
+ * Wenn die API keins liefert — z. B. bei dynamisch registrierten MCP-Clients — optional Fallback
+ * für bekannte Namen (Anthropic setzt oft kein `logo_uri`).
+ */
+function resolveOAuthClientLogoSrc(clientName: string, logoUriFromApi: string): string {
+  const trimmed = logoUriFromApi.trim()
+  if (trimmed) {
+    return trimmed
+  }
+  if (clientName.toLowerCase().includes("claude")) {
+    return "https://claude.ai/apple-touch-icon.png"
+  }
+  return ""
+}
 
 const CARD =
   "overflow-hidden rounded-2xl border border-stone-200/90 bg-card shadow-[0_8px_30px_-12px_rgba(28,25,23,0.12)] dark:border-stone-700/80"
@@ -345,23 +361,21 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
 
   const clientName = details.client.name
   const busy = phase === "busy"
-  const logoUri = details.client.logo_uri?.trim() ?? ""
+  const logoSrc = resolveOAuthClientLogoSrc(clientName, details.client.logo_uri ?? "")
   const websiteUri = details.client.uri?.trim() ?? ""
-  const clientLogoKey = `${authorizationId}|${logoUri}`
-  const showClientLogo = Boolean(logoUri) && brokenClientLogoKey !== clientLogoKey
+  const clientLogoKey = `${authorizationId}|${logoSrc}`
+  const showClientLogo = Boolean(logoSrc) && brokenClientLogoKey !== clientLogoKey
   const logoAlt = `Logo: ${clientName}`
 
   return (
     <Card className={CARD}>
-      <CardHeader className="relative space-y-5 border-b border-border/60 px-6 pb-6 pt-8 sm:px-8">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-primary/70" aria-hidden />
-
+      <CardHeader className="space-y-5 border-b border-border/60 px-6 pb-6 pt-8 sm:px-8">
         <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start sm:gap-5">
           <div className="shrink-0">
             {showClientLogo ? (
               // eslint-disable-next-line @next/next/no-img-element -- OAuth-Client-Logo von beliebiger URL
               <img
-                src={logoUri}
+                src={logoSrc}
                 alt={logoAlt}
                 width={64}
                 height={64}
@@ -387,8 +401,8 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
               {clientName}
             </h1>
             <p className="text-pretty text-sm leading-relaxed text-muted-foreground sm:text-[0.9375rem]">
-              Diese App fordert Zugriff auf dein Schnappster-Konto an. Vergleiche Logo und Website mit dem, was du
-              erwartest. Lasse die Verbindung nur zu, wenn du dir sicher bist.
+              Diese App fordert Zugriff auf dein Schnappster-Konto an. Lasse die Verbindung nur zu, wenn du dir sicher
+              bist.
             </p>
           </div>
         </div>
