@@ -101,3 +101,20 @@ def test_mitmdump_reverse_command_shape() -> None:
     assert cmd[1] == "--mode"
     assert cmd[2] == "reverse:http://127.0.0.1:8767@127.0.0.1:8766"
     assert cmd[3:7] == ["--set", "flow_detail=0", "-s", str(addon)]
+
+
+def test_mitmdump_reverse_command_without_trace_addon() -> None:
+    cmd = _mitmdump_reverse_command(
+        "/opt/mitmdump",
+        front_port=8766,
+        backend_port=8767,
+        with_trace_addon=False,
+    )
+    assert cmd[:5] == [
+        "/opt/mitmdump",
+        "--mode",
+        "reverse:http://127.0.0.1:8767@127.0.0.1:8766",
+        "--set",
+        "flow_detail=0",
+    ]
+    assert "-s" not in cmd
