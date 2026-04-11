@@ -4,19 +4,9 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useEffect, useState } from "react"
 import { toast } from "sonner"
-import {
-  CheckCircle2,
-  ExternalLink,
-  LayoutList,
-  Loader2,
-  Search,
-  Settings2,
-  Shield,
-  XCircle,
-} from "lucide-react"
+import { CheckCircle2, ExternalLink, Loader2, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 import { buildLoginUrlWithConnectReturn } from "@/lib/connect-return-path"
 import { supabase } from "@/lib/supabase"
@@ -25,22 +15,14 @@ import type { OAuthAuthorizationDetails } from "@supabase/auth-js"
 
 type ConsentPhase = "load" | "ready" | "busy" | "approved" | "denied"
 
-const CONNECT_CARD_CLASS =
-  "overflow-hidden rounded-xl border border-border/80 bg-card shadow-lg shadow-stone-900/[0.06] ring-1 ring-stone-900/[0.03]"
+const SCOPE_LINES = [
+  "Einstellungen abrufen und ändern",
+  "Suchaufträge anlegen, ändern und löschen",
+  "Schnäppchen & Anzeigen",
+] as const
 
-function PermissionItem({ icon: Icon, title, description }: { icon: typeof Shield; title: string; description: string }) {
-  return (
-    <li className="flex gap-3 rounded-lg border border-border/60 bg-muted/25 px-3 py-3 sm:px-4">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent/80 text-accent-foreground">
-        <Icon className="size-4" aria-hidden />
-      </span>
-      <div className="min-w-0 pt-0.5">
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
-      </div>
-    </li>
-  )
-}
+const CARD =
+  "overflow-hidden rounded-2xl border border-stone-200/90 bg-card shadow-[0_8px_30px_-12px_rgba(28,25,23,0.12)] dark:border-stone-700/80"
 
 function ConnectConsentBody() {
   const router = useRouter()
@@ -139,17 +121,16 @@ function ConnectConsentBody() {
 
   if (!authorizationId) {
     return (
-      <Card className={CONNECT_CARD_CLASS}>
-        <CardHeader className="space-y-1 pb-2">
+      <Card className={CARD}>
+        <CardHeader className="space-y-1.5 px-6 pb-0 pt-6 sm:px-8">
           <CardTitle className="text-lg font-semibold tracking-tight">Link unvollständig</CardTitle>
-          <CardDescription className="text-pretty text-sm leading-relaxed">
-            Diese Seite enthält keine gültigen Verbindungsdaten. Bitte nutze den Link aus der App, mit der
-            du dich verbinden möchtest.
+          <CardDescription className="text-sm leading-relaxed">
+            Bitte den Link aus der verbindenden App verwenden.
           </CardDescription>
         </CardHeader>
-        <CardFooter className="pt-2">
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href="/">Zur Startseite</Link>
+        <CardFooter className="px-6 pb-6 pt-4 sm:px-8">
+          <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
+            <Link href="/">Startseite</Link>
           </Button>
         </CardFooter>
       </Card>
@@ -158,16 +139,14 @@ function ConnectConsentBody() {
 
   if (!supabase) {
     return (
-      <Card className={CONNECT_CARD_CLASS}>
-        <CardHeader className="space-y-1 pb-2">
+      <Card className={CARD}>
+        <CardHeader className="space-y-1.5 px-6 pb-0 pt-6 sm:px-8">
           <CardTitle className="text-lg font-semibold tracking-tight">Anmeldung nicht verfügbar</CardTitle>
-          <CardDescription className="text-pretty text-sm leading-relaxed">
-            Schnappster ist hier nicht korrekt konfiguriert. Bitte prüfe die Umgebungsvariablen.
-          </CardDescription>
+          <CardDescription className="text-sm leading-relaxed">Konfiguration prüfen (Supabase-Variablen).</CardDescription>
         </CardHeader>
-        <CardFooter className="pt-2">
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href="/">Zur Startseite</Link>
+        <CardFooter className="px-6 pb-6 pt-4 sm:px-8">
+          <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
+            <Link href="/">Startseite</Link>
           </Button>
         </CardFooter>
       </Card>
@@ -176,22 +155,15 @@ function ConnectConsentBody() {
 
   if (phase === "load" || (phase === "ready" && !details)) {
     return (
-      <Card className={CONNECT_CARD_CLASS}>
-        <CardContent className="flex flex-col items-center gap-5 py-14 sm:py-16">
-          <Spinner className="size-9 text-primary" />
-          <div className="max-w-xs text-center">
-            <p className="text-sm font-medium text-foreground">
-              {phase === "load" ? "Anfrage wird geladen …" : "Anfrage nicht verfügbar"}
-            </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-              {phase === "load"
-                ? "Einen Moment bitte. Wir holen die Details zur Verbindungsanfrage."
-                : "Die Verbindungsdaten konnten nicht geladen werden oder sind abgelaufen."}
-            </p>
-          </div>
+      <Card className={CARD}>
+        <CardContent className="flex flex-col items-center gap-4 px-6 py-12 sm:px-8">
+          <Spinner className="size-8 text-primary" />
+          <p className="text-center text-sm text-muted-foreground">
+            {phase === "load" ? "Wird geladen …" : "Anfrage ungültig oder abgelaufen."}
+          </p>
           {!details && phase === "ready" ? (
-            <Button asChild variant="outline" className="mt-1">
-              <Link href="/">Zur Startseite</Link>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/">Startseite</Link>
             </Button>
           ) : null}
         </CardContent>
@@ -200,28 +172,26 @@ function ConnectConsentBody() {
   }
 
   if (phase === "approved") {
-    const clientName = details?.client.name ?? "Die Anwendung"
+    const clientName = details?.client.name ?? "Die App"
     return (
-      <Card className={CONNECT_CARD_CLASS}>
-        <CardHeader className="space-y-4 pb-2 text-center sm:text-left">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-700 sm:mx-0 dark:text-emerald-400">
-            <CheckCircle2 className="size-8" aria-hidden />
+      <Card className={CARD}>
+        <CardHeader className="space-y-3 px-6 pb-0 pt-7 text-center sm:px-8 sm:text-left">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/12 text-primary sm:mx-0">
+            <CheckCircle2 className="size-7" aria-hidden />
           </div>
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Erfolg</p>
-            <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl">Verbindung hergestellt</CardTitle>
-            <CardDescription className="text-pretty text-base leading-relaxed text-muted-foreground">
-              <span className="font-medium text-foreground">{clientName}</span> ist mit deinem Schnappster-Konto
-              verbunden. Du kannst zur App zurückkehren oder Schnappster im Browser weiter nutzen.
+          <div className="space-y-1">
+            <CardTitle className="text-xl font-semibold tracking-tight">Verbunden</CardTitle>
+            <CardDescription className="text-sm leading-relaxed">
+              {clientName} hat Zugriff. Du kannst zurück zur App oder zu Schnappster wechseln.
             </CardDescription>
           </div>
         </CardHeader>
-        <CardFooter className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href="/">Zur Schnappster-Startseite</Link>
+        <CardFooter className="flex flex-col gap-2 px-6 pb-7 pt-5 sm:flex-row sm:justify-end sm:px-8">
+          <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
+            <Link href="/">Schnappster</Link>
           </Button>
           {postConsentRedirectUrl ? (
-            <Button type="button" className="w-full sm:w-auto" onClick={() => window.location.assign(postConsentRedirectUrl)}>
+            <Button type="button" size="sm" className="w-full sm:w-auto" onClick={() => window.location.assign(postConsentRedirectUrl)}>
               Weiter zu {clientName}
             </Button>
           ) : null}
@@ -232,27 +202,23 @@ function ConnectConsentBody() {
 
   if (phase === "denied") {
     return (
-      <Card className={CONNECT_CARD_CLASS}>
-        <CardHeader className="space-y-4 pb-2 text-center sm:text-left">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground sm:mx-0">
-            <XCircle className="size-8" aria-hidden />
+      <Card className={CARD}>
+        <CardHeader className="space-y-3 px-6 pb-0 pt-7 text-center sm:px-8 sm:text-left">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground sm:mx-0">
+            <XCircle className="size-7" aria-hidden />
           </div>
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Abgelehnt</p>
-            <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl">Zugriff nicht freigegeben</CardTitle>
-            <CardDescription className="text-pretty text-base leading-relaxed text-muted-foreground">
-              Es wurde keine Verbindung hergestellt. Die anfragende App wurde über deine Entscheidung informiert und
-              erhält keinen Zugriff auf dein Konto.
-            </CardDescription>
+          <div className="space-y-1">
+            <CardTitle className="text-xl font-semibold tracking-tight">Abgelehnt</CardTitle>
+            <CardDescription className="text-sm leading-relaxed">Keine Verbindung. Die App wurde informiert.</CardDescription>
           </div>
         </CardHeader>
-        <CardFooter className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href="/">Zur Startseite</Link>
+        <CardFooter className="flex flex-col gap-2 px-6 pb-7 pt-5 sm:flex-row sm:justify-end sm:px-8">
+          <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
+            <Link href="/">Startseite</Link>
           </Button>
           {postConsentRedirectUrl ? (
-            <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => window.location.assign(postConsentRedirectUrl)}>
-              Zurück zur App
+            <Button type="button" variant="secondary" size="sm" className="w-full sm:w-auto" onClick={() => window.location.assign(postConsentRedirectUrl)}>
+              Zur App
             </Button>
           ) : null}
         </CardFooter>
@@ -264,87 +230,62 @@ function ConnectConsentBody() {
   const busy = phase === "busy"
 
   return (
-    <Card className={CONNECT_CARD_CLASS}>
-      <CardHeader className="space-y-5 pb-2">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Zugriffsanfrage</p>
+    <Card className={CARD}>
+      <CardHeader className="relative space-y-4 px-6 pb-0 pt-7 sm:px-8">
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/0 via-primary/70 to-primary/0"
+          aria-hidden
+        />
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Zugriff</p>
           <h1
-            className="mt-2 text-balance break-words text-3xl font-bold leading-[1.15] tracking-tight text-foreground sm:text-4xl"
-            id="connect-app-title"
+            className="text-balance break-words text-2xl font-bold leading-none tracking-tight text-foreground sm:text-[1.75rem]"
+            id="connect-heading"
           >
             {clientName}
           </h1>
-          <p className="mt-3 text-pretty text-base leading-relaxed text-muted-foreground sm:text-[1.05rem]">
-            <span className="font-semibold text-foreground">{clientName}</span> fordert Zugriff auf dein
-            Schnappster-Konto an. Prüfe die folgenden Punkte und erteile die Freigabe nur, wenn du der Anwendung
-            vertraust.
+          <p className="max-w-prose text-pretty text-sm leading-relaxed text-muted-foreground">
+            Fordert Zugriff auf dein Schnappster-Konto. Nur freigeben, wenn du der App vertraust.
           </p>
         </div>
-
         {details.user?.email ? (
-          <div
-            className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2.5 text-sm text-muted-foreground"
-            role="status"
-          >
-            <Shield className="size-4 shrink-0 text-foreground/70" aria-hidden />
-            <span>
-              Du bist angemeldet als{" "}
-              <span className="font-medium text-foreground">{details.user.email}</span>
-            </span>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Konto: <span className="font-medium text-foreground">{details.user.email}</span>
+          </p>
         ) : null}
       </CardHeader>
 
-      <CardContent className="space-y-4 px-6 pb-2 sm:px-8">
-        <Separator className="bg-border/80" />
+      <CardContent className="space-y-4 px-6 pb-1 pt-5 sm:px-8">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Was wird bei Zustimmung freigegeben?</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Die App kann über Schnappster im Namen deines Kontos folgende Aktionen ausführen:
-          </p>
-          <ul className="mt-4 space-y-2.5" aria-labelledby="connect-app-title">
-            <PermissionItem
-              icon={Settings2}
-              title="Einstellungen"
-              description="Laufende Einstellungen lesen und ändern (z. B. Benachrichtigungen, Filter, API-Anbindung)."
-            />
-            <PermissionItem
-              icon={Search}
-              title="Suchaufträge"
-              description="Suchaufträge anlegen, bearbeiten und löschen sowie Scraping-Zeitpläne steuern."
-            />
-            <PermissionItem
-              icon={LayoutList}
-              title="Schnäppchen & Anzeigen"
-              description="Gefundene Anzeigen und Schnäppchen einsehen, inklusive Details und Bewertungen aus der KI-Analyse."
-            />
+          <p className="text-xs font-medium text-foreground/80">Freigabe umfasst</p>
+          <ul className="mt-2.5 space-y-1.5 border-l-2 border-primary/40 pl-4" aria-labelledby="connect-heading">
+            {SCOPE_LINES.map((line) => (
+              <li key={line} className="text-[0.8125rem] leading-snug text-foreground/90 sm:text-sm">
+                {line}
+              </li>
+            ))}
           </ul>
         </div>
 
         {details.client.uri ? (
-          <>
-            <Separator className="bg-border/80" />
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">Website der Anwendung</span>
-              <a
-                className="mt-1 flex items-center gap-1.5 break-all text-link underline decoration-link/30 underline-offset-4 transition-colors hover:decoration-link"
-                href={details.client.uri}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {details.client.uri}
-                <ExternalLink className="size-3.5 shrink-0 opacity-80" aria-hidden />
-              </a>
-            </p>
-          </>
+          <a
+            className="inline-flex max-w-full items-center gap-1 text-xs text-link underline-offset-4 hover:underline"
+            href={details.client.uri}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span className="truncate">{details.client.uri}</span>
+            <ExternalLink className="size-3 shrink-0 opacity-70" aria-hidden />
+          </a>
         ) : null}
       </CardContent>
 
-      <CardFooter className="flex flex-col gap-3 border-t border-border/60 bg-muted/15 px-6 py-5 sm:flex-row sm:justify-end sm:gap-3 sm:px-8">
+      <CardFooter className="flex flex-col gap-2 border-t border-border/50 bg-muted/20 px-6 py-4 sm:flex-row sm:justify-end sm:px-8">
         <Button
           type="button"
           variant="outline"
-          className={cn("w-full sm:order-1 sm:w-auto sm:min-w-[8.5rem]", busy && "pointer-events-none opacity-60")}
+          size="sm"
+          className={cn("w-full sm:order-1 sm:w-auto", busy && "pointer-events-none opacity-50")}
           disabled={busy}
           onClick={() => void onDeny()}
         >
@@ -352,7 +293,8 @@ function ConnectConsentBody() {
         </Button>
         <Button
           type="button"
-          className="w-full sm:order-2 sm:w-auto sm:min-w-[10rem]"
+          size="sm"
+          className="w-full sm:order-2 sm:min-w-[7.5rem] sm:w-auto"
           disabled={busy}
           onClick={() => void onApprove()}
           aria-busy={busy}
@@ -360,7 +302,7 @@ function ConnectConsentBody() {
           {busy ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden />
-              Bitte warten …
+              Warten …
             </>
           ) : (
             "Zulassen"
@@ -373,23 +315,23 @@ function ConnectConsentBody() {
 
 export default function ConnectPage() {
   return (
-    <main className="min-h-svh bg-gradient-to-b from-background via-background to-muted/40">
-      <div className="mx-auto flex min-h-svh w-full max-w-lg flex-col justify-center gap-8 px-4 py-12 sm:gap-10 sm:py-16">
-        <div className="flex flex-col items-center">
+    <main className="min-h-svh bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,theme(colors.primary/0.12),transparent)]">
+      <div className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center gap-7 px-4 py-10 sm:gap-8 sm:py-14">
+        <div className="flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element -- static logo SVG */}
           <img
             src="/logo.svg"
             alt="Schnappster"
-            className="h-14 w-auto max-w-full object-contain sm:h-16"
-            width={220}
-            height={66}
+            className="h-12 w-auto max-w-full object-contain opacity-95 sm:h-14"
+            width={200}
+            height={60}
           />
         </div>
         <Suspense
           fallback={
-            <Card className={CONNECT_CARD_CLASS}>
-              <CardContent className="flex justify-center py-16">
-                <Spinner className="size-9 text-primary" />
+            <Card className={CARD}>
+              <CardContent className="flex justify-center py-12">
+                <Spinner className="size-8 text-primary" />
               </CardContent>
             </Card>
           }
