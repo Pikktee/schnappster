@@ -40,7 +40,7 @@ Die Next.js-App kann unter **`/mcp-connect`** eine kurze Anleitung mit Schnappst
 
 | Befehl (meist vom **Repo-Root** mit `uv run …`) | Rolle |
 | --- | --- |
-| **`mcp-server`** | Komfort-CLI: startet den MCP (wie `schnappster-mcp`) oder mit **`--tunnel`** Quick Tunnel + gesetzter `MCP_RESOURCE_SERVER_URL`. |
+| **`mcp-server`** | Komfort-CLI: startet den MCP (wie `schnappster-mcp`) oder mit **`--tunnel`** Quick Tunnel + gesetzter `MCP_RESOURCE_SERVER_URL`. Mit installiertem **`mitmdump`** optional HTTP-Klartext-Trace (siehe unten). |
 | **`schnappster-mcp`** | Nur der Streamable-HTTP-MCP-Server (kein Tunnel). |
 
 Nach `uv sync` im **Schnappster-Root** ist `schnappster-mcp` als **editable** Abhängigkeit installiert — `uv run mcp-server` und `uv run schnappster-mcp` sind verfügbar.
@@ -51,13 +51,17 @@ Nach `uv sync` im **Schnappster-Root** ist `schnappster-mcp` als **editable** Ab
 uv run mcp-server
 ```
 
-**Öffentliche URL in einem Schritt (TryCloudflare + MCP):** Startet `cloudflared` (Quick Tunnel), erkennt die `https://….trycloudflare.com`-URL aus den Logs und startet den MCP mit gesetzter **`MCP_RESOURCE_SERVER_URL`** (inkl. `STREAMABLE_HTTP_PATH`, Standard `/mcp`) — **ohne** `.env` zu ändern. Strg+C beendet Tunnel und MCP.
+**Öffentliche URL in einem Schritt (TryCloudflare + MCP):** Startet `cloudflared` (Quick Tunnel), erkennt die `https://….trycloudflare.com`-URL aus den Logs und startet den MCP mit gesetzter **`MCP_RESOURCE_SERVER_URL`** (inkl. `STREAMABLE_HTTP_PATH`, Standard `/mcp`) — **ohne** `.env` zu ändern. Strg+C beendet Tunnel, ggf. mitmproxy und MCP.
 
 ```bash
 uv run mcp-server --tunnel
-# optional: anderer lokaler Port
+# optional: anderer lokaler Port (Front-Port bei mitm-Trace)
 uv run mcp-server --tunnel --port 8766
+# Tunnel ohne mitm (ein Port wie früher), auch wenn mitmdump installiert ist:
+uv run mcp-server --tunnel --tunnel-direct
 ```
+
+**HTTP-Trace (mitmproxy):** Wenn **`mitmdump`** im `PATH` liegt (z. B. `brew install mitmproxy` oder `pipx install mitmproxy`), startet `--tunnel` automatisch einen **Reverse-Proxy** auf **`--port`** (Standard **8766**) vor `cloudflared`; der MCP bindet dann auf **`--port + 1`** (Standard **8767**, gesetzt als **`MCP_PORT`**). Die öffentliche MCP-URL bleibt unverändert. Ein **mitmproxy-Addon** (`mitm_tunnel_trace_addon.py`) druckt für den MCP-Pfad (vgl. `STREAMABLE_HTTP_PATH`) **Request-/Response-Bodies** (JSON formatiert) und maskiert den Header **`Authorization`** in der Ausgabe. Sehr große Bodies werden gekürzt. Ohne `mitmdump` erscheint ein kurzer Hinweis auf stderr.
 
 Hinweis: Quick Tunnels sind nur für **Entwicklung** gedacht (zufällige Subdomain, kein SLA). **SSE-Limitierung** siehe Abschnitt [Lokales Testen per Tunnel](#lokales-testen-per-tunnel).
 
@@ -94,7 +98,7 @@ Dein MCP-Server läuft nur auf **`127.0.0.1`** — aus dem Internet (und manchma
 
 - Laut [Cloudflare-Doku zu Quick Tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/): **kein Cloudflare-Account**, nur `cloudflared` installieren und `cloudflared tunnel --url …` ausführen — es entsteht eine zufällige **`https://….trycloudflare.com`-URL**.
 - **Limit (SSE):** Quick Tunnels unterstützen **kein Server-Sent Events (SSE)** ([Limitations](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/)). Unser MCP nutzt **Streamable HTTP** mit **`json_response=True`**: der **Kern-RPC läuft über POST mit JSON** — das ist **nicht** vom gleichen SSE-Pfad betroffen wie ein reiner Event-Stream. **Wenn** dein Client für diesen Endpunkt **SSE über GET** zwingend braucht, ist TryCloudflare **erwartbar ungeeignet**; dann **ngrok** (Variante B) oder einen anderen Tunnel nutzen.
-- **Bequem aus dem Repo-Root:** `uv run mcp-server --tunnel` startet Quick Tunnel **und** MCP mit gesetzter `MCP_RESOURCE_SERVER_URL`. **Nur** den Tunnel (MCP separat): z. B. `cloudflared tunnel --url http://127.0.0.1:8766`. Auf **macOS** wird fehlendes `cloudflared` bei `--tunnel` einmalig per **`brew install cloudflared`** versucht (Homebrew muss installiert sein).
+- **Bequem aus dem Repo-Root:** `uv run mcp-server --tunnel` startet Quick Tunnel **und** MCP mit gesetzter `MCP_RESOURCE_SERVER_URL`. Ist **`mitmdump`** installiert, läuft dazwischen automatisch der **mitmproxy-Reverse-Trace** (siehe [Start](#start)). **`--tunnel-direct`** erzwingt den alten Ein-Port-Modus ohne mitm. **Nur** den Tunnel (MCP separat): z. B. `cloudflared tunnel --url http://127.0.0.1:8766`. Auf **macOS** wird fehlendes `cloudflared` bei `--tunnel` einmalig per **`brew install cloudflared`** versucht (Homebrew muss installiert sein).
 - Manuelle Installation: [cloudflared herunterladen](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
 
 #### B) ngrok
