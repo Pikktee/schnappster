@@ -87,7 +87,7 @@ function websiteLinkLabel(href: string): string {
 
 function ScopeRow({ children }: { children: string }) {
   return (
-    <li className="flex gap-3 rounded-lg py-2 pl-1 pr-2 sm:py-2.5">
+    <li className="flex gap-3 rounded-lg py-1.5 pl-1 pr-2 sm:py-2">
       <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
         <Check className="size-3 stroke-[2.5]" aria-hidden />
       </span>
@@ -369,7 +369,7 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
 
   return (
     <Card className={CARD}>
-      <CardHeader className="space-y-5 border-b border-border/60 px-6 pb-6 pt-8 sm:px-8">
+      <CardHeader className="space-y-5 border-b border-border/60 px-6 pb-4 pt-8 sm:px-8">
         <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start sm:gap-5">
           <div className="shrink-0">
             {showClientLogo ? (
@@ -401,7 +401,7 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
               {clientName}
             </h1>
             <p className="text-pretty text-sm leading-relaxed text-muted-foreground sm:text-[0.9375rem]">
-              Diese App fordert Zugriff auf dein Schnappster-Konto an. Lasse die Verbindung nur zu, wenn du dir sicher
+              fordert Zugriff auf dein Schnappster-Konto an. Lasse die Verbindung nur zu, wenn du der App vertraust.
               bist.
             </p>
           </div>
@@ -441,18 +441,18 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
         ) : null}
       </CardHeader>
 
-      <CardContent className="px-6 pb-2 pt-6 sm:px-8">
+      <CardContent className="px-6 pb-1 pt-3 sm:px-8">
         <p id="connect-scopes-label" className="text-sm font-semibold text-foreground">
           Mit Zulassen erlaubst du
         </p>
-        <ul className="mt-3 space-y-0.5" aria-labelledby="connect-scopes-label connect-heading">
+        <ul className="mt-2 space-y-0.5" aria-labelledby="connect-scopes-label connect-heading">
           {SCOPE_LINES.map((line) => (
             <ScopeRow key={line}>{line}</ScopeRow>
           ))}
         </ul>
       </CardContent>
 
-      <CardFooter className="flex flex-col gap-3 border-t border-border/50 bg-muted/15 px-6 py-6 sm:flex-row sm:justify-end sm:px-8">
+      <CardFooter className="flex flex-col gap-3 border-t border-border/50 bg-muted/15 px-6 py-5 sm:flex-row sm:justify-end sm:px-8">
         <Button
           type="button"
           variant="outline"
