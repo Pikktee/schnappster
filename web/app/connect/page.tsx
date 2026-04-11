@@ -328,49 +328,61 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
     const afterRedirect = approveRedirectDispatched && !postApproveRedirectUrl
     const noAutoUrl = !postApproveRedirectUrl && !approveRedirectDispatched
 
+    const dismissNoteClass =
+      "mt-7 border-t border-border/55 pt-6 text-[13px] font-medium leading-snug tracking-wide text-muted-foreground sm:text-[13.5px]"
+
     return (
       <Card className={CARD}>
-        <CardHeader className="space-y-6 px-6 pb-10 pt-9 text-center sm:px-8 sm:text-left">
-          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/12 text-primary sm:mx-0">
-            <CheckCircle2 className="size-9" aria-hidden />
+        <CardHeader className="space-y-8 px-6 pb-11 pt-10 text-center sm:px-8 sm:text-left">
+          <div className="mx-auto flex size-[4.25rem] items-center justify-center rounded-full bg-primary/[0.11] text-primary ring-1 ring-primary/15 sm:mx-0">
+            <CheckCircle2 className="size-[2.125rem]" strokeWidth={1.75} aria-hidden />
           </div>
 
-          <div className="space-y-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/90">
+          <div className="space-y-2.5">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.2em] text-primary/85">
               {waitingForRedirect ? "Fast geschafft" : afterRedirect ? "Fertig" : "Gespeichert"}
             </p>
-            <CardTitle className="text-pretty text-2xl font-bold leading-tight tracking-tight sm:text-[1.65rem]">
+            <CardTitle className="text-pretty text-[1.625rem] font-semibold leading-[1.2] tracking-[-0.02em] text-foreground sm:text-[1.75rem]">
               {noAutoUrl ? "Freigabe gespeichert" : "Verbindung hergestellt"}
             </CardTitle>
           </div>
 
-          <div className="rounded-xl border border-border/70 bg-muted/25 px-4 py-4 text-left sm:px-5 sm:py-5">
+          <div className="rounded-2xl border border-border/60 bg-muted/20 px-5 py-6 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-6 sm:py-7 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
             {waitingForRedirect ? (
-              <div className="space-y-3">
-                <p className="text-[15px] leading-relaxed text-foreground/95">
-                  <span className="font-semibold text-foreground">{clientName}</span> wird mit deinem Konto verknüpft —
-                  die Rückleitung zur App startet in einem Moment.
+              <div className="space-y-5">
+                <p className="text-[0.9375rem] leading-[1.65] text-foreground/92">
+                  <span className="font-semibold text-foreground">{clientName}</span> wird mit deinem Konto
+                  verknüpft — die Rückleitung zur App startet in einem Moment.
                 </p>
-                <p className="flex items-center gap-2 border-t border-border/50 pt-3 text-sm text-muted-foreground">
+                <p className="flex items-center gap-2.5 border-t border-border/45 pt-5 text-sm text-muted-foreground">
                   <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-hidden />
-                  <span>Weiterleitung wird vorbereitet …</span>
+                  <span className="leading-snug">Weiterleitung wird vorbereitet …</span>
                 </p>
               </div>
             ) : null}
 
             {afterRedirect ? (
-              <p className="text-[15px] leading-relaxed text-muted-foreground">
-                <span className="font-semibold text-foreground">{clientName}</span> ist mit Schnappster verbunden —
-                weiter geht&apos;s in der App.{" "}
-                <span className="text-foreground/90">Dieses Fenster kannst du schließen.</span>
-              </p>
+              <div>
+                <p className="text-[0.9375rem] leading-[1.65] text-muted-foreground">
+                  <span className="font-semibold text-foreground">{clientName}</span> ist mit Schnappster verbunden —
+                  weiter geht&apos;s in der App.
+                </p>
+                <p className={cn(dismissNoteClass, "text-center sm:text-left")} role="note">
+                  Dieses Fenster kannst du schließen.
+                </p>
+              </div>
             ) : null}
 
             {noAutoUrl ? (
-              <p className="text-[15px] leading-relaxed text-muted-foreground">
-                <span className="font-semibold text-foreground">{clientName}</span> ist mit Schnappster verknüpft. Es
-                gab keine automatische Rückkehr zur App — öffne sie bei Bedarf selbst oder schließe dieses Fenster.
-              </p>
+              <div>
+                <p className="text-[0.9375rem] leading-[1.65] text-muted-foreground">
+                  <span className="font-semibold text-foreground">{clientName}</span> ist mit Schnappster verknüpft. Es
+                  gab keine automatische Rückkehr zur App — öffne sie bei Bedarf selbst.
+                </p>
+                <p className={cn(dismissNoteClass, "text-center sm:text-left")} role="note">
+                  Dieses Fenster kannst du schließen.
+                </p>
+              </div>
             ) : null}
           </div>
         </CardHeader>
