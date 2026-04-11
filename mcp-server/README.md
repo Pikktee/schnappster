@@ -24,9 +24,17 @@ Reihenfolge: zuerst Repository-Root `.env`, dann `mcp-server/.env`. Abweichendes
 | `SUPABASE_PUBLISHABLE_KEY` | wie Haupt-App (typisch schon in Root-`.env`) |
 | `MCP_HOST` | Bind-Adresse (Standard `127.0.0.1`) |
 | `MCP_PORT` | Port (Standard `8766`) |
+| `PORT` | Wie `MCP_PORT` (z. B. **Railway** setzt `PORT`); **`MCP_PORT` hat Vorrang**, wenn beide gesetzt sind |
 | `MCP_RESOURCE_SERVER_URL` | Öffentliche MCP-URL inkl. Pfad, z. B. `https://mcp.example.com/` (Root auf eigener Subdomain) oder `https://tunnel…/mcp`. Wenn nicht gesetzt: `http://MCP_HOST:MCP_PORT` + `STREAMABLE_HTTP_PATH` |
 | `STREAMABLE_HTTP_PATH` | URL-Pfad des Streamable-HTTP-Endpunkts (Standard **`/`**) — muss zu `MCP_RESOURCE_SERVER_URL` passen. Nur ändern, wenn der MCP nicht an der Wurzel hängt (z. B. `/mcp` hinter einem gemeinsamen Host) |
 | `LOG_LEVEL` | `DEBUG`, `INFO`, … (Standard `INFO`) |
+
+### Produktion (Railway)
+
+- **Dockerfile:** [`mcp-server/Dockerfile`](Dockerfile) — Build immer vom **Repository-Root**: `docker build -f mcp-server/Dockerfile .`
+- **Startbefehl:** `schnappster-mcp` (reiner Streamable-HTTP-Server, kein Tunnel/`mcp-server`-Supervisor).
+- **Typische Variablen:** `MCP_HOST=0.0.0.0`, `MCP_RESOURCE_SERVER_URL=https://mcp.<deine-domain>/` (mit Pfad wie `STREAMABLE_HTTP_PATH`, meist `/`), `SCHNAPPSTER_API_BASE_URL` zur produktiven API, dieselben `SUPABASE_*` wie Web/API. **`PORT`** liefert Railway den Listen-Port (siehe Tabelle oben).
+- Railway: **Dockerfile-Pfad** `mcp-server/Dockerfile`, **Wurzelverzeichnis** = Monorepo-Root (nicht nur `mcp-server/`, sonst schlägt `COPY mcp-server/…` fehl). Custom Domain auf den MCP-Service legen.
 
 ## Start
 
