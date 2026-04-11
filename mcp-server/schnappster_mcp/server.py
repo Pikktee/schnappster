@@ -18,6 +18,7 @@ from starlette.responses import JSONResponse
 
 from schnappster_mcp.api_client import SchnappsterApiClient, SchnappsterApiError
 from schnappster_mcp.auth import SupabaseTokenVerifier
+from schnappster_mcp.bargain_detail_app import register_bargain_detail_mcp_app
 from schnappster_mcp.config import Settings
 
 
@@ -102,7 +103,9 @@ def build_mcp(settings: Settings) -> FastMCP:
             "Authentifizierung: Supabase Access Token als Bearer (wie im Web-Frontend). "
             "In Antworten an Endnutzer keine internen numerischen IDs (z. B. von Anzeigen "
             "oder Suchaufträgen) nennen; stattdessen Titel, Name des Suchauftrags oder "
-            "Kurzbeschreibung verwenden. IDs nur still für Folge-Tool-Aufrufe nutzen."
+            "Kurzbeschreibung verwenden. IDs nur still für Folge-Tool-Aufrufe nutzen. "
+            "Für eine visuelle Detailansicht eines Schnäppchens: Tool show_bargain_detail "
+            "(MCP App, falls der Client ext-apps unterstützt)."
         ),
         icons=tool_icons,
         json_response=True,
@@ -265,5 +268,12 @@ def build_mcp(settings: Settings) -> FastMCP:
         client = _api_client(settings)
         await _run_api(client.request("DELETE", f"/adsearches/{adsearch_id}"))
         return {"deleted": True, "adsearch_id": adsearch_id}
+
+    register_bargain_detail_mcp_app(
+        mcp,
+        get_api_client=lambda: _api_client(settings),
+        run_api=_run_api,
+        tool_icons=tool_icons,
+    )
 
     return mcp
