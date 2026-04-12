@@ -32,12 +32,27 @@ Dieses Dokument fasst die wichtigsten Entscheidungen und Konzepte rund um den **
 - **Cursor** kann bei **Remote-MCP** einen **OAuth-Browser-Flow** anbieten — dann ist kein manuelles Kopieren des Tokens nötig, sofern alles konfiguriert ist.
 - **Fallback:** README beschreibt weiterhin **Bearer** (Supabase Access Token), wenn der Client keinen OAuth macht oder der Flow scheitert.
 
-### Redirect-URL in Supabase (Cursor)
+### Redirect-URLs in Supabase (MCP-Clients)
 
-- Cursor nutzt für MCP-OAuth eine **feste Redirect-URL**, siehe [Cursor MCP Docs](https://cursor.com/docs/mcp#installing-mcp-servers):
-  - `cursor://anysphere.cursor-mcp/oauth/callback`
-- Diese URL muss in **Supabase → Authentication → URL Configuration / Redirect URLs** erlaubt sein (Custom Scheme `cursor://` ist bei Supabase grundsätzlich möglich; ggf. Wildcards laut [Supabase Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)).
-- **Andere Clients** (Claude, ChatGPT, …): **eigene** Redirect-URIs je nach Hersteller-Doku — alle, die ihr unterstützen wollt, in Supabase eintragen.
+Alle hier genannten URLs gehören unter **Supabase → Authentication → URL Configuration → Redirect URLs** (vollständige URLs, siehe [Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)).
+
+- **Cursor:** [Cursor MCP Docs](https://cursor.com/docs/mcp#installing-mcp-servers) — u. a.  
+  `cursor://anysphere.cursor-mcp/oauth/callback`  
+  (Custom Scheme `cursor://` ist bei Supabase grundsätzlich möglich.)
+
+- **Claude (Web / Mobile Connector):** Nach der Freigabe landet der Browser mit dem Autorisierungscode auf einem **GET**-Callback bei Anthropic, nicht auf eurer Domain. Typische Einträge (je nach Produkt/Region; **beide** eintragen, wenn unsicher):  
+  - `https://claude.ai/api/mcp/auth_callback`  
+  - `https://claude.com/api/mcp/auth_callback`  
+
+  Fehlt diese URL in der Allowlist, kann Supabase den Schritt nicht korrekt abschließen — in Claude wirkt das oft wie ein generischer Auth-Fehler.
+
+- **Weitere Clients** (ChatGPT, …): jeweils die in der Hersteller-Doku genannten Redirect-URIs ergänzen.
+
+### Meldung in Claude: „Authorization with the MCP server failed“ (`ofid_…`)
+
+- Die Zeichenkette **`ofid_…`** ist eine **Referenz für den Anthropic-Support** (Korrelation in deren Infrastruktur), nicht von Schnappster oder eurem MCP-Server.
+- **Wenn die Tools danach trotzdem funktionieren:** Häufig ein **kurzer Toast / Race** beim ersten MCP-Handshake nach OAuth; bekannt sind auch Connector-Themen (z. B. [claude-ai-mcp](https://github.com/anthropics/claude-ai-mcp) — Suche nach OAuth / „auth_callback“ / „token“). Ggf. Connector **trennen und erneut verbinden**.
+- **Wenn nichts funktioniert:** Redirect-URLs (oben), **Site URL** + **`/connect`**, und dass **`MCP_RESOURCE_SERVER_URL`** exakt der im Connector eingetragenen URL entspricht, prüfen. Mit **`ofid_…`** könnt ihr beim Support nachfragen, **wo** der Flow bei ihnen abbricht.
 
 ### Branding / „Login-Seite“
 
@@ -95,6 +110,7 @@ Remote-MCP mit der Tunnel-**HTTPS**-URL eintragen (**exakt** wie in der Konsole 
 | `authorization_id` fehlt | Authorization Path in Supabase muss **`/connect`** sein; Route `web/app/connect/` |
 | Discovery / Registration schlägt fehl | OAuth 2.1 Server wirklich aktiv; ggf. Dynamic Registration; Projekt-URL erreichbar |
 | Cursor-Callback abgelehnt | `cursor://anysphere.cursor-mcp/oauth/callback` in Redirect URLs |
+| Claude: Auth-Fehler / `ofid_…` nach Redirect | `https://claude.ai/api/mcp/auth_callback` und ggf. `https://claude.com/api/mcp/auth_callback` in Redirect URLs; ansonsten Anthropic-Support mit `ofid_…` |
 | Cursor: **Invalid Host header** nach OAuth (Streamable HTTP) | FastMCP DNS-Rebinding: öffentlicher Host muss zu **`MCP_RESOURCE_SERVER_URL`** passen (Tunnel-URL setzt die CLI); in aktuellen Schnappster-Versionen wird der Host daraus automatisch erlaubt. |
 
 ## Tests und Konfiguration (Kurz)
