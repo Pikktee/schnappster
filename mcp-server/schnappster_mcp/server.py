@@ -30,85 +30,6 @@ _FAVICON_CACHE_CONTROL_MAX_AGE_S = 86400
 _SETTINGS_FIELDS_HIDDEN_FROM_LLM = frozenset({"deletion_pending"})
 
 
-@lru_cache(maxsize=1)
-def _schnappster_mcp_icon_png_bytes() -> bytes:
-    """PNG-Rohbytes für MCP-Icons und Favicon-Routen (wie ``web/app/icon.png``)."""
-    return files("schnappster_mcp").joinpath("assets", "icon.png").read_bytes()
-
-
-async def _run_api[T](coro: Awaitable[T]) -> T:
-    """Wartet auf ``coro`` und wandelt ``SchnappsterApiError`` in ``ToolError`` um."""
-    try:
-        return await coro
-    except SchnappsterApiError as exc:
-        raise ToolError(f"Schnappster-API ({exc.status_code}): {exc}") from exc
-
-
-def _sanitize_user_settings(payload: dict) -> dict:
-    """Entfernt nicht relevante interne Settings-Felder aus MCP-Tool-Antworten."""
-    return {key: value for key, value in payload.items() if key not in _SETTINGS_FIELDS_HIDDEN_FROM_LLM}
-
-
-def _log_level(value: str) -> Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
-    """Mappt freie Log-Level-Strings auf erlaubte Uvicorn/FastMCP-Levelnamen (Fallback: INFO)."""
-    upper = value.upper()
-    if upper in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
-        return upper  # type: ignore[return-value]
-    return "INFO"
-
-
-def _api_client(settings: Settings) -> SchnappsterApiClient:
-    """Erzeugt einen API-Client mit dem aktuellen MCP-Bearer-Token oder wirft ``ToolError``."""
-    access = get_access_token()
-    if access is None:
-        raise ToolError(
-            "Nicht authentifiziert: gültiges Bearer-Token (Supabase Access Token) erforderlich."
-        )
-    return SchnappsterApiClient(settings, access.token)
-
-
-def _schnappster_mcp_icons() -> list[Icon]:
-    """Gleiches 32×32-PNG wie Next.js `app/icon.png` (für MCP-Client-Branding, z. B. Claude)."""
-    raw = _schnappster_mcp_icon_png_bytes()
-    b64 = base64.standard_b64encode(raw).decode("ascii")
-    return [Icon(src=f"data:image/png;base64,{b64}", mimeType="image/png", sizes=["32x32"])]
-
-
-def _transport_security(settings: Settings) -> TransportSecuritySettings | None:
-    """DNS-Rebinding-Schutz wie FastMCP für Loopback, plus Host aus öffentlicher MCP-URL (Tunnel).
-
-    Ohne Eintrag für z. B. ``*.trycloudflare.com`` lehnt Starlette POSTs nach OAuth mit
-    ``Invalid Host header`` ab (Host-Header = öffentliche Domain, Server bindet auf 127.0.0.1).
-    """
-    if settings.mcp_host not in ("127.0.0.1", "localhost", "::1"):
-        return None
-
-    allowed_hosts = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
-    allowed_origins = [
-        "http://127.0.0.1:*",
-        "http://localhost:*",
-        "http://[::1]:*",
-    ]
-    public = settings.mcp_resource_server_url
-    assert public is not None
-    parsed = urlparse(str(public))
-    hostname = parsed.hostname
-    if hostname and hostname not in ("127.0.0.1", "localhost", "::1"):
-        port = parsed.port
-        if port is not None and port not in (80, 443):
-            allowed_hosts.append(f"{hostname}:{port}")
-        else:
-            allowed_hosts.append(hostname)
-        scheme = parsed.scheme if parsed.scheme in ("http", "https") else "https"
-        allowed_origins.append(f"{scheme}://{hostname}:*")
-
-    return TransportSecuritySettings(
-        enable_dns_rebinding_protection=True,
-        allowed_hosts=allowed_hosts,
-        allowed_origins=allowed_origins,
-    )
-
-
 def build_mcp(settings: Settings) -> FastMCP:
     """Baut die FastMCP-Instanz inkl. Auth, Tools, Health- und Branding-Routen."""
     resource = settings.mcp_resource_server_url
@@ -342,3 +263,84 @@ def build_mcp(settings: Settings) -> FastMCP:
     )
 
     return mcp
+
+
+@lru_cache(maxsize=1)
+def _schnappster_mcp_icon_png_bytes() -> bytes:
+    """PNG-Rohbytes für MCP-Icons und Favicon-Routen (wie ``web/app/icon.png``)."""
+    return files("schnappster_mcp").joinpath("assets", "icon.png").read_bytes()
+
+
+async def _run_api[T](coro: Awaitable[T]) -> T:
+    """Wartet auf ``coro`` und wandelt ``SchnappsterApiError`` in ``ToolError`` um."""
+    try:
+        return await coro
+    except SchnappsterApiError as exc:
+        raise ToolError(f"Schnappster-API ({exc.status_code}): {exc}") from exc
+
+
+def _sanitize_user_settings(payload: dict) -> dict:
+    """Entfernt nicht relevante interne Settings-Felder aus MCP-Tool-Antworten."""
+    return {
+        key: value for key, value in payload.items() if key not in _SETTINGS_FIELDS_HIDDEN_FROM_LLM
+    }
+
+
+def _log_level(value: str) -> Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+    """Mappt freie Log-Level-Strings auf erlaubte Uvicorn/FastMCP-Levelnamen (Fallback: INFO)."""
+    upper = value.upper()
+    if upper in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
+        return upper  # type: ignore[return-value]
+    return "INFO"
+
+
+def _api_client(settings: Settings) -> SchnappsterApiClient:
+    """Erzeugt einen API-Client mit dem aktuellen MCP-Bearer-Token oder wirft ``ToolError``."""
+    access = get_access_token()
+    if access is None:
+        raise ToolError(
+            "Nicht authentifiziert: gültiges Bearer-Token (Supabase Access Token) erforderlich."
+        )
+    return SchnappsterApiClient(settings, access.token)
+
+
+def _schnappster_mcp_icons() -> list[Icon]:
+    """Gleiches 32×32-PNG wie Next.js `app/icon.png` (für MCP-Client-Branding, z. B. Claude)."""
+    raw = _schnappster_mcp_icon_png_bytes()
+    b64 = base64.standard_b64encode(raw).decode("ascii")
+    return [Icon(src=f"data:image/png;base64,{b64}", mimeType="image/png", sizes=["32x32"])]
+
+
+def _transport_security(settings: Settings) -> TransportSecuritySettings | None:
+    """DNS-Rebinding-Schutz wie FastMCP für Loopback, plus Host aus öffentlicher MCP-URL (Tunnel).
+
+    Ohne Eintrag für z. B. ``*.trycloudflare.com`` lehnt Starlette POSTs nach OAuth mit
+    ``Invalid Host header`` ab (Host-Header = öffentliche Domain, Server bindet auf 127.0.0.1).
+    """
+    if settings.mcp_host not in ("127.0.0.1", "localhost", "::1"):
+        return None
+
+    allowed_hosts = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
+    allowed_origins = [
+        "http://127.0.0.1:*",
+        "http://localhost:*",
+        "http://[::1]:*",
+    ]
+    public = settings.mcp_resource_server_url
+    assert public is not None
+    parsed = urlparse(str(public))
+    hostname = parsed.hostname
+    if hostname and hostname not in ("127.0.0.1", "localhost", "::1"):
+        port = parsed.port
+        if port is not None and port not in (80, 443):
+            allowed_hosts.append(f"{hostname}:{port}")
+        else:
+            allowed_hosts.append(hostname)
+        scheme = parsed.scheme if parsed.scheme in ("http", "https") else "https"
+        allowed_origins.append(f"{scheme}://{hostname}:*")
+
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=allowed_hosts,
+        allowed_origins=allowed_origins,
+    )

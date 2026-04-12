@@ -292,7 +292,22 @@
         </div>
       </section>
 
-      <!-- 2: Systemübersicht -->
+      <!-- 2: Ziel des Projekts -->
+      <section>
+        <h2>Ziel</h2>
+        <p class="subtitle">Einen Remote MCP-Server mit OAuth-Autorisierung implementieren.</p>
+        <ul style="margin-top: 0.5em;">
+          <li>Schnappster über das Internet per <strong>KI-Assistent</strong> steuerbar machen</li>
+          <li>Nutzer-Autorisierung über <strong>OAuth 2.1</strong> (Supabase)</li>
+        </ul>
+        <h3 style="margin-top: 0.8em;">Schritte vorab</h3>
+        <ul>
+          <li>Weiterentwicklung zum <strong>Mehrbenutzersystem</strong></li>
+          <li><strong>Automatisches Deployment</strong> der drei Services</li>
+        </ul>
+      </section>
+
+      <!-- 3: Systemübersicht -->
       <section>
         <h2>Systemübersicht</h2>
         <div style="text-align: center; margin: 0.2em 0;">
@@ -330,7 +345,7 @@
       <!-- 3: Deployment -->
       <section>
         <h2>Automatisches Deployment</h2>
-        <p class="subtitle">Ein Befehl deployt alles — drei parallele Jobs.</p>
+        <p class="subtitle">Ein Befehl deployed alles — drei parallele Jobs.</p>
         <div style="text-align: center; margin: 0.3em 0;">
           <img src="schnappster-deployment.png" alt="Deployment-Pipeline: Release-Tag → GitHub Actions → Vercel + Railway (API + MCP)" class="screenshot" style="max-height: 22em;" />
         </div>
@@ -386,7 +401,7 @@
 
       <!-- 6: MCP-Auth -->
       <section>
-        <h2>MCP-Authentifizierung</h2>
+        <h2>MCP-Autorisierung</h2>
         <p class="subtitle">OAuth 2.1 via Supabase — kein manuelles Token-Kopieren.</p>
         <ol>
           <li>MCP-Server-URL in Cursor eintragen</li>
