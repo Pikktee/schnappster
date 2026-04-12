@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Schnäppchen</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: system-ui, sans-serif;
+      line-height: 1.45;
+    }
+    body {
+      margin: 0;
+      padding: 12px;
+      background: transparent;
+    }
+    #root { max-width: 42rem; margin: 0 auto; }
+    h1 { font-size: 1.15rem; margin: 0 0 8px; font-weight: 650; }
+    .muted { opacity: 0.75; font-size: 0.85rem; }
+    .score {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      background: color-mix(in oklab, CanvasText 12%, Canvas);
+    }
+    .section { margin-top: 14px; }
+    .section h2 {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin: 0 0 6px;
+      opacity: 0.7;
+    }
+    .box {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: color-mix(in oklab, CanvasText 6%, Canvas);
+    }
+    a.link { color: inherit; word-break: break-all; }
+    .empty { opacity: 0.7; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <p class="empty">Verbinde mit MCP-App…</p>
+  </div>
+  <script type="module">
+    import { App } from "{{ ext_apps_import_url }}";
+
+    const root = document.getElementById("root");
+
+    function el(tag, props, children) {
+      const n = document.createElement(tag);
+      if (props) Object.assign(n, props);
+      (children || []).forEach((c) => {
+        if (c != null) n.appendChild(c);
+      });
+      return n;
+    }
+
+    function text(t) {
+      return document.createTextNode(t == null ? "" : String(t));
+    }
+
+    function fmtPrice(p) {
+      if (p == null || p === "") return "—";
+      return new Intl.NumberFormat("de-DE", {
+        style: "currency",
+        currency: "EUR",
+        maximumFractionDigits: 0,
+      }).format(Number(p));
+    }
+
+    function render(data) {
+      root.innerHTML = "";
+      if (!data || typeof data !== "object") {
+        root.appendChild(el("p", { className: "empty" }, [text("Keine Daten.")]));
+        return;
+      }
+
+      const title = data.title || "Anzeige";
+      const score =
+        data.bargain_score != null ? String(data.bargain_score) : "—";
+
+      const head = el("div", null, [
+        el("h1", null, [text(title)]),
+        el("p", { className: "muted" }, [
+          text("Score: "),
+          el("span", { className: "score" }, [text(score)]),
+          text(
+            data.city || data.postal_code
+              ? " · " + [data.postal_code, data.city].filter(Boolean).join(" ")
+              : ""
+          ),
+        ]),
+      ]);
+      root.appendChild(head);
+
+      if (data.url) {
+        const ka = el(
+          "a",
+          {
+            className: "link",
+            href: data.url,
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+          [text("Auf Kleinanzeigen öffnen")]
+        );
+        ka.addEventListener("click", (ev) => {
+          if (typeof app.openLink === "function") {
+            ev.preventDefault();
+            void app.openLink({ url: data.url });
+          }
+        });
+        root.appendChild(el("p", { className: "section" }, [ka]));
+      }
+
+      const addSection = (label, bodyText) => {
+        if (!bodyText) return;
+        root.appendChild(
+          el("div", { className: "section" }, [
+            el("h2", null, [text(label)]),
+            el("div", { className: "box" }, [text(bodyText)]),
+          ])
+        );
+      };
+
+      addSection("Kurzfassung", data.ai_summary);
+      addSection("Begründung", data.ai_reasoning);
+
+      const sellerBits = [
+        data.seller_name && "Verkäufer: " + data.seller_name,
+        data.seller_type && "Typ: " + data.seller_type,
+        data.price != null && "Preis: " + fmtPrice(data.price),
+      ].filter(Boolean);
+      if (sellerBits.length) {
+        root.appendChild(
+          el("div", { className: "section" }, [
+            el("h2", null, [text("Angebot")]),
+            el("div", { className: "box" }, [
+              text(sellerBits.join(" · ")),
+            ]),
+          ])
+        );
+      }
+
+      if (data.description) {
+        addSection("Beschreibung", data.description);
+      }
+    }
+
+    function renderStatus(message) {
+      root.innerHTML = "";
+      root.appendChild(el("p", { className: "empty" }, [text(message)]));
+    }
+
+    function renderError(message) {
+      root.innerHTML = "";
+      root.appendChild(el("h1", null, [text("Fehler")]));
+      root.appendChild(
+        el("div", { className: "box section" }, [text(message || "Unbekannter Fehler.")])
+      );
+    }
+
+    function stringifyError(err) {
+      if (!err) return "Unbekannter Fehler.";
+      if (typeof err === "string") return err;
+      if (err.message) return String(err.message);
+      try {
+        return JSON.stringify(err);
+      } catch (_e) {
+        return String(err);
+      }
+    }
+
+    const app = new App({ name: "Schnappster Schnäppchen", version: "1.0.0" });
+
+    app.ontoolresult = ({ content }) => {
+      const block = content?.find((c) => c.type === "text");
+      if (!block?.text) {
+        renderError("Keine Textdaten im Tool-Ergebnis.");
+        return;
+      }
+      try {
+        render(JSON.parse(block.text));
+      } catch (e) {
+        renderError("JSON konnte nicht gelesen werden: " + stringifyError(e));
+      }
+    };
+
+    try {
+      renderStatus("Lade Anzeige…");
+      await app.connect();
+    } catch (e) {
+      renderError("Verbindung fehlgeschlagen: " + stringifyError(e));
+    }
+  </script>
+</body>
+</html>

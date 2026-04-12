@@ -19,12 +19,12 @@ from starlette.responses import JSONResponse, Response
 
 from schnappster_mcp.api_client import SchnappsterApiClient, SchnappsterApiError
 from schnappster_mcp.auth import SupabaseTokenVerifier
-from schnappster_mcp.bargain_detail_app import (
+from schnappster_mcp.config import Settings
+from schnappster_mcp.mcp_apps import (
     ad_searches_tool_meta,
     recent_bargains_tool_meta,
-    register_bargain_detail_mcp_app,
+    register_mcp_apps,
 )
-from schnappster_mcp.config import Settings
 
 _FAVICON_CACHE_CONTROL_MAX_AGE_S = 86400
 
@@ -215,10 +215,13 @@ def build_mcp(settings: Settings) -> FastMCP:
         return await _run_api(client.request("PATCH", "/users/me/settings", json_body=body))
 
     @mcp.tool(icons=tool_icons, meta=ad_searches_tool_meta())
-    async def list_ad_searches() -> list:
-        """Listet alle Suchaufträge des Nutzers."""
+    async def list_ad_searches() -> dict:
+        """Listet alle Suchaufträge; Antwort als Objekt mit ``items`` (kein Top-Level-Array)."""
         client = _api_client(settings)
-        return await _run_api(client.request("GET", "/adsearches/"))
+        rows = await _run_api(client.request("GET", "/adsearches/"))
+        if not isinstance(rows, list):
+            rows = []
+        return {"items": rows, "total": len(rows)}
 
     @mcp.tool(icons=tool_icons)
     async def get_ad_search(adsearch_id: int) -> dict:
@@ -302,7 +305,7 @@ def build_mcp(settings: Settings) -> FastMCP:
         await _run_api(client.request("DELETE", f"/adsearches/{adsearch_id}"))
         return {"deleted": True, "adsearch_id": adsearch_id}
 
-    register_bargain_detail_mcp_app(
+    register_mcp_apps(
         mcp,
         get_api_client=lambda: _api_client(settings),
         run_api=_run_api,

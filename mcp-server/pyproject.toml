@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "httpx>=0.28.1",
+    "jinja2>=3.1.0",
     "mcp>=1.19.0",
     "pydantic-settings>=2.6.0",
 ]
@@ -24,6 +25,9 @@ build-backend = "setuptools.build_meta"
 where = ["."]
 include = ["schnappster_mcp*"]
 namespaces = false
+
+[tool.setuptools.package-data]
+schnappster_mcp = ["templates/*.j2"]
 
 [dependency-groups]
 dev = [

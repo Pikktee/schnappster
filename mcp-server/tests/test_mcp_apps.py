@@ -1,4 +1,4 @@
-"""Tests für die MCP-App „Schnäppchen-Details“."""
+"""Tests für eingebettete MCP-Apps (ext-apps)."""
 
 from typing import Any, cast
 
@@ -6,7 +6,7 @@ import pytest
 from mcp.server.fastmcp import FastMCP
 
 from schnappster_mcp.api_client import SchnappsterApiClient
-from schnappster_mcp.bargain_detail_app import BargainDetailMcpApp, register_bargain_detail_mcp_app
+from schnappster_mcp.mcp_apps import BargainDetailMcpApp, register_mcp_apps
 
 
 class _FakeApiClient:
@@ -30,7 +30,7 @@ async def test_show_bargain_detail_tool_and_resource_registered() -> None:
     async def run_api(coro: Any) -> Any:
         return await coro
 
-    register_bargain_detail_mcp_app(
+    register_mcp_apps(
         mcp,
         get_api_client=lambda: cast(SchnappsterApiClient, _FakeApiClient()),
         run_api=run_api,
