@@ -15,7 +15,7 @@ def _parse_any_http_url(value: str) -> AnyHttpUrl:
 
 
 def _mcp_project_dir() -> Path:
-    """Directory `mcp-server/` (parent of on-disk package dir `app` → import `schnappster_mcp`)."""
+    """Directory `mcp-server/` (parent of package dir `schnappster_mcp/`)."""
     return Path(__file__).resolve().parent.parent
 
 

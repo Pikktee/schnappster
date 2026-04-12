@@ -311,7 +311,7 @@ def _mitmdump_reverse_command(
 
 
 def _tcp_forward_argv(mcp_dir: Path, front_port: int, backend_port: int) -> list[str]:
-    script = mcp_dir / "app" / "tunnel_front_tcp.py"
+    script = mcp_dir / "schnappster_mcp" / "tunnel_front_tcp.py"
     return [sys.executable, str(script), str(front_port), str(backend_port)]
 
 

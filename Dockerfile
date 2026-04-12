@@ -27,7 +27,7 @@ WORKDIR /app
 # Python-Abhängigkeiten + Frontend-Quellen zusammen kopieren.
 # pyproject.toml vor web/ stellt sicher dass ein Version-Bump
 # den Frontend-Build-Cache invalidiert.
-# mcp-server/ vor uv sync: schnappster-mcp ist path-dependency ([tool.uv.sources]); Code unter `mcp-server/app/`, Symlink `schnappster_mcp` → `app`.
+# mcp-server/ vor uv sync: schnappster-mcp ist path-dependency ([tool.uv.sources]); Paket unter `mcp-server/schnappster_mcp/`.
 COPY pyproject.toml uv.lock* README.md ./
 COPY mcp-server/ ./mcp-server/
 RUN uv sync --frozen --no-dev

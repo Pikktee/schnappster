@@ -66,7 +66,7 @@ uv run mcp-server --http-proxy   # mitmdump; Log unter logs/mcp_mitmdump_*.log (
 cd mcp-server && uv sync --all-groups && uv run schnappster-mcp   # nur Unterprojekt-venv
 uv run pytest            # im Repo-Root (`tests/` + `cli/mcp_server/`, siehe `pytest.ini`)
 cd mcp-server && uv run pytest   # nur `mcp-server/tests/` (eigenes Pytest-Projekt)
-cd mcp-server && uv run ruff check app tests
+cd mcp-server && uv run ruff check schnappster_mcp tests
 ```
 
 ## Architecture
@@ -78,7 +78,7 @@ cd mcp-server && uv run ruff check app tests
 - **`app/scraper/`** — Pure HTTP/HTML layer: `httpclient.py` (curl-cffi) and `parser.py` (BeautifulSoup). No business logic here.
 - **`app/services/`** — Business logic: `ScraperService` orchestrates scraping pipeline, `AIService` handles AI analysis (OpenAI-compatible API) with comparison prices, `SettingsService` reads runtime settings from DB.
 - **`app/routes/`** — FastAPI routers. All bundled via `routes/__init__.py` into `api_router`, which is included in `main.py`.
-- **`cli/`** — Root CLI (`uv run <cmd>`). Komfort-**`mcp-server`** (Tunnel-Supervisor, mitmproxy): **`cli/mcp_server/`**. **`schnappster-mcp`**: Server-Code unter **`mcp-server/app/`**; Symlink **`mcp-server/schnappster_mcp` → `app`** für Import **`schnappster_mcp`** (Pyright/setuptools, keine zweite Quellkopie).
+- **`cli/`** — Root CLI (`uv run <cmd>`). Komfort-**`mcp-server`** (Tunnel-Supervisor, mitmproxy): **`cli/mcp_server/`**. **`schnappster-mcp`**: Python-Paket **`mcp-server/schnappster_mcp/`** (Import **`schnappster_mcp`**).
 
 ### Scraping pipeline (ScraperService)
 

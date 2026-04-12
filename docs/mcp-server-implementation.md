@@ -4,10 +4,8 @@ Dieses Dokument fasst die wichtigsten Entscheidungen und Konzepte rund um den **
 
 ## Architektur kurz
 
-- **MCP-Paket:** [`mcp-server/app/`](../mcp-server/app/) — Streamable HTTP, FastMCP, Tools rufen die Schnappster-API mit Bearer-Token auf (Importname `schnappster_mcp`).
-- **Zwei CLI-Einstiege** (im Unterprojekt [`mcp-server/pyproject.toml`](../mcp-server/pyproject.toml)):
-  - **`schnappster-mcp`** — nur der HTTP-Server.
-  - **`mcp-server`** — im Terminal **Supervisor** (MCP per `r` neu; Quick-Tunnel bleibt): lokal, oder **`--tunnel`** (TryCloudflare + `MCP_RESOURCE_SERVER_URL`), oder **`--http-proxy`** (mitmproxy vor dem Tunnel; Klartext-Log unter **`logs/`**). Ohne TTY: einmaliger Start wie `schnappster-mcp`.
+- **MCP-Paket:** [`mcp-server/schnappster_mcp/`](../mcp-server/schnappster_mcp/) — Streamable HTTP, FastMCP, Tools rufen die Schnappster-API mit Bearer-Token auf (Import `schnappster_mcp`).
+- **Zwei CLI-Einstiege:** **`schnappster-mcp`** nur der HTTP-Server ([`mcp-server/pyproject.toml`](../mcp-server/pyproject.toml)); **`mcp-server`** der Tunnel-/Supervisor-CLI ([Root-`pyproject.toml`](../pyproject.toml) → `cli/mcp_server/cli.py`).
 - **Root-Projekt:** `schnappster-mcp` ist als **editable** Abhängigkeit eingetragen; `uv run mcp-server` / `uv run schnappster-mcp` funktionieren vom Repo-Root nach `uv sync`.
 
 ## Tunnel: nur Quick Tunnel (TryCloudflare)
@@ -26,7 +24,7 @@ Dieses Dokument fasst die wichtigsten Entscheidungen und Konzepte rund um den **
 ### Issuer und Token
 
 - **`issuer_url`** in FastMCP zeigt auf **Supabase Auth** (`…/auth/v1`), nicht auf eine separate „Schnappster-OAuth“-Instanz.
-- **Verifier:** [`SupabaseTokenVerifier`](../mcp-server/app/auth.py) — prüft Tokens per `GET …/auth/v1/user` (gleiche Idee wie im Web-Frontend).
+- **Verifier:** [`SupabaseTokenVerifier`](../mcp-server/schnappster_mcp/auth.py) — prüft Tokens per `GET …/auth/v1/user` (gleiche Idee wie im Web-Frontend).
 - **Öffentliche MCP-URL:** `MCP_RESOURCE_SERVER_URL` muss zur erreichbaren HTTPS-URL passen (OAuth-/Protected-Resource-Metadaten).
 
 ### OAuth in Cursor vs. manuelles Bearer
@@ -115,5 +113,5 @@ Remote-MCP mit der Tunnel-**HTTPS**-URL eintragen (**exakt** wie in der Konsole 
 | Befehle, Env, Tunnel, Clients | [`mcp-server/README.md`](../mcp-server/README.md) |
 | Root-Befehle inkl. `mcp-server` | [`AGENTS.md`](../AGENTS.md) |
 | Verbindungsfreigabe (Supabase OAuth Server) | `web/app/connect/` |
-| MCP-Server-Build / Auth-Code | [`mcp-server/app/server.py`](../mcp-server/app/server.py) |
+| MCP-Server-Build / Auth-Code | [`mcp-server/schnappster_mcp/server.py`](../mcp-server/schnappster_mcp/server.py) |
 | Supabase: MCP + OAuth-Client-Setup | [MCP Authentication → OAuth client setup](https://supabase.com/docs/guides/auth/oauth-server/mcp-authentication#oauth-client-setup) |
