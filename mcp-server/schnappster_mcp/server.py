@@ -128,12 +128,12 @@ def build_mcp(settings: Settings) -> FastMCP:
             "oder Suchaufträgen) nennen; stattdessen Titel, Name des Suchauftrags oder "
             "Kurzbeschreibung verwenden. IDs nur still für Folge-Tool-Aufrufe nutzen. "
             "MCP-Apps (eingebettete Oberfläche bei list_recent_bargains, list_ad_searches, "
-            "show_bargain_detail): Schreibe **vor** dem jeweiligen Tool-Aufruf 1–3 Sätze "
-            "Nutzer-Text (Kontext, Einordnung, Trefferzahl bzw. Anzahl Suchaufträge). "
-            "Rufe das Tool **danach** auf. Die App zeigt nur die kompakte Tabelle bzw. Karte — "
-            "keine Trefferzeile und keine Zähler in der App; Zusammenfassungen gehören in den "
-            "Chat-Text. Für Details zu einer Anzeige: show_bargain_detail (falls der Client "
-            "ext-apps unterstützt)."
+            "show_bargain_detail): Vor dem Tool-Aufruf höchstens 1 kurzer Einordnungssatz. "
+            "Rufe das Tool direkt danach auf. Nach dem Tool-Aufruf keine zusätzliche "
+            "Auflistung als Tabelle, Bullet-Liste oder Wiederholung der einzelnen Treffer im "
+            "Chat ausgeben; die eigentliche Darstellung erfolgt in der App. Wenn nötig, nur "
+            "eine knappe Ein-Satz-Zusammenfassung ohne Einzelposten. Für Details zu einer "
+            "Anzeige: show_bargain_detail (falls der Client ext-apps unterstützt)."
         ),
         icons=tool_icons,
         json_response=True,
@@ -192,8 +192,8 @@ def build_mcp(settings: Settings) -> FastMCP:
     ) -> dict:
         """Listet analysierte Anzeigen, sortiert nach Schnäppchen-Score (höchste zuerst).
 
-        Vor dem Aufruf kurz an den Nutzer schreiben (inkl. Trefferzahl); die MCP-App ist nur
-        die sortierbare Tabelle ohne eigene Zählerzeile.
+        Bei Clients mit MCP-App soll die Ergebnisliste nur in der App angezeigt werden, nicht
+        zusätzlich als Tabelle oder Bullet-Liste im Chat-Text.
         """
         lim = min(max(limit, 1), 100)
         params: dict[str, str | int] = {
@@ -243,8 +243,8 @@ def build_mcp(settings: Settings) -> FastMCP:
     async def list_ad_searches() -> dict:
         """Listet alle Suchaufträge; Antwort als Objekt mit ``items`` (kein Top-Level-Array).
 
-        Vor dem Aufruf kurz an den Nutzer schreiben (inkl. Anzahl Suchaufträge); die MCP-App
-        zeigt keine separate Zählerzeile.
+        Bei Clients mit MCP-App soll die Ergebnisliste nur in der App angezeigt werden, nicht
+        zusätzlich als Tabelle oder Bullet-Liste im Chat-Text.
         """
         client = _api_client(settings)
         rows = await _run_api(client.request("GET", "/adsearches/"))

@@ -12,20 +12,7 @@
     }
     body { margin: 0; padding: 12px; background: transparent; }
     #root { max-width: 68rem; margin: 0 auto; }
-    .toolbar {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
-    }
     .muted { opacity: 0.74; font-size: 0.9rem; }
-    .status {
-      margin: 0 0 8px;
-      font-size: 0.9rem;
-      opacity: 0.82;
-    }
     .error-box {
       margin-bottom: 10px;
       padding: 10px 12px;
@@ -55,16 +42,6 @@
       border-bottom: 1px dashed color-mix(in oklab, CanvasText 32%, Canvas);
       word-break: break-word;
     }
-    button {
-      border: 1px solid color-mix(in oklab, CanvasText 20%, Canvas);
-      background: color-mix(in oklab, CanvasText 5%, Canvas);
-      color: inherit;
-      border-radius: 8px;
-      padding: 4px 8px;
-      cursor: pointer;
-      font: inherit;
-    }
-    button:hover { background: color-mix(in oklab, CanvasText 10%, Canvas); }
     .toggle {
       display: inline-flex;
       gap: 6px;
@@ -96,7 +73,7 @@
 </head>
 <body>
   <div id="root">
-    <p class="status">Verbinde mit MCP-App…</p>
+    <p class="muted">Verbinde mit MCP-App…</p>
   </div>
   <script type="module">
     import { App } from "{{ ext_apps_import_url }}";
@@ -104,7 +81,6 @@
     const root = document.getElementById("root");
     const state = {
       searches: [],
-      notice: "",
       error: "",
       busyIds: new Set(),
     };
@@ -172,25 +148,8 @@
       return app.callServerTool({ name, arguments: args });
     }
 
-    async function refreshSearches() {
-      state.notice = "Aktualisiere Suchaufträge…";
-      state.error = "";
-      render();
-      try {
-        const result = await callServerToolOrThrow("list_ad_searches", {});
-        state.searches = parseAdSearchesToolResult(result);
-        state.notice = "Aktualisiert.";
-        state.error = "";
-      } catch (err) {
-        state.notice = "";
-        state.error = "Aktualisierung fehlgeschlagen: " + stringifyError(err);
-      }
-      render();
-    }
-
     async function toggleSearch(item, nextValue) {
       state.busyIds.add(item.id);
-      state.notice = "Speichere Status…";
       state.error = "";
       render();
       try {
@@ -199,10 +158,8 @@
           is_active: nextValue,
         });
         item.is_active = nextValue;
-        state.notice = "Status gespeichert.";
         state.error = "";
       } catch (err) {
-        state.notice = "";
         state.error = "Toggle fehlgeschlagen: " + stringifyError(err);
       } finally {
         state.busyIds.delete(item.id);
@@ -212,19 +169,6 @@
 
     function render() {
       root.innerHTML = "";
-
-      const refreshBtn = el("button", { type: "button" }, [text("Neu laden")]);
-      refreshBtn.addEventListener("click", refreshSearches);
-
-      root.appendChild(
-        el("div", { className: "toolbar" }, [
-          refreshBtn,
-        ])
-      );
-
-      if (state.notice) {
-        root.appendChild(el("p", { className: "status" }, [text(state.notice)]));
-      }
       if (state.error) {
         root.appendChild(el("div", { className: "error-box" }, [text(state.error)]));
       }
@@ -259,7 +203,7 @@
         });
         const toggleLabel = el("label", { className: "toggle" }, [
           checkbox,
-          text(busy ? "Speichert…" : item.is_active ? "Aktiv" : "Inaktiv"),
+          text(item.is_active ? "Aktiv" : "Inaktiv"),
         ]);
 
         const label = item.name || "Unbenannter Suchauftrag";
@@ -312,10 +256,8 @@
         if (!blocks.length) throw new Error("Keine Textdaten im Tool-Ergebnis.");
         const payload = JSON.parse(blocks[0].text);
         state.searches = searchesFromToolPayload(payload, blocks);
-        state.notice = "";
         state.error = "";
       } catch (err) {
-        state.notice = "";
         state.error = "Antwort konnte nicht gelesen werden: " + stringifyError(err);
       }
       render();
@@ -323,11 +265,9 @@
 
     try {
       await app.connect();
-      state.notice = "Warte auf Tool-Daten…";
       state.error = "";
       render();
     } catch (err) {
-      state.notice = "";
       state.error = "Verbindung fehlgeschlagen: " + stringifyError(err);
       render();
     }

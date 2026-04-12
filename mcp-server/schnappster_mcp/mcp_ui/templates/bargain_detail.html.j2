@@ -296,16 +296,71 @@
       }
     }
 
+    function parseMaybeJson(value) {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      if (!trimmed) return value;
+      if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return value;
+      try {
+        return JSON.parse(trimmed);
+      } catch (_e) {
+        return value;
+      }
+    }
+
+    function normalizeDetailPayload(raw) {
+      let current = parseMaybeJson(raw);
+      let guard = 0;
+      while (guard < 8 && current != null) {
+        guard += 1;
+        if (Array.isArray(current)) {
+          if (current.length === 0) return null;
+          current = parseMaybeJson(current[0]);
+          continue;
+        }
+        if (typeof current !== "object") return null;
+
+        const candidateKeys = ["item", "ad", "data", "payload", "result", "text"];
+        let extracted = false;
+        for (const key of candidateKeys) {
+          if (key in current) {
+            current = parseMaybeJson(current[key]);
+            extracted = true;
+            break;
+          }
+        }
+        if (extracted) continue;
+
+        if ("content" in current && Array.isArray(current.content) && current.content.length > 0) {
+          const textBlock = current.content.find((entry) => entry && entry.type === "text");
+          current = parseMaybeJson(textBlock?.text ?? current.content[0]);
+          continue;
+        }
+
+        if ("title" in current || "url" in current || "bargain_score" in current) {
+          return current;
+        }
+
+        return current;
+      }
+      return null;
+    }
+
+    function parseToolDetailPayload(content) {
+      const block = content?.find((c) => c.type === "text");
+      if (!block?.text) throw new Error("Keine Textdaten im Tool-Ergebnis.");
+      const normalized = normalizeDetailPayload(block.text);
+      if (!normalized || typeof normalized !== "object") {
+        throw new Error("Detaildaten konnten nicht extrahiert werden.");
+      }
+      return normalized;
+    }
+
     const app = new App({ name: "Schnappster Schnäppchen", version: "1.0.0" });
 
     app.ontoolresult = ({ content }) => {
-      const block = content?.find((c) => c.type === "text");
-      if (!block?.text) {
-        renderError("Keine Textdaten im Tool-Ergebnis.");
-        return;
-      }
       try {
-        render(JSON.parse(block.text));
+        render(parseToolDetailPayload(content));
       } catch (e) {
         renderError("JSON konnte nicht gelesen werden: " + stringifyError(e));
       }
