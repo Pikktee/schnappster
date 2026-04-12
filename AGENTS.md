@@ -8,7 +8,7 @@ A personal web app that periodically scrapes Kleinanzeigen.de search results, an
 
 ### Backend (Python)
 
-Package manager is `uv`. CLI entry points are mostly in root `pyproject.toml`; **`mcp-server`** comes from the editable dependency **`schnappster-mcp`** (`mcp-server/pyproject.toml`).
+Package manager is `uv`. CLI entry points live in root `pyproject.toml` (inkl. **`mcp-server`** → `cli/mcp_server/cli.py`). Das Unterprojekt **`schnappster-mcp`** (`mcp-server/pyproject.toml`, editable) liefert **`schnappster-mcp`** / den Import **`schnappster_mcp`**.
 
 ```bash
 uv run start              # Start FastAPI server (runs tests first)
@@ -64,7 +64,7 @@ uv run mcp-server --tunnel   # ohne TTY: TryCloudflare + MCP; im TTY ist der Tun
 uv run mcp-server --http-proxy   # mitmdump; Log unter logs/mcp_mitmdump_*.log (Pfad beim TTY-Start)
 
 cd mcp-server && uv sync --all-groups && uv run schnappster-mcp   # nur Unterprojekt-venv
-uv run pytest            # im Repo-Root (nur `tests/` des Hauptprojekts)
+uv run pytest            # im Repo-Root (`tests/` + `cli/mcp_server/`, siehe `pytest.ini`)
 cd mcp-server && uv run pytest   # nur `mcp-server/tests/` (eigenes Pytest-Projekt)
 cd mcp-server && uv run ruff check app tests
 ```
@@ -78,7 +78,7 @@ cd mcp-server && uv run ruff check app tests
 - **`app/scraper/`** — Pure HTTP/HTML layer: `httpclient.py` (curl-cffi) and `parser.py` (BeautifulSoup). No business logic here.
 - **`app/services/`** — Business logic: `ScraperService` orchestrates scraping pipeline, `AIService` handles AI analysis (OpenAI-compatible API) with comparison prices, `SettingsService` reads runtime settings from DB.
 - **`app/routes/`** — FastAPI routers. All bundled via `routes/__init__.py` into `api_router`, which is included in `main.py`.
-- **`cli/`** — Root CLI (`uv run <cmd>`). **`mcp-server`** / **`schnappster-mcp`**: Quellcode unter **`mcp-server/app/`**; Symlink **`mcp-server/schnappster_mcp` → `app`** für Import **`schnappster_mcp`** (Pyright/setuptools, keine zweite Quellkopie).
+- **`cli/`** — Root CLI (`uv run <cmd>`). Komfort-**`mcp-server`** (Tunnel-Supervisor, mitmproxy): **`cli/mcp_server/`**. **`schnappster-mcp`**: Server-Code unter **`mcp-server/app/`**; Symlink **`mcp-server/schnappster_mcp` → `app`** für Import **`schnappster_mcp`** (Pyright/setuptools, keine zweite Quellkopie).
 
 ### Scraping pipeline (ScraperService)
 
@@ -138,7 +138,7 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Build/dev workflow a
 
 - Prefer testing **observable behavior**, not private methods or implementation details.
 - New services and filter logic should get **unit tests** (same spirit as `test_scraper_filters.py`).
-- **`uv run pytest`** (Root) und **`cd mcp-server && uv run pytest`** should stay green before merge. Root-**`pytest.ini`**: nur **`testpaths = tests`** — `mcp-server/tests/` wird separat gesammelt (**`mcp-server/pyproject.toml`** → `testpaths`), weil sonst zwei Ordner `tests/` als dasselbe Python-Paket `tests.*` kollidieren. Gemeinsame MCP-Fixtures: **`mcp-server/conftest.py`** (nicht unter `mcp-server/tests/`), damit `tests.conftest` nur im jeweiligen Pytest-Lauf jeweils einmal vorkommt.
+- **`uv run pytest`** (Root) und **`cd mcp-server && uv run pytest`** should stay green before merge. Root-**`pytest.ini`**: **`testpaths = tests cli/mcp_server`** — `mcp-server/tests/` wird separat gesammelt (**`mcp-server/pyproject.toml`** → `testpaths`), weil sonst zwei Ordner `tests/` als dasselbe Python-Paket `tests.*` kollidieren. Gemeinsame MCP-Fixtures: **`mcp-server/conftest.py`** (nicht unter `mcp-server/tests/`), damit `tests.conftest` nur im jeweiligen Pytest-Lauf jeweils einmal vorkommt.
 
 ## Output Format
 

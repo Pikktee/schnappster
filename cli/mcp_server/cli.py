@@ -212,8 +212,8 @@ def ensure_cloudflared() -> str:
 
 
 def _mcp_project_dir() -> Path:
-    """Pfad zu ``mcp-server/`` (Elternverzeichnis von ``app/``, Import ``schnappster_mcp``)."""
-    return Path(__file__).resolve().parent.parent
+    """Pfad zu ``mcp-server/`` (Unterprojekt ``schnappster-mcp`` im Schnappster-Repo)."""
+    return Path(__file__).resolve().parent.parent.parent / "mcp-server"
 
 
 def _resolve_mcp_dir() -> Path:
@@ -221,7 +221,7 @@ def _resolve_mcp_dir() -> Path:
     if not (mcp_dir / "pyproject.toml").is_file():
         print(
             "mcp-server/pyproject.toml nicht gefunden — "
-            "cli.py muss im Verzeichnis mcp-server/app liegen.",
+            "``mcp-server`` muss unter dem Schnappster-Repository-Root liegen.",
             file=sys.stderr,
         )
         raise SystemExit(1)
@@ -310,8 +310,8 @@ def _mitmdump_reverse_command(
     return cmd
 
 
-def _tcp_forward_argv(front_port: int, backend_port: int) -> list[str]:
-    script = Path(__file__).resolve().parent / "tunnel_front_tcp.py"
+def _tcp_forward_argv(mcp_dir: Path, front_port: int, backend_port: int) -> list[str]:
+    script = mcp_dir / "app" / "tunnel_front_tcp.py"
     return [sys.executable, str(script), str(front_port), str(backend_port)]
 
 
@@ -453,7 +453,7 @@ def _bring_up_quick_tunnel_stack(
                 raise SystemExit(1)
         elif tunnel_split_ports:
             procs.tcp_forward = subprocess.Popen(
-                _tcp_forward_argv(port, backend_port),
+                _tcp_forward_argv(mcp_dir, port, backend_port),
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -678,7 +678,7 @@ def _swap_supervisor_tunnel_front(
             raise SystemExit(1)
     else:
         procs.tcp_forward = subprocess.Popen(
-            _tcp_forward_argv(port, backend_port),
+            _tcp_forward_argv(mcp_dir, port, backend_port),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

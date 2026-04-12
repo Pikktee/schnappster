@@ -1217,6 +1217,7 @@ version = "0.1.0"
 source = { editable = "mcp-server" }
 dependencies = [
     { name = "httpx" },
+    { name = "jinja2" },
     { name = "mcp" },
     { name = "pydantic-settings" },
 ]
@@ -1224,6 +1225,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "jinja2", specifier = ">=3.1.0" },
     { name = "mcp", specifier = ">=1.19.0" },
     { name = "pydantic-settings", specifier = ">=2.6.0" },
 ]

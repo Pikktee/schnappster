@@ -32,7 +32,7 @@ _FAVICON_CACHE_CONTROL_MAX_AGE_S = 86400
 @lru_cache(maxsize=1)
 def _schnappster_mcp_icon_png_bytes() -> bytes:
     """PNG-Rohbytes für MCP-Icons und Favicon-Routen (wie ``web/app/icon.png``)."""
-    return files("schnappster_mcp").joinpath("icon.png").read_bytes()
+    return files("schnappster_mcp").joinpath("assets", "icon.png").read_bytes()
 
 
 async def _run_api[T](coro: Awaitable[T]) -> T:

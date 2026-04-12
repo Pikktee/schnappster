@@ -13,7 +13,6 @@ dependencies = [
 
 [project.scripts]
 schnappster-mcp = "schnappster_mcp.__main__:main"
-mcp-server = "schnappster_mcp.cli:main"
 
 [build-system]
 requires = ["setuptools>=75"]
@@ -27,7 +26,7 @@ include = ["schnappster_mcp*"]
 namespaces = false
 
 [tool.setuptools.package-data]
-schnappster_mcp = ["templates/*.j2"]
+schnappster_mcp = ["templates/*.j2", "assets/*"]
 
 [dependency-groups]
 dev = [

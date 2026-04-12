@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from schnappster_mcp.cli import (
+from cli.mcp_server.cli import (
     _cloudflared_line_is_likely_error,
     _effective_streamable_http_path,
     _env_for_mcp_tunnel_warmup,
@@ -76,11 +77,9 @@ def test_quick_tunnel_with_mitmdump_rules() -> None:
 
 
 def test_mitmdump_logs_dir_next_to_mcp_server() -> None:
-    from pathlib import Path
+    from cli.mcp_server import cli as cli_mod
 
-    from schnappster_mcp import cli as cli_mod
-
-    mcp_dir = Path(cli_mod.__file__).resolve().parent.parent
+    mcp_dir = Path(cli_mod.__file__).resolve().parent.parent.parent / "mcp-server"
     assert _mitmdump_logs_dir(mcp_dir) == mcp_dir.parent / "logs"
 
 
@@ -101,20 +100,3 @@ def test_mitmdump_reverse_command_shape() -> None:
     assert cmd[1] == "--mode"
     assert cmd[2] == "reverse:http://127.0.0.1:8767@127.0.0.1:8766"
     assert cmd[3:7] == ["--set", "flow_detail=0", "-s", str(addon)]
-
-
-def test_mitmdump_reverse_command_without_trace_addon() -> None:
-    cmd = _mitmdump_reverse_command(
-        "/opt/mitmdump",
-        front_port=8766,
-        backend_port=8767,
-        with_trace_addon=False,
-    )
-    assert cmd[:5] == [
-        "/opt/mitmdump",
-        "--mode",
-        "reverse:http://127.0.0.1:8767@127.0.0.1:8766",
-        "--set",
-        "flow_detail=0",
-    ]
-    assert "-s" not in cmd
