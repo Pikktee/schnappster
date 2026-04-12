@@ -557,45 +557,8 @@ export default function SettingsPage() {
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Konto wirklich löschen?</AlertDialogTitle>
-                    <AlertDialogDescription asChild>
-                      <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                        <p>Diese Aktion kann nicht rückgängig gemacht werden.</p>
-                        {socialProviders.length > 0 && (
-                          <p>
-                            Du hast dich über{" "}
-                            {socialProviders
-                              .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-                              .join(" und ")}{" "}
-                            angemeldet. Wir versuchen, den App-Zugriff dort automatisch zu
-                            widerrufen. Falls das nicht klappt, kannst du ihn manuell unter den
-                            Sicherheitseinstellungen deines{" "}
-                            {socialProviders.includes("google") && (
-                              <a
-                                href="https://myaccount.google.com/permissions"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="underline"
-                              >
-                                Google-Kontos
-                              </a>
-                            )}
-                            {socialProviders.includes("google") &&
-                              socialProviders.includes("facebook") &&
-                              " bzw. "}
-                            {socialProviders.includes("facebook") && (
-                              <a
-                                href="https://www.facebook.com/settings?tab=applications"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="underline"
-                              >
-                                Facebook-Kontos
-                              </a>
-                            )}{" "}
-                            entziehen.
-                          </p>
-                        )}
-                      </div>
+                    <AlertDialogDescription>
+                      Diese Aktion kann nicht rückgängig gemacht werden.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
