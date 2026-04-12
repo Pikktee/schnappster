@@ -5,8 +5,8 @@ from typing import Any, cast
 import pytest
 from mcp.server.fastmcp import FastMCP
 
-from schnappster_mcp.api_client import SchnappsterApiClient
-from schnappster_mcp.mcp_apps import BargainDetailMcpApp, register_mcp_apps
+from schnappster_mcp.core.api_client import SchnappsterApiClient
+from schnappster_mcp.mcp_ui.mcp_apps import BargainDetailMcpApp, register_mcp_apps
 
 
 class _FakeApiClient:

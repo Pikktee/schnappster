@@ -2,7 +2,7 @@
 
 from typing import Any, cast
 
-from schnappster_mcp.config import Settings
+from schnappster_mcp.core.config import Settings
 from schnappster_mcp.server import build_mcp
 
 

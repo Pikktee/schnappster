@@ -21,14 +21,14 @@ from cli.mcp_server.cli import (
 def test_effective_streamable_http_path_reads_settings_not_only_os_environ() -> None:
     fake = MagicMock()
     fake.streamable_http_path = "/custom-mcp"
-    with patch("schnappster_mcp.config.Settings", return_value=fake):
+    with patch("schnappster_mcp.core.config.Settings", return_value=fake):
         assert _effective_streamable_http_path() == "/custom-mcp"
 
 
 def test_effective_streamable_http_path_adds_leading_slash() -> None:
     fake = MagicMock()
     fake.streamable_http_path = "mcp"
-    with patch("schnappster_mcp.config.Settings", return_value=fake):
+    with patch("schnappster_mcp.core.config.Settings", return_value=fake):
         assert _effective_streamable_http_path() == "/mcp"
 
 

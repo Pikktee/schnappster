@@ -2,7 +2,7 @@
 
 import pytest
 
-from schnappster_mcp.auth import SupabaseTokenVerifier
+from schnappster_mcp.core.auth import SupabaseTokenVerifier
 
 
 @pytest.mark.asyncio

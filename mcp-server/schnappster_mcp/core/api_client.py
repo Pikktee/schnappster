@@ -4,7 +4,7 @@ from typing import Any
 
 import httpx
 
-from schnappster_mcp.config import Settings
+from schnappster_mcp.core.config import Settings
 
 
 def _format_fastapi_detail(detail: Any) -> str:

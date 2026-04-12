@@ -2,7 +2,7 @@
 
 import pytest
 
-from schnappster_mcp.config import Settings
+from schnappster_mcp.core.config import Settings
 
 
 def test_default_resource_server_url_from_host_port() -> None:

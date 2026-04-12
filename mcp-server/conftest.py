@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from schnappster_mcp.config import Settings
+from schnappster_mcp.core.config import Settings
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 """Ensure monorepo .env discovery points at repo root and mcp-server."""
 
-from schnappster_mcp.config import _dotenv_files, _mcp_project_dir
+from schnappster_mcp.core.config import _dotenv_files, _mcp_project_dir
 
 
 def test_dotenv_files_in_monorepo() -> None:

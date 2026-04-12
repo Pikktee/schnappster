@@ -17,10 +17,10 @@ from pydantic import AnyHttpUrl
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from schnappster_mcp.api_client import SchnappsterApiClient, SchnappsterApiError
-from schnappster_mcp.auth import SupabaseTokenVerifier
-from schnappster_mcp.config import Settings
-from schnappster_mcp.mcp_apps import (
+from schnappster_mcp.core.api_client import SchnappsterApiClient, SchnappsterApiError
+from schnappster_mcp.core.auth import SupabaseTokenVerifier
+from schnappster_mcp.core.config import Settings
+from schnappster_mcp.mcp_ui.mcp_apps import (
     ad_searches_tool_meta,
     recent_bargains_tool_meta,
     register_mcp_apps,

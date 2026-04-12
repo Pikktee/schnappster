@@ -25,7 +25,7 @@ include = ["schnappster_mcp*"]
 namespaces = false
 
 [tool.setuptools.package-data]
-schnappster_mcp = ["templates/*.j2", "assets/*"]
+schnappster_mcp = ["mcp_ui/templates/*.j2", "assets/*"]
 
 [dependency-groups]
 dev = [

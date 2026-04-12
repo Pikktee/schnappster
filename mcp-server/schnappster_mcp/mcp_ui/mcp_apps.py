@@ -9,8 +9,9 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 from mcp.types import Icon, TextContent
 
-from schnappster_mcp.api_client import SchnappsterApiClient
-from schnappster_mcp.mcp_ui_jinja import render_mcp_app_html
+from schnappster_mcp.core.api_client import SchnappsterApiClient
+
+from .template_render import render_mcp_app_html
 
 
 class BargainDetailMcpApp:

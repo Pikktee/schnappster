@@ -2,7 +2,7 @@
 
 import pytest
 
-from schnappster_mcp.api_client import SchnappsterApiClient, SchnappsterApiError
+from schnappster_mcp.core.api_client import SchnappsterApiClient, SchnappsterApiError
 
 
 @pytest.mark.asyncio

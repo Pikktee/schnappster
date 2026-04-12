@@ -243,7 +243,7 @@ def _effective_streamable_http_path() -> str:
     die öffentliche URL (Pfad-Suffix) falsch und OAuth/Clients würden am falschen Pfad
     landen.
     """
-    from schnappster_mcp.config import Settings
+    from schnappster_mcp.core.config import Settings
 
     # BaseSettings liest Pflichtfelder aus .env; basedpyright kennt das nicht.
     path = cast(Any, Settings)().streamable_http_path.strip() or "/"
@@ -310,8 +310,8 @@ def _mitmdump_reverse_command(
     return cmd
 
 
-def _tcp_forward_argv(mcp_dir: Path, front_port: int, backend_port: int) -> list[str]:
-    script = mcp_dir / "schnappster_mcp" / "tunnel_front_tcp.py"
+def _tcp_forward_argv(front_port: int, backend_port: int) -> list[str]:
+    script = Path(__file__).resolve().parent / "tunnel_front_tcp.py"
     return [sys.executable, str(script), str(front_port), str(backend_port)]
 
 
@@ -453,7 +453,7 @@ def _bring_up_quick_tunnel_stack(
                 raise SystemExit(1)
         elif tunnel_split_ports:
             procs.tcp_forward = subprocess.Popen(
-                _tcp_forward_argv(mcp_dir, port, backend_port),
+                _tcp_forward_argv(port, backend_port),
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -678,7 +678,7 @@ def _swap_supervisor_tunnel_front(
             raise SystemExit(1)
     else:
         procs.tcp_forward = subprocess.Popen(
-            _tcp_forward_argv(mcp_dir, port, backend_port),
+            _tcp_forward_argv(port, backend_port),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

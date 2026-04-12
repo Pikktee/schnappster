@@ -15,9 +15,9 @@ EXT_APPS_APP_WITH_DEPS = (
 
 @lru_cache(maxsize=16)
 def _template_source(name: str) -> str:
-    """Liest den Rohinhalt einer Jinja-Datei aus ``schnappster_mcp/templates/`` (gecached)."""
+    """Liest den Rohinhalt einer Jinja-Datei aus ``mcp_ui/templates/`` (gecached)."""
     return (
-        files("schnappster_mcp")
+        files("schnappster_mcp.mcp_ui")
         .joinpath("templates", name)
         .read_text(encoding="utf-8")
     )

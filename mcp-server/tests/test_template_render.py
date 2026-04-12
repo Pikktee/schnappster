@@ -1,6 +1,6 @@
 """Tests für Jinja2-geladene MCP-App-Templates."""
 
-from schnappster_mcp.mcp_ui_jinja import EXT_APPS_APP_WITH_DEPS, render_mcp_app_html
+from schnappster_mcp.mcp_ui.template_render import EXT_APPS_APP_WITH_DEPS, render_mcp_app_html
 
 
 def test_render_injects_ext_apps_cdn_url() -> None:
