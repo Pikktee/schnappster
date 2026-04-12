@@ -11,6 +11,7 @@ from schnappster_mcp.mcp_apps import BargainDetailMcpApp, register_mcp_apps
 
 class _FakeApiClient:
     async def request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
+        """Stub: liefert feste Anzeigendaten für ``GET /ads/7``."""
         assert method == "GET"
         assert path == "/ads/7"
         return {
@@ -25,9 +26,11 @@ class _FakeApiClient:
 
 @pytest.mark.asyncio
 async def test_show_bargain_detail_tool_and_resource_registered() -> None:
+    """``register_mcp_apps`` registriert Tool, Resource-URI und liefert JSON mit Anzeigentitel."""
     mcp = FastMCP("test-mcp", json_response=True)
 
     async def run_api(coro: Any) -> Any:
+        """Führt die übergebene Coroutine ohne Wrapper aus."""
         return await coro
 
     register_mcp_apps(
@@ -56,12 +59,14 @@ async def test_show_bargain_detail_tool_and_resource_registered() -> None:
 
 
 def test_tool_meta_shape() -> None:
+    """``tool_meta`` enthält konsistente ``resourceUri``-Felder."""
     meta = BargainDetailMcpApp.tool_meta()
     assert meta["ui"]["resourceUri"] == BargainDetailMcpApp.VIEW_URI
     assert meta["ui/resourceUri"] == BargainDetailMcpApp.VIEW_URI
 
 
 def test_embedded_view_includes_app_bridge_import() -> None:
+    """Eingebettetes HTML bindet ext-apps von unpkg und enthält Event-Handler-Namen."""
     html = BargainDetailMcpApp.embedded_view_html()
     assert "unpkg.com" in html
     assert "@modelcontextprotocol/ext-apps" in html

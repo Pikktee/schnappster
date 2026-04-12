@@ -3,5 +3,12 @@
     "venv": ".venv",
     "pythonVersion": "3.13",
     "extraPaths": ["mcp-server"],
-    "ignore": ["migrations"]
+    "ignore": ["migrations"],
+    "executionEnvironments": [
+        {
+            "root": "mcp-server",
+            "pythonVersion": "3.13",
+            "extraPaths": ["mcp-server"]
+        }
+    ]
 }

@@ -6,6 +6,7 @@ from schnappster_mcp.config import Settings
 
 
 def test_default_resource_server_url_from_host_port() -> None:
+    """Ohne explizite Resource-URL wird ``http://mcp_host:mcp_port/`` abgeleitet."""
     s = Settings.model_validate(
         {
             "schnappster_api_base_url": "http://localhost:8000",
@@ -20,6 +21,7 @@ def test_default_resource_server_url_from_host_port() -> None:
 
 
 def test_mcp_port_from_port_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Umgebungsvariable ``PORT`` setzt ``mcp_port``, wenn ``MCP_PORT`` fehlt."""
     monkeypatch.setenv("PORT", "3000")
     monkeypatch.delenv("MCP_PORT", raising=False)
     s = Settings.model_validate(
@@ -32,6 +34,7 @@ def test_mcp_port_from_port_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_mcp_port_prefers_mcp_port_over_port(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``MCP_PORT`` hat Vorrang vor ``PORT``."""
     monkeypatch.setenv("PORT", "3000")
     monkeypatch.setenv("MCP_PORT", "8767")
     s = Settings.model_validate(

@@ -4,6 +4,7 @@ from schnappster_mcp.config import _dotenv_files, _mcp_project_dir
 
 
 def test_dotenv_files_in_monorepo() -> None:
+    """Im Monorepo: zuerst Root-``.env``, danach ``mcp-server/.env``."""
     mcp_dir = _mcp_project_dir()
     repo = mcp_dir.parent
     files = _dotenv_files()

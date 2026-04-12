@@ -1,0 +1,7 @@
+{
+  "include": ["schnappster_mcp", "tests", "conftest.py"],
+  "exclude": [".venv", "**/__pycache__", "dist", "*.egg-info"],
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.13"
+}

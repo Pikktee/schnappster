@@ -9,8 +9,8 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 from mcp.types import Icon, TextContent
 
-from .api_client import SchnappsterApiClient
-from .mcp_ui_jinja import render_mcp_app_html
+from schnappster_mcp.api_client import SchnappsterApiClient
+from schnappster_mcp.mcp_ui_jinja import render_mcp_app_html
 
 
 class BargainDetailMcpApp:
@@ -21,15 +21,18 @@ class BargainDetailMcpApp:
 
     @classmethod
     def tool_meta(cls) -> dict[str, Any]:
+        """Meta für MCP-Tools: verknüpft die eingebettete UI-Ressource (resourceUri)."""
         uri = cls.VIEW_URI
         return {"ui": {"resourceUri": uri}, "ui/resourceUri": uri}
 
     @classmethod
     def resource_meta(cls) -> dict[str, Any]:
+        """Meta für die HTML-Ressource (CSP: erlaubte CDN-Domains für ext-apps)."""
         return {"ui": {"csp": {"resourceDomains": ["https://unpkg.com"]}}}
 
     @classmethod
     def embedded_view_html(cls) -> str:
+        """Gerendertes HTML+JS für die Detail-MCP-App."""
         return render_mcp_app_html("bargain_detail.html.j2")
 
 
@@ -41,15 +44,18 @@ class RecentBargainsMcpApp:
 
     @classmethod
     def tool_meta(cls) -> dict[str, Any]:
+        """Meta für MCP-Tools: verknüpft die eingebettete UI-Ressource (resourceUri)."""
         uri = cls.VIEW_URI
         return {"ui": {"resourceUri": uri}, "ui/resourceUri": uri}
 
     @classmethod
     def resource_meta(cls) -> dict[str, Any]:
+        """Meta für die HTML-Ressource (CSP: erlaubte CDN-Domains für ext-apps)."""
         return {"ui": {"csp": {"resourceDomains": ["https://unpkg.com"]}}}
 
     @classmethod
     def embedded_view_html(cls) -> str:
+        """Gerendertes HTML+JS für die Tabellenansicht „letzte Schnäppchen“."""
         return render_mcp_app_html("recent_bargains.html.j2")
 
 
@@ -61,15 +67,18 @@ class AdSearchesMcpApp:
 
     @classmethod
     def tool_meta(cls) -> dict[str, Any]:
+        """Meta für MCP-Tools: verknüpft die eingebettete UI-Ressource (resourceUri)."""
         uri = cls.VIEW_URI
         return {"ui": {"resourceUri": uri}, "ui/resourceUri": uri}
 
     @classmethod
     def resource_meta(cls) -> dict[str, Any]:
+        """Meta für die HTML-Ressource (CSP: erlaubte CDN-Domains für ext-apps)."""
         return {"ui": {"csp": {"resourceDomains": ["https://unpkg.com"]}}}
 
     @classmethod
     def embedded_view_html(cls) -> str:
+        """Gerendertes HTML+JS für die Suchauftrags-Verwaltung."""
         return render_mcp_app_html("ad_searches.html.j2")
 
 
@@ -90,7 +99,7 @@ def register_mcp_apps(
     run_api: Callable[[Awaitable[Any]], Awaitable[Any]],
     tool_icons: list[Icon],
 ) -> None:
-    """Registriert ``show_bargain_detail`` und die zugehörigen UI-Ressourcen."""
+    """Registriert ``show_bargain_detail`` plus HTML-Ressourcen für eingebettete MCP-Apps."""
 
     app = BargainDetailMcpApp
 

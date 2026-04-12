@@ -11,6 +11,7 @@ _AnyHttpUrlAdapter = TypeAdapter(AnyHttpUrl)
 
 
 def _parse_any_http_url(value: str) -> AnyHttpUrl:
+    """Parst einen String zu ``AnyHttpUrl`` (gleiche Regeln wie Pydantic)."""
     return _AnyHttpUrlAdapter.validate_python(value)
 
 
@@ -72,6 +73,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def default_resource_server_url(self) -> Self:
+        """Setzt ``mcp_resource_server_url`` aus Host, Port und Streamable-HTTP-Pfad, falls leer."""
         if self.mcp_resource_server_url is None:
             path = self.streamable_http_path
             if not path.startswith("/"):
@@ -83,8 +85,10 @@ class Settings(BaseSettings):
 
     @property
     def supabase_auth_issuer_url(self) -> str:
+        """Basis-URL des Supabase-Auth-Issuers (``…/auth/v1``)."""
         return f"{str(self.supabase_url).rstrip('/')}/auth/v1"
 
     @property
     def supabase_user_url(self) -> str:
+        """URL für ``GET /user`` zur Token-Validierung."""
         return f"{self.supabase_auth_issuer_url}/user"

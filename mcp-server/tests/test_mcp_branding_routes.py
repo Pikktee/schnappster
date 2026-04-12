@@ -12,6 +12,7 @@ from schnappster_mcp.server import build_mcp
 )
 @pytest.mark.asyncio
 async def test_branding_png_routes_return_png(settings, path: str) -> None:
+    """Branding-Pfade liefern PNG mit passendem Content-Type und Cache-Control."""
     mcp = build_mcp(settings)
     app = mcp.streamable_http_app()
     transport = httpx.ASGITransport(app=app)

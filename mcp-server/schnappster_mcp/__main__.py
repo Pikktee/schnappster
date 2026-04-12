@@ -7,6 +7,7 @@ from schnappster_mcp.server import build_mcp
 
 
 def main() -> None:
+    """Lädt Einstellungen aus der Umgebung, baut den MCP-Server und startet Streamable HTTP."""
     # `BaseSettings` reads required values from env/.env at runtime.
     # basedpyright still flags direct `Settings()` here as missing arguments.
     settings = cast(Any, Settings)()

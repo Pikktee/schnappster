@@ -9,9 +9,14 @@ class SupabaseTokenVerifier(TokenVerifier):
     """Validates Bearer tokens via `GET /auth/v1/user`."""
 
     def __init__(self, settings: Settings) -> None:
+        """Hält die geladenen Einstellungen (Supabase-URL, Publishable Key)."""
         self._settings = settings
 
     async def verify_token(self, token: str) -> AccessToken | None:
+        """Prüft ``token`` per Supabase ``GET /auth/v1/user``.
+
+        Rückgabe: ``AccessToken`` bei HTTP 200, sonst ``None``.
+        """
         import httpx
 
         headers = {

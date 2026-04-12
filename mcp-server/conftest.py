@@ -13,6 +13,7 @@ from schnappster_mcp.config import Settings
 
 @pytest.fixture
 def settings() -> Settings:
+    """Minimal gültige ``Settings``-Instanz für Tests (Test-API- und Supabase-URLs)."""
     return Settings.model_validate(
         {
             "schnappster_api_base_url": "http://test-api.local",

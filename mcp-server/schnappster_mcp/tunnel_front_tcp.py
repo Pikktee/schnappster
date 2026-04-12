@@ -11,6 +11,7 @@ import threading
 
 
 def _pipe(src: socket.socket, dst: socket.socket) -> None:
+    """Kopiert Bytes von ``src`` nach ``dst`` bis EOF oder ``OSError``."""
     try:
         while True:
             data = src.recv(65536)
@@ -22,6 +23,7 @@ def _pipe(src: socket.socket, dst: socket.socket) -> None:
 
 
 def _relay(client: socket.socket, back_host: str, back_port: int) -> None:
+    """Verbindet einen Front-Socket bidirektional mit dem Backend (je ein Relay-Thread)."""
     upstream = socket.create_connection((back_host, back_port))
     t1 = threading.Thread(target=_pipe, args=(client, upstream), daemon=True)
     t2 = threading.Thread(target=_pipe, args=(upstream, client), daemon=True)
@@ -34,6 +36,7 @@ def _relay(client: socket.socket, back_host: str, back_port: int) -> None:
 
 
 def main() -> None:
+    """TCP-Listener auf Loopback-Front-Port; leitet Verbindungen zum Backend-Port weiter."""
     if len(sys.argv) != 3:
         print("usage: tunnel_front_tcp.py FRONT_PORT BACK_PORT", file=sys.stderr)
         sys.exit(2)

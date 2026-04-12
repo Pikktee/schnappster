@@ -7,6 +7,7 @@ from schnappster_mcp.auth import SupabaseTokenVerifier
 
 @pytest.mark.asyncio
 async def test_verify_token_accepts_200(settings, httpx_mock) -> None:
+    """Bei HTTP 200 liefert der Verifier einen ``AccessToken`` mit dem übergebenen Token."""
     httpx_mock.add_response(
         url="https://test.supabase.co/auth/v1/user",
         method="GET",
@@ -21,6 +22,7 @@ async def test_verify_token_accepts_200(settings, httpx_mock) -> None:
 
 @pytest.mark.asyncio
 async def test_verify_token_rejects_401(settings, httpx_mock) -> None:
+    """Bei HTTP 401 gibt ``verify_token`` ``None`` zurück."""
     httpx_mock.add_response(
         url="https://test.supabase.co/auth/v1/user",
         method="GET",

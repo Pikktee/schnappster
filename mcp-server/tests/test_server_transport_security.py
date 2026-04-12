@@ -4,6 +4,7 @@ from schnappster_mcp.server import _transport_security
 
 
 def test_transport_security_includes_trycloudflare_host() -> None:
+    """Tunnel-Host steht in erlaubten Origins bei Loopback-Bind und öffentlicher MCP-URL."""
     from schnappster_mcp.config import Settings
 
     s = Settings.model_validate(
@@ -24,6 +25,7 @@ def test_transport_security_includes_trycloudflare_host() -> None:
 
 
 def test_transport_security_none_for_non_loopback_bind() -> None:
+    """Ohne Loopback-Bind soll kein DNS-Rebinding-Profil gesetzt werden (``None``)."""
     from schnappster_mcp.config import Settings
 
     s = Settings.model_validate(

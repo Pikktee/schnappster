@@ -8,6 +8,7 @@ from schnappster_mcp.config import Settings
 
 
 def _format_fastapi_detail(detail: Any) -> str:
+    """Baut eine lesbare Fehlermeldung aus FastAPI-``detail`` (str, Liste von Errors, dict)."""
     if detail is None:
         return ""
     if isinstance(detail, str):
@@ -29,16 +30,21 @@ class SchnappsterApiError(Exception):
     """Raised when the API returns a non-success status."""
 
     def __init__(self, status_code: int, message: str) -> None:
+        """Speichert den HTTP-Status und übergibt ``message`` an ``Exception``."""
         self.status_code = status_code
         super().__init__(message)
 
 
 class SchnappsterApiClient:
+    """Async HTTP-Client gegen die Schnappster-REST-API mit Bearer-Token."""
+
     def __init__(self, settings: Settings, access_token: str) -> None:
+        """Initialisiert Basis-URL und Zugriffstoken."""
         self._base = str(settings.schnappster_api_base_url).rstrip("/")
         self._token = access_token
 
     def _headers(self) -> dict[str, str]:
+        """Standard-Header inkl. ``Authorization: Bearer`` und ``Content-Type``."""
         return {
             "Authorization": f"Bearer {self._token}",
             "Content-Type": "application/json",
@@ -52,6 +58,7 @@ class SchnappsterApiClient:
         params: dict[str, Any] | None = None,
         json_body: Any | None = None,
     ) -> Any:
+        """Führt eine HTTP-Anfrage aus; bei Erfolg JSON (oder ``None`` bei 204/leerem Body)."""
         url = f"{self._base}{path}"
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.request(

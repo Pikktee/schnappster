@@ -7,6 +7,7 @@ from schnappster_mcp.api_client import SchnappsterApiClient, SchnappsterApiError
 
 @pytest.mark.asyncio
 async def test_get_json(settings, httpx_mock) -> None:
+    """Erfolgreicher GET liefert das dekodierte JSON-Objekt."""
     httpx_mock.add_response(
         url="http://test-api.local/ads/",
         method="GET",
@@ -19,6 +20,7 @@ async def test_get_json(settings, httpx_mock) -> None:
 
 @pytest.mark.asyncio
 async def test_raises_on_error_detail(settings, httpx_mock) -> None:
+    """Fehlerantwort mit FastAPI-``detail`` wird als ``SchnappsterApiError`` mit Text geworfen."""
     httpx_mock.add_response(
         url="http://test-api.local/x",
         method="GET",

@@ -36,6 +36,7 @@ def _schnappster_mcp_icon_png_bytes() -> bytes:
 
 
 async def _run_api[T](coro: Awaitable[T]) -> T:
+    """Wartet auf ``coro`` und wandelt ``SchnappsterApiError`` in ``ToolError`` um."""
     try:
         return await coro
     except SchnappsterApiError as exc:
@@ -43,6 +44,7 @@ async def _run_api[T](coro: Awaitable[T]) -> T:
 
 
 def _log_level(value: str) -> Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+    """Mappt freie Log-Level-Strings auf erlaubte Uvicorn/FastMCP-Levelnamen (Fallback: INFO)."""
     upper = value.upper()
     if upper in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
         return upper  # type: ignore[return-value]
@@ -50,6 +52,7 @@ def _log_level(value: str) -> Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRIT
 
 
 def _api_client(settings: Settings) -> SchnappsterApiClient:
+    """Erzeugt einen API-Client mit dem aktuellen MCP-Bearer-Token oder wirft ``ToolError``."""
     access = get_access_token()
     if access is None:
         raise ToolError(
@@ -101,6 +104,7 @@ def _transport_security(settings: Settings) -> TransportSecuritySettings | None:
 
 
 def build_mcp(settings: Settings) -> FastMCP:
+    """Baut die FastMCP-Instanz inkl. Auth, Tools, Health- und Branding-Routen."""
     resource = settings.mcp_resource_server_url
     assert resource is not None
 
@@ -137,9 +141,11 @@ def build_mcp(settings: Settings) -> FastMCP:
 
     @mcp.custom_route("/health", methods=["GET"])
     async def health_check(_request: Request) -> JSONResponse:  # noqa: ARG001
+        """Einfacher Liveness-Check für Loadbalancer und Tunnel-Health."""
         return JSONResponse({"status": "ok"})
 
     def _branding_png_response() -> Response:
+        """PNG-Antwort mit Cache-Header für Favicon- und Icon-Routen."""
         return Response(
             content=_schnappster_mcp_icon_png_bytes(),
             media_type="image/png",
@@ -155,10 +161,12 @@ def build_mcp(settings: Settings) -> FastMCP:
 
     @mcp.custom_route("/apple-touch-icon.png", methods=["GET"])
     async def apple_touch_icon(_request: Request) -> Response:  # noqa: ARG001
+        """Apple-Touch-Icon (gleiches PNG wie Favicon)."""
         return _branding_png_response()
 
     @mcp.custom_route("/icon.png", methods=["GET"])
     async def icon_png(_request: Request) -> Response:  # noqa: ARG001
+        """Explizite ``/icon.png``-Route für Clients, die diesen Pfad erwarten."""
         return _branding_png_response()
 
     @mcp.tool(icons=tool_icons, meta=recent_bargains_tool_meta())
