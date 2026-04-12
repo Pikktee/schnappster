@@ -140,11 +140,11 @@ class SettingsService:
         """Aktualisiert UserSettings partiell."""
         settings = self.get_user_settings(user_id)
         update_data = data.model_dump(exclude_unset=True)
-        if "display_name" in update_data:
+        if "display_name" in update_data and update_data["display_name"] is not None:
             settings.display_name_user_set = True
         for key, value in update_data.items():
             if key == "display_name" and value is None:
-                value = ""
+                continue
             setattr(settings, key, value)
         self.session.add(settings)
         self.session.commit()

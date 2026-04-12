@@ -142,7 +142,7 @@ def patch_me(
         current_user.tenant_id,
         identity_display_name(current_user),
     )
-    settings.display_name = data.display_name.strip()
+    settings.display_name = data.display_name
     settings.display_name_user_set = True
     session.add(settings)
     session.commit()

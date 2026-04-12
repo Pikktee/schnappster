@@ -1,6 +1,21 @@
 """Datenbanktabelle und API-Schemas fuer nutzerbezogene Einstellungen."""
 
+import unicodedata
+
+from pydantic import field_validator
 from sqlmodel import Field, SQLModel
+
+
+def normalize_display_name_for_api(value: str) -> str:
+    """Strippt und verlangt mindestens ein Unicode-Buchstabe (Kategorie L*)."""
+    stripped = (value or "").strip()
+    if not any(unicodedata.category(ch).startswith("L") for ch in stripped):
+        msg = (
+            "Der Name muss mindestens einen Buchstaben enthalten "
+            "(Leerzeichen am Rand zählen nicht)."
+        )
+        raise ValueError(msg)
+    return stripped
 
 
 class UserSettings(SQLModel, table=True):
@@ -36,6 +51,13 @@ class UserSettingsUpdate(SQLModel):
     notify_telegram: bool | None = None
     notify_min_score: int | None = Field(default=None, ge=0, le=10)
 
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def validate_display_name_when_set(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return normalize_display_name_for_api(value)
+
 
 class UserProfileRead(SQLModel):
     """Profil-Read-Modell fuer /users/me."""
@@ -50,4 +72,9 @@ class UserProfileRead(SQLModel):
 class UserProfileUpdate(SQLModel):
     """Profil-Update, derzeit nur display_name."""
 
-    display_name: str = Field(default="", max_length=50)
+    display_name: str = Field(..., max_length=50)
+
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def validate_display_name(cls, value: str) -> str:
+        return normalize_display_name_for_api(value)
