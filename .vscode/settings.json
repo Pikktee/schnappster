@@ -1,0 +1,5 @@
+{
+  "html.validate.styles": false,
+  "markdown.validate.enabled": false,
+  "markdownlint.run": "off"
+}
