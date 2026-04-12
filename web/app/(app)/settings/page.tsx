@@ -62,6 +62,7 @@ export default function SettingsPage() {
   const [email, setEmail] = useState("")
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [socialProviders, setSocialProviders] = useState<string[]>([])
   const [notifyTelegram, setNotifyTelegram] = useState(false)
   const [notifyMinScore, setNotifyMinScore] = useState("8")
   const [telegramChatId, setTelegramChatId] = useState("")
@@ -90,6 +91,7 @@ export default function SettingsPage() {
         setEmail(profile.email ?? "")
         setAvatarUrl(profile.avatar_url)
         setIsAdmin(profile.role === "admin")
+        setSocialProviders((profile.providers ?? []).filter((p) => p !== "email"))
         setNotifyTelegram(userSettings.notify_telegram)
         setNotifyMinScore(String(userSettings.notify_min_score))
         setTelegramChatId(userSettings.telegram_chat_id ?? "")
@@ -200,11 +202,38 @@ export default function SettingsPage() {
     }
   }
 
+  async function revokeOAuthProviderToken(provider: string, token: string): Promise<void> {
+    try {
+      if (provider === "google") {
+        await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        })
+      } else if (provider === "facebook") {
+        await fetch(`https://graph.facebook.com/me/permissions?access_token=${encodeURIComponent(token)}`, {
+          method: "DELETE",
+        })
+      }
+    } catch {
+      // Best-effort — failure here must not block account deletion.
+    }
+  }
+
   async function handleDeleteAccount() {
     const emailNorm = (email ?? "").trim().toLowerCase()
     if (!emailNorm || deleteConfirmation.trim().toLowerCase() !== emailNorm) return
     setIsDeleting(true)
     try {
+      // Attempt to revoke provider tokens before the account is deleted.
+      if (supabase && socialProviders.length > 0) {
+        const { data } = await supabase.auth.getSession()
+        const providerToken = data.session?.provider_token
+        if (providerToken) {
+          await Promise.all(
+            socialProviders.map((p) => revokeOAuthProviderToken(p, providerToken)),
+          )
+        }
+      }
       await deleteMyAccount(deleteConfirmation.trim())
       await supabase?.auth.signOut()
       window.location.href = "/login"
@@ -528,8 +557,45 @@ export default function SettingsPage() {
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Konto wirklich löschen?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Diese Aktion kann nicht rückgängig gemacht werden.
+                    <AlertDialogDescription asChild>
+                      <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                        <p>Diese Aktion kann nicht rückgängig gemacht werden.</p>
+                        {socialProviders.length > 0 && (
+                          <p>
+                            Du hast dich über{" "}
+                            {socialProviders
+                              .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+                              .join(" und ")}{" "}
+                            angemeldet. Wir versuchen, den App-Zugriff dort automatisch zu
+                            widerrufen. Falls das nicht klappt, kannst du ihn manuell unter den
+                            Sicherheitseinstellungen deines{" "}
+                            {socialProviders.includes("google") && (
+                              <a
+                                href="https://myaccount.google.com/permissions"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline"
+                              >
+                                Google-Kontos
+                              </a>
+                            )}
+                            {socialProviders.includes("google") &&
+                              socialProviders.includes("facebook") &&
+                              " bzw. "}
+                            {socialProviders.includes("facebook") && (
+                              <a
+                                href="https://www.facebook.com/settings?tab=applications"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline"
+                              >
+                                Facebook-Kontos
+                              </a>
+                            )}{" "}
+                            entziehen.
+                          </p>
+                        )}
+                      </div>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

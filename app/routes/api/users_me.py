@@ -128,6 +128,7 @@ def get_me(
         display_name=profile_name,
         avatar_url=str(avatar_url) if avatar_url else None,
         role=current_user.role,
+        providers=current_user.app_metadata.get("providers") or [],
     )
 
 
@@ -160,6 +161,7 @@ def patch_me(
         display_name=profile_name,
         avatar_url=str(avatar_url) if avatar_url else None,
         role=current_user.role,
+        providers=current_user.app_metadata.get("providers") or [],
     )
 
 

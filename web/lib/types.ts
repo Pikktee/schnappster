@@ -89,6 +89,7 @@ export interface UserProfile {
   display_name: string
   avatar_url: string | null
   role: string
+  providers: string[]
 }
 
 export interface UserSettings {

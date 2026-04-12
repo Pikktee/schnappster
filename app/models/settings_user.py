@@ -45,6 +45,7 @@ class UserProfileRead(SQLModel):
     display_name: str
     avatar_url: str | None
     role: str
+    providers: list[str] = Field(default_factory=list)
 
 
 class UserProfileUpdate(SQLModel):
