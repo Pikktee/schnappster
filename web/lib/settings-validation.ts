@@ -1,6 +1,13 @@
 /** Grenzen wie im Backend (`UserProfileUpdate` / SQLModel). */
 export const DISPLAY_NAME_MAX_LENGTH = 50
 
+/** Mindestens ein Unicode-Buchstabe (wie Backend `unicodedata` Kategorie L*). */
+const DISPLAY_NAME_HAS_LETTER = /\p{L}/u
+
+export function displayNameHasAtLeastOneLetter(trimmed: string): boolean {
+  return DISPLAY_NAME_HAS_LETTER.test(trimmed)
+}
+
 export type SettingsSaveFieldErrors = {
   displayName?: string
   telegramChatId?: string
@@ -20,6 +27,12 @@ export function getSettingsSaveValidationErrors(
   const name = input.displayName.trim()
   if (name.length > DISPLAY_NAME_MAX_LENGTH) {
     errors.displayName = `Der Name darf höchstens ${DISPLAY_NAME_MAX_LENGTH} Zeichen haben.`
+  } else if (!name) {
+    errors.displayName =
+      "Bitte gib einen Namen ein — mindestens ein Buchstabe ist erforderlich (Leerzeichen am Rand zählen nicht)."
+  } else if (!displayNameHasAtLeastOneLetter(name)) {
+    errors.displayName =
+      "Der Name muss mindestens einen Buchstaben enthalten (Ziffern oder Sonderzeichen allein reichen nicht)."
   }
   if (input.notifyTelegram && input.telegramConfigured) {
     const chat = input.telegramChatId.trim()
@@ -46,6 +59,9 @@ export function humanizeSettingsSaveApiError(message: string): string {
   const t = message.trim()
   const lower = t.toLowerCase()
 
+  if (lower.includes("mindestens einen buchstaben")) {
+    return "Der Name muss mindestens einen Buchstaben enthalten (Leerzeichen am Rand zählen nicht)."
+  }
   if (
     lower.includes("at least 1 character") ||
     lower.includes("ensure this value has at least 1")

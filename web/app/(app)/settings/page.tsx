@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react"
 import { Save, User, Bell, Shield, Trash2, Lock, HelpCircle } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -56,8 +56,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useAuth } from "@/components/auth-provider"
 
 export default function SettingsPage() {
+  const { user } = useAuth()
   const [displayName, setDisplayName] = useState("")
   const [email, setEmail] = useState("")
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
@@ -124,6 +126,11 @@ export default function SettingsPage() {
 
   const settingsFormInvalid = settingsSaveHasErrors(settingsValidation)
 
+  const canChangePassword = useMemo(() => {
+    const raw = user?.app_metadata?.providers
+    return Array.isArray(raw) && raw.includes("email")
+  }, [user])
+
   function HelpTip({ text }: { text: string }) {
     return (
       <TooltipProvider delayDuration={200}>
@@ -175,6 +182,12 @@ export default function SettingsPage() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  function handleSaveOnEnter(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter") return
+    e.preventDefault()
+    void handleSave()
   }
 
   async function handleChangePassword() {
@@ -271,8 +284,7 @@ export default function SettingsPage() {
               <div className="flex flex-col gap-2">
                 <div className="flex items-baseline justify-between gap-2">
                   <Label htmlFor="display-name" className="cursor-pointer">
-                    Name{" "}
-                    <span className="font-normal text-muted-foreground">(optional)</span>
+                    Name <span className="text-destructive">*</span>
                   </Label>
                   <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
                     {displayName.length}/{DISPLAY_NAME_MAX_LENGTH}
@@ -284,11 +296,13 @@ export default function SettingsPage() {
                   value={displayName}
                   maxLength={DISPLAY_NAME_MAX_LENGTH}
                   autoComplete="name"
+                  required
                   aria-invalid={Boolean(settingsValidation.displayName)}
                   aria-describedby={
                     settingsValidation.displayName ? "display-name-error" : "display-name-hint"
                   }
                   onChange={(e) => setDisplayName(e.target.value)}
+                  onKeyDown={handleSaveOnEnter}
                   className={cn(
                     settingsValidation.displayName &&
                       "border-destructive focus-visible:ring-destructive/30",
@@ -298,7 +312,12 @@ export default function SettingsPage() {
                   <p id="display-name-error" role="alert" className="text-sm text-destructive">
                     {settingsValidation.displayName}
                   </p>
-                ) : null}
+                ) : (
+                  <p id="display-name-hint" className="text-sm text-muted-foreground">
+                    Wird in der App angezeigt. Mindestens ein Buchstabe (auch Umlaute), maximal{" "}
+                    {DISPLAY_NAME_MAX_LENGTH} Zeichen. Enter speichert, wenn alles gültig ist.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -356,6 +375,7 @@ export default function SettingsPage() {
                     settingsValidation.telegramChatId ? "telegram-chat-id-error" : undefined
                   }
                   onChange={(e) => setTelegramChatId(e.target.value)}
+                  onKeyDown={handleSaveOnEnter}
                   className={cn(
                     settingsValidation.telegramChatId &&
                       "border-destructive focus-visible:ring-destructive/30",
@@ -440,52 +460,69 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="security" className="flex flex-col gap-6 pt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lock className="size-5" />
-                Passwort ändern
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="old-password">Altes Passwort</Label>
-                <Input
-                  id="old-password"
-                  type="password"
-                  value={oldPassword}
-                  autoComplete="current-password"
-                  onChange={(e) => setOldPassword(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="new-password">Neues Passwort</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  value={newPassword}
-                  autoComplete="new-password"
-                  onChange={(e) => setNewPassword(e.target.value)}
-                />
-                <PasswordStrengthIndicator password={newPassword} />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="confirm-password">Neues Passwort bestätigen</Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  value={confirmPassword}
-                  autoComplete="new-password"
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-              </div>
-              <div className="pt-2">
-                <Button variant="outline" onClick={handleChangePassword}>
-                  Passwort speichern
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {canChangePassword ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="size-5" />
+                  Passwort ändern
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="old-password">Altes Passwort</Label>
+                  <Input
+                    id="old-password"
+                    type="password"
+                    value={oldPassword}
+                    autoComplete="current-password"
+                    onChange={(e) => setOldPassword(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="new-password">Neues Passwort</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    autoComplete="new-password"
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                  <PasswordStrengthIndicator password={newPassword} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="confirm-password">Neues Passwort bestätigen</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    autoComplete="new-password"
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+                <div className="pt-2">
+                  <Button variant="outline" onClick={handleChangePassword}>
+                    Passwort speichern
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="size-5" />
+                  Passwort
+                </CardTitle>
+                <CardDescription className="text-pretty">
+                  Du bist mit Google oder Facebook angemeldet — Schnappster vergibt dafür kein
+                  eigenes Passwort. Passwort-Änderungen nimmst du bei deinem Anbieter vor. Wenn du
+                  später E-Mail und Passwort an dieses Konto anbindest, erscheint hier wieder die
+                  Passwort-Änderung.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
 
           <Separator />
 
