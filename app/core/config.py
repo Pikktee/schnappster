@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pydantic import model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -14,7 +14,10 @@ def get_app_root() -> Path:
 class Config(BaseSettings):
     """Anwendungskonfiguration aus Umgebung und .env."""
 
-    database_url: str = f"sqlite:///{get_app_root() / 'data' / 'schnappster.db'}"
+    database_url: str = Field(
+        ...,
+        description="PostgreSQL connection URL (e.g. postgresql+psycopg://user:pass@host:5432/db)",
+    )
     supabase_url: str = ""
     supabase_publishable_key: str = ""
     supabase_secret_key: str = ""
@@ -33,6 +36,17 @@ class Config(BaseSettings):
         "extra": "ignore",
     }
 
+    @field_validator("database_url")
+    @classmethod
+    def postgres_only(cls, value: str) -> str:
+        """Nur PostgreSQL (lokal, Supabase Pooler, …)."""
+        url = value.strip()
+        if not url.startswith("postgresql"):
+            raise ValueError(
+                "DATABASE_URL must be a PostgreSQL URL, e.g. postgresql+psycopg://user:pass@host:5432/db"
+            )
+        return url
+
     @model_validator(mode="after")
     def validate_required_supabase_admin(self):
         """Im Supabase-Betrieb muss die Primary-Admin-ID gesetzt sein."""
@@ -44,4 +58,4 @@ class Config(BaseSettings):
         return self
 
 
-config = Config()
+config = Config()  # pyright: ignore[reportCallIssue] — Felder aus Umgebung / .env

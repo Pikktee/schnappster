@@ -1,42 +1,95 @@
 """Gemeinsame Test-Fixtures für Schnappster-Tests."""
 
-import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from sqlmodel import Session, SQLModel, StaticPool, create_engine
+from __future__ import annotations
 
-from app.core.auth import CurrentUser, get_current_user
-from app.core.db import get_db_session, get_user_db_session
-from app.models.ad import Ad
-from app.models.adsearch import AdSearch
-from app.models.logs_aianalysis import AIAnalysisLog
-from app.routes import api_router
+import os
+from collections.abc import Iterator
+
+
+# ``app.core`` baut ``Config()`` beim Import — ohne gültige Postgres-URL bricht die Sammlung ab.
+def _ensure_process_database_url() -> None:
+    if os.environ.get("DATABASE_URL", "").strip():
+        return
+    test_url = os.environ.get("TEST_DATABASE_URL", "").strip()
+    if test_url:
+        os.environ["DATABASE_URL"] = test_url
+        return
+    os.environ["DATABASE_URL"] = (
+        "postgresql+psycopg://pytest_collection:pytest_collection@127.0.0.1:65534/pytest_collection"
+    )
+
+
+_ensure_process_database_url()
+
+import pytest  # noqa: E402
+from fastapi import FastAPI  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlmodel import Session, SQLModel, create_engine  # noqa: E402
+from testcontainers.postgres import PostgresContainer  # noqa: E402
+
+import app.models  # noqa: E402, F401 — Metadaten registrieren
+from app.core.auth import CurrentUser, get_current_user  # noqa: E402
+from app.core.db import get_db_session, get_user_db_session  # noqa: E402
+from app.models.ad import Ad  # noqa: E402
+from app.models.adsearch import AdSearch  # noqa: E402
+from app.models.logs_aianalysis import AIAnalysisLog  # noqa: E402
+from app.routes import api_router  # noqa: E402
 
 TEST_USER_ID = "00000000-0000-0000-0000-000000000001"
 
 
+def _normalize_postgres_url(url: str) -> str:
+    """SQLAlchemy/psycopg3: postgresql+psycopg://…"""
+    u = url.strip()
+    if u.startswith("postgresql+") or u.startswith("postgres+"):
+        return u
+    if u.startswith("postgresql://"):
+        return "postgresql+psycopg://" + u.removeprefix("postgresql://")
+    if u.startswith("postgres://"):
+        return "postgresql+psycopg://" + u.removeprefix("postgres://")
+    msg = f"Unsupported database URL for tests: {url!r}"
+    raise ValueError(msg)
+
+
+@pytest.fixture(scope="session")
+def postgres_url() -> Iterator[str]:
+    """Postgres-URL: ``TEST_DATABASE_URL`` oder temporärer Container (Docker)."""
+    env = os.environ.get("TEST_DATABASE_URL", "").strip()
+    if env:
+        yield _normalize_postgres_url(env)
+        return
+    try:
+        with PostgresContainer("postgres:16-alpine") as postgres:
+            raw = postgres.get_connection_url()
+            yield _normalize_postgres_url(raw)
+    except Exception as exc:  # noqa: BLE001 — Docker fehlt, Socket fehlt, …
+        pytest.skip(
+            "Postgres für DB-Tests: TEST_DATABASE_URL setzen oder Docker starten "
+            f"({type(exc).__name__}: {exc})"
+        )
+
+
 @pytest.fixture(name="engine")
-def engine_fixture():
-    """Erstellt eine SQLite-In-Memory-Datenbank für Tests."""
-    test_engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    SQLModel.metadata.create_all(test_engine)
-    return test_engine
+def engine_fixture(postgres_url: str):
+    """Leeres Schema pro Test (drop/create)."""
+    eng = create_engine(postgres_url, echo=False, connect_args={"connect_timeout": 10})
+    SQLModel.metadata.drop_all(eng)
+    SQLModel.metadata.create_all(eng)
+    yield eng
+    SQLModel.metadata.drop_all(eng)
+    eng.dispose()
 
 
 @pytest.fixture(name="session")
 def session_fixture(engine):
-    """Erstellt eine Datenbank-Session für Tests."""
+    """Eine Datenbank-Session für einen Test."""
     with Session(engine) as session:
         yield session
 
 
 @pytest.fixture(name="client")
 def client_fixture(session):
-    """Erstellt einen FastAPI-Test-Client mit Testdatenbank."""
+    """FastAPI-Test-Client mit Testdatenbank."""
     test_app = FastAPI()
     test_app.include_router(api_router)
 

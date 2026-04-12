@@ -7,9 +7,9 @@ Verwendung:
 import logging
 from datetime import UTC, datetime, timedelta
 
-from sqlmodel import Session, text
+from sqlmodel import Session
 
-from app.core import config, db_engine, setup_logging
+from app.core import db_engine, setup_logging
 from app.models import AdSearch, AppSettings, ErrorLog, ScrapeRun
 
 logger = logging.getLogger(__name__)
@@ -28,9 +28,6 @@ def main() -> None:
     )
 
     with Session(db_engine) as session:
-        if config.database_url.startswith("sqlite"):
-            session.execute(text("PRAGMA foreign_keys=ON"))
-
         # Suchauftrag
         session.add(adsearch)
         session.flush()

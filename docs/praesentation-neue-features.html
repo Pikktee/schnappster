@@ -292,7 +292,15 @@
         </div>
       </section>
 
-      <!-- 2: Mehrbenutzer -->
+      <!-- 2: Systemübersicht -->
+      <section>
+        <h2>Systemübersicht</h2>
+        <div style="text-align: center; margin: 0.2em 0;">
+          <img src="schnappster-architecture.png" alt="Systemarchitektur: Frontend, Backend, MCP-Server, Supabase" class="screenshot" style="max-height: 26em;" />
+        </div>
+      </section>
+
+      <!-- 3: Mehrbenutzer (war 2) -->
       <section>
         <h2>Mehrbenutzersystem</h2>
         <p class="subtitle">Supabase Auth + PostgreSQL Row-Level Security.</p>
@@ -322,29 +330,10 @@
       <!-- 3: Deployment -->
       <section>
         <h2>Automatisches Deployment</h2>
-        <p class="subtitle">Ein Befehl deployt alles.</p>
-        <div class="pipeline">
-          <div class="pipeline-step active">uv run release</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step">Git-Tag</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step active">GitHub Actions</div>
+        <p class="subtitle">Ein Befehl deployt alles — drei parallele Jobs.</p>
+        <div style="text-align: center; margin: 0.3em 0;">
+          <img src="schnappster-deployment.png" alt="Deployment-Pipeline: Release-Tag → GitHub Actions → Vercel + Railway (API + MCP)" class="screenshot" style="max-height: 22em;" />
         </div>
-        <div class="diagram diagram-simple" style="margin-top: 0.5em; gap: 0.8rem;">
-          <div class="diagram-box frontend" style="max-width: 220px;">
-            <h4>Vercel</h4>
-            <p>Frontend</p>
-          </div>
-          <div class="diagram-box backend" style="max-width: 220px;">
-            <h4>Railway</h4>
-            <p>Backend-API</p>
-          </div>
-          <div class="diagram-box mcp" style="max-width: 220px;">
-            <h4>Railway</h4>
-            <p>MCP-Server</p>
-          </div>
-        </div>
-        <p class="section-note">Drei parallele Jobs. Kein manuelles Deployen.</p>
       </section>
 
       <!-- 4: Was ist MCP? -->
@@ -430,36 +419,7 @@
         </div>
       </section>
 
-      <!-- 8: Systemübersicht -->
-      <section>
-        <h2>Systemübersicht</h2>
-        <p class="subtitle">Zwei Zugangswege, eine API, eine Auth-Schicht.</p>
-        <div class="diagram diagram-simple" style="gap: 0.6rem;">
-          <div class="diagram-box frontend" style="max-width: 220px;">
-            <h4>Vercel</h4>
-            <p>Frontend</p>
-          </div>
-          <div class="diagram-arrow-between" style="font-size: 1.2em;" aria-hidden="true">↔</div>
-          <div class="diagram-box backend" style="max-width: 220px;">
-            <h4>Railway</h4>
-            <p>API + Scraper + KI</p>
-          </div>
-          <div class="diagram-arrow-between" style="font-size: 1.2em;" aria-hidden="true">↔</div>
-          <div class="diagram-box mcp" style="max-width: 220px;">
-            <h4>Railway</h4>
-            <p>MCP-Server</p>
-          </div>
-        </div>
-        <div style="text-align: center; margin: 0.3em 0;">
-          <div class="diagram-box auth" style="display: inline-block; min-width: 300px;">
-            <h4>Supabase</h4>
-            <p>Auth (JWT) + PostgreSQL (RLS) + OAuth 2.1</p>
-          </div>
-        </div>
-        <p class="section-note"><strong>Browser</strong> oder <strong>KI-Assistent</strong> — dieselbe API, dieselben Rechte.</p>
-      </section>
-
-      <!-- 9: Zusammenfassung -->
+      <!-- 8: Zusammenfassung -->
       <section>
         <h2>Zusammenfassung</h2>
         <table>

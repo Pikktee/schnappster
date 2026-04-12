@@ -6,19 +6,17 @@ Verwendung:
 
 import logging
 
-from app.core import get_app_root, init_db, setup_logging
+from sqlmodel import SQLModel
+
+import app.models  # noqa: F401 — SQLModel-Metadaten registrieren
+from app.core import db_engine, init_db, setup_logging
 
 logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    """Löscht die Datenbankdatei und legt das Schema neu an."""
+    """Entfernt alle Tabellen und legt das Schema neu an."""
     setup_logging()
-    db_path = get_app_root() / "data" / "schnappster.db"
-
-    if db_path.exists():
-        db_path.unlink()
-        logger.info(f"Deleted {db_path}")
-
+    SQLModel.metadata.drop_all(db_engine)
     init_db()
-    logger.info("Database recreated")
+    logger.info("Database schema recreated")

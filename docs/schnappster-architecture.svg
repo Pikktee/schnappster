@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="456" viewBox="40 12 860 456" overflow="visible" role="img">
+  <title>Schnappster: Systemarchitektur</title>
+  <desc>Remote-MCP (z. B. Claude): OAuth-2.1-Browserflow; Supabase OAuth-Server (Issuer …/auth/v1). MCP-Client→Web: Browser /connect (Kanal y≈96). MCP-Client→OAuth-Server: direkte Linie (OAuth-Client ↔ Supabase OAuth). MCP-Client→MCP-Server vertikal. Schwarze Pfeile: Web→Supabase, Web/MCP→Backend, Backend→Postgres.</desc>
+  <defs>
+    <linearGradient id="a4-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#eef2f6"/>
+    </linearGradient>
+    <linearGradient id="a4-stripe" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="50%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+    <filter id="a4-sh" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#0f172a" flood-opacity="0.07"/>
+    </filter>
+    <marker id="a4-m" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#000000"/>
+    </marker>
+    <marker id="a4-m-muted" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#C4BFBA"/>
+    </marker>
+  </defs>
+
+  <rect x="40" y="12" width="860" height="456" fill="url(#a4-bg)"/>
+  <rect x="40" y="56" width="860" height="4" rx="2" fill="url(#a4-stripe)"/>
+
+  <text x="470" y="44" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="24" font-weight="600" letter-spacing="-0.03em" fill="#0f172a">Schnappster: Systemarchitektur</text>
+
+  <!-- MCP-Client → Web: Start oberer Mitte MCP (704,112), Ende oberer Mitte Web (160,112); Kanal y≈96 -->
+  <path d="M 704 112 L 704 96 L 160 96 L 160 112" fill="none" stroke="#C4BFBA" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#a4-m-muted)"/>
+
+  <g filter="url(#a4-sh)">
+    <rect x="48" y="112" width="224" height="92" rx="18" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
+    <text x="160" y="154" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="17" font-weight="600" fill="#1C1917">Web Frontend</text>
+    <text x="160" y="182" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11.5" fill="#78716C">Next.js / React</text>
+  </g>
+
+  <g filter="url(#a4-sh)">
+    <rect x="328" y="112" width="236" height="160" rx="18" fill="#ffffff" stroke="#059669" stroke-width="2"/>
+    <text x="446" y="130" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="15" font-weight="600" fill="#047857">Supabase</text>
+
+    <rect x="340" y="142" width="100" height="52" rx="12" fill="#ecfdf5" stroke="#34d399" stroke-width="1.5"/>
+    <text x="390" y="166" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#047857">Auth</text>
+    <text x="390" y="182" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#15803d">JWT &#183; Session</text>
+
+    <rect x="448" y="142" width="104" height="52" rx="12" fill="#ecfdf5" stroke="#34d399" stroke-width="1.5"/>
+    <text x="500" y="166" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11.5" font-weight="600" fill="#047857">OAuth-Server</text>
+    <text x="500" y="182" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="9.5" fill="#15803d">MCP &#183; externe Apps</text>
+
+    <rect x="340" y="204" width="212" height="58" rx="12" fill="#f0fdfa" stroke="#2dd4bf" stroke-width="1.5"/>
+    <text x="446" y="226" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="600" fill="#0f766e">Postgres</text>
+    <text x="446" y="248" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10.5" fill="#0d9488">Datenbank</text>
+  </g>
+
+  <g filter="url(#a4-sh)">
+    <rect x="608" y="112" width="192" height="52" rx="14" fill="#F5F5F4" stroke="#E7E5E4" stroke-width="1.5"/>
+    <text x="704" y="140" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="600" fill="#57534E">MCP-Client</text>
+    <text x="704" y="156" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11.5" fill="#78716C">Claude / LLM</text>
+  </g>
+
+  <!-- MCP-Client → OAuth-Server: kürzeste Linie links Mitte MCP (608,138) → rechts Mitte OAuth (552,168) -->
+  <path d="M 608 138 L 552 168" fill="none" stroke="#C4BFBA" stroke-width="1.5" stroke-linecap="round" marker-end="url(#a4-m-muted)"/>
+
+  <!-- MCP-Client → MCP-Server: Lücke zwischen den Karten -->
+  <path d="M 704 164 L 704 188" fill="none" stroke="#C4BFBA" stroke-width="1.5" stroke-linecap="round" marker-end="url(#a4-m-muted)"/>
+
+  <g filter="url(#a4-sh)">
+    <rect x="582" y="188" width="256" height="100" rx="18" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
+    <text x="710" y="226" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="17" font-weight="600" fill="#1C1917">MCP-Server</text>
+    <text x="710" y="250" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#78716C">Streamable HTTP</text>
+    <text x="710" y="272" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11.5" fill="#78716C">Python</text>
+  </g>
+
+  <g filter="url(#a4-sh)">
+    <rect x="120" y="352" width="760" height="100" rx="20" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
+    <text x="500" y="386" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="19" font-weight="600" fill="#1C1917">Backend</text>
+    <text x="500" y="418" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12.5" fill="#78716C">FastAPI &#183; Scraper &#183; KI-Analyse</text>
+    <text x="500" y="442" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11.5" fill="#78716C">Python</text>
+  </g>
+
+  <path d="M 272 172 Q 298 158 338 168" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" marker-end="url(#a4-m)"/>
+
+  <path d="M 160 204 C 160 280 200 320 280 352" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" marker-end="url(#a4-m)"/>
+  <path d="M 710 288 C 710 318 680 338 640 352" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" marker-end="url(#a4-m)"/>
+
+  <path d="M 446 352 L 446 262" fill="none" stroke="#000000" stroke-width="1.75" stroke-linecap="round" marker-end="url(#a4-m)"/>
+</svg>

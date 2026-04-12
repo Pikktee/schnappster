@@ -17,7 +17,7 @@ Schnappster ist eine Web-App, die periodisch deine gespeicherten Kleinanzeigen-S
 
 ### Backend
 - **Python 3.13** mit FastAPI
-- **SQLModel** (SQLite) für Datenbank
+- **SQLModel** + **PostgreSQL** (z. B. Supabase; `DATABASE_URL`)
 - **curl-cffi** für HTTP-Requests (Browser-Impersonation)
 - **BeautifulSoup4** für HTML-Parsing
 - **APScheduler** für Hintergrundaufgaben
@@ -52,7 +52,7 @@ uv sync
 
 # Umgebungsvariablen konfigurieren:
 # - .env im Repo-Root anlegen (ggf. von .env.example kopieren)
-# OPENAI_API_KEY, OPENAI_MODEL und optional OPENAI_BASE_URL setzen
+# DATABASE_URL (PostgreSQL), Supabase-Keys, OPENAI_API_KEY, OPENAI_MODEL, optional OPENAI_BASE_URL
 ```
 
 ### 3. Frontend einrichten (optional)
@@ -120,7 +120,7 @@ Die API lauscht auf http://localhost:8000 (Standard; mit `--port 8080` z. B. a
 | `uv run analyze [limit]` | Manuelle KI-Analyse starten |
 | `uv run dbreset` | Datenbank zurücksetzen (bei Schema-Änderungen) |
 | `uv run docs [show]` | API-Dokumentation (pdoc) generieren und optional im Browser öffnen |
-| `uv run pytest` | Tests ausführen |
+| `uv run pytest` | Tests ausführen (DB-Tests: `TEST_DATABASE_URL` oder Docker für testcontainers) |
 | `uv run ruff check .` | Code linting |
 | `uv run ruff format .` | Code formatieren |
 
@@ -145,7 +145,7 @@ schnappster/
 ├── cli/               # CLI Entry Points
 ├── web/               # Next.js Frontend
 ├── docs/              # Projekt-Dokumentation
-└── data/              # SQLite Datenbank
+└── data/              # optional (z. B. lokale Artefakte); DB liegt in Postgres
 ```
 
 ### Scraping Pipeline

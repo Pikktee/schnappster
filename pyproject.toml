@@ -58,6 +58,7 @@ dev = [
     "ruff>=0.15.4",
     "pdoc>=14",
     "markdown>=3.7",
+    "testcontainers[postgres]>=4.8.0",
 ]
 
 [project.scripts]

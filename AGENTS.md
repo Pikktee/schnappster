@@ -46,7 +46,7 @@ Frontend and API are separate processes: locally ``uv run start`` starts both; p
 ### Docker
 
 ```bash
-docker compose up -d    # Uses proxy-net external network, SQLite volume mount
+docker compose up -d    # Uses proxy-net external network; ``DATABASE_URL`` in ``.env`` (z. B. Supabase Postgres)
 ```
 
 ### Chrome Extension
@@ -105,7 +105,7 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Build/dev workflow a
 
 ### Key conventions
 
-- **Database:** SQLite at `data/schnappster.db`, path via `get_app_root()` (never relative paths). No Alembic — schema changes → **`uv run dbreset`**.
+- **Database:** PostgreSQL only (`DATABASE_URL`, z. B. Supabase). No Alembic — schema changes → **`uv run dbreset`** (drop all tables + `init_db()`).
 - API keys (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`) live in `.env`, not the DB
 - **`AppSettings`:** runtime-configurable settings (seller filters, Telegram, etc.)
 - Image URLs stored as comma-separated strings in `Ad.image_urls`
@@ -139,6 +139,7 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Build/dev workflow a
 - Prefer testing **observable behavior**, not private methods or implementation details.
 - New services and filter logic should get **unit tests** (same spirit as `test_scraper_filters.py`).
 - **`uv run pytest`** (Root) und **`cd mcp-server && uv run pytest`** should stay green before merge. Root-**`pytest.ini`**: **`testpaths = tests cli/mcp_server`** — `mcp-server/tests/` wird separat gesammelt (**`mcp-server/pyproject.toml`** → `testpaths`), weil sonst zwei Ordner `tests/` als dasselbe Python-Paket `tests.*` kollidieren. Gemeinsame MCP-Fixtures: **`mcp-server/conftest.py`** (nicht unter `mcp-server/tests/`), damit `tests.conftest` nur im jeweiligen Pytest-Lauf jeweils einmal vorkommt.
+- **DB-Tests (Root):** Postgres über **`TEST_DATABASE_URL`** (empfohlen in CI) oder lokalen Docker-Container (**testcontainers**; Docker muss laufen). Ohne beides werden Tests, die Postgres brauchen, **übersprungen** (Parser-/Pure-Logik-Tests laufen weiter).
 
 ## Output Format
 
