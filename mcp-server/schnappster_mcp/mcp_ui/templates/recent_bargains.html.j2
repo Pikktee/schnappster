@@ -194,20 +194,6 @@
     function render() {
       root.innerHTML = "";
 
-      const title = el("h1", null, [text("Schnäppchen-Liste")]);
-      const subtitle = el(
-        "p",
-        { className: "muted" },
-        [
-          text(
-            "Sortierbare Übersicht; Titel verlinken zur Anzeige bei Kleinanzeigen. " +
-              "Kurzfassung und Trefferzahlen stehen im Chat-Text der KI."
-          ),
-        ]
-      );
-      root.appendChild(title);
-      root.appendChild(subtitle);
-
       const sortSelect = el("select", null, [
         el("option", { value: "score" }, [text("Sortierung: Score")]),
         el("option", { value: "price" }, [text("Sortierung: Preis")]),

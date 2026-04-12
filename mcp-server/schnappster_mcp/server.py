@@ -131,6 +131,9 @@ def build_mcp(settings: Settings) -> FastMCP:
         ),
         icons=tool_icons,
         json_response=True,
+        # Keine serverseitige MCP-Session: vermeidet „session … no longer exists“ bei
+        # Deploys, mehreren Instanzen, Tunnel-Reconnects und längeren Client-Pausen.
+        stateless_http=True,
         token_verifier=SupabaseTokenVerifier(settings),
         auth=AuthSettings(
             issuer_url=AnyHttpUrl(settings.supabase_auth_issuer_url),

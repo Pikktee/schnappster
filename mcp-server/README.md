@@ -132,6 +132,10 @@ Dein MCP-Server läuft nur auf **`127.0.0.1`** — aus dem Internet (und manchma
 
 **Sicherheit:** Solange der Tunnel läuft, ist dein lokaler MCP aus dem Netz erreichbar — Tunnel bei Nichtgebrauch **beenden**; keine Secrets in Repos committen.
 
+### Fehler „MCP session has been terminated or no longer exists“
+
+Der produktive Server nutzt **stateless Streamable HTTP** (keine serverseitige Sitzung pro Client) — damit entfallen viele Fälle, in denen ein alter Session-Header nach Deploy oder Instanz-Wechsel nicht mehr passt. Trotzdem kann ein **Connector** (z. B. Claude) eine **eigene** Sitzung schließen oder nach langer Pause nicht mehr synchron sein: **MCP-Verbindung im Client trennen und neu hinzufügen** bzw. neues Gespräch starten. Beim **lokalen Tunnel**: nach **`r`** (MCP neu) oder neuer TryCloudflare-URL die **Connector-URL im Client aktualisieren** — die Subdomain wechselt oft bei jedem Tunnel-Start.
+
 ## Tools
 
 | Tool | Zweck |

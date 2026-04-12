@@ -49,9 +49,11 @@
     }
     tr:last-child td { border-bottom: 0; }
     tr:hover { background: color-mix(in oklab, CanvasText 6%, Canvas); }
-    .url {
-      word-break: break-all;
-      opacity: 0.95;
+    a.link {
+      color: inherit;
+      text-decoration: none;
+      border-bottom: 1px dashed color-mix(in oklab, CanvasText 32%, Canvas);
+      word-break: break-word;
     }
     button {
       border: 1px solid color-mix(in oklab, CanvasText 20%, Canvas);
@@ -210,14 +212,6 @@
 
     function render() {
       root.innerHTML = "";
-      root.appendChild(el("h1", null, [text("Suchauftrags-Manager")]));
-      root.appendChild(
-        el("p", { className: "muted" }, [
-          text(
-            "Aktivieren/Deaktivieren und Neu laden. Anzahl und Einordnung stehen im Chat-Text der KI."
-          ),
-        ])
-      );
 
       const refreshBtn = el("button", { type: "button" }, [text("Neu laden")]);
       refreshBtn.addEventListener("click", refreshSearches);
@@ -243,11 +237,10 @@
       const table = el("table", null, [
         el("thead", null, [
           el("tr", null, [
-            el("th", null, [text("Name")]),
-            el("th", null, [text("URL")]),
-            el("th", null, [text("Status")]),
-            el("th", null, [text("Zuletzt gescraped")]),
-            el("th", null, [text("Aktivieren/Deaktivieren")]),
+            el("th", { scope: "col" }, [text("Name")]),
+            el("th", { scope: "col" }, [text("Status")]),
+            el("th", { scope: "col" }, [text("Aktualisiert")]),
+            el("th", { scope: "col", "aria-label": "Aktiv schalten" }, []),
           ]),
         ]),
         el("tbody", null, []),
@@ -269,9 +262,32 @@
           text(busy ? "Speichert…" : item.is_active ? "Aktiv" : "Inaktiv"),
         ]);
 
+        const label = item.name || "Unbenannter Suchauftrag";
+        let nameCell;
+        if (item.url) {
+          const link = el(
+            "a",
+            {
+              href: item.url,
+              target: "_blank",
+              rel: "noopener noreferrer",
+              className: "link",
+            },
+            [text(label)]
+          );
+          link.addEventListener("click", (ev) => {
+            if (typeof app.openLink === "function") {
+              ev.preventDefault();
+              void app.openLink({ url: item.url });
+            }
+          });
+          nameCell = link;
+        } else {
+          nameCell = text(label);
+        }
+
         const row = el("tr", null, [
-          el("td", null, [text(item.name || "Unbenannter Suchauftrag")]),
-          el("td", { className: "url" }, [text(item.url || "—")]),
+          el("td", null, [nameCell]),
           el("td", null, [
             el("span", { className: "pill " + (item.is_active ? "active" : "inactive") }, [
               text(item.is_active ? "Aktiv" : "Inaktiv"),
