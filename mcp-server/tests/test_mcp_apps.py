@@ -71,3 +71,5 @@ def test_embedded_view_includes_app_bridge_import() -> None:
     assert "unpkg.com" in html
     assert "@modelcontextprotocol/ext-apps" in html
     assert "ontoolresult" in html
+    assert "resolvePrimaryImage" in html
+    assert "Mehr anzeigen" in html

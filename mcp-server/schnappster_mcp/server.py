@@ -27,6 +27,7 @@ from schnappster_mcp.mcp_ui.mcp_apps import (
 )
 
 _FAVICON_CACHE_CONTROL_MAX_AGE_S = 86400
+_SETTINGS_FIELDS_HIDDEN_FROM_LLM = frozenset({"deletion_pending"})
 
 
 @lru_cache(maxsize=1)
@@ -41,6 +42,11 @@ async def _run_api[T](coro: Awaitable[T]) -> T:
         return await coro
     except SchnappsterApiError as exc:
         raise ToolError(f"Schnappster-API ({exc.status_code}): {exc}") from exc
+
+
+def _sanitize_user_settings(payload: dict) -> dict:
+    """Entfernt nicht relevante interne Settings-Felder aus MCP-Tool-Antworten."""
+    return {key: value for key, value in payload.items() if key not in _SETTINGS_FIELDS_HIDDEN_FROM_LLM}
 
 
 def _log_level(value: str) -> Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
@@ -207,7 +213,8 @@ def build_mcp(settings: Settings) -> FastMCP:
     async def get_my_settings() -> dict:
         """Liest persönliche Benutzereinstellungen (Benachrichtigungen, Telegram, Mindest-Score)."""
         client = _api_client(settings)
-        return await _run_api(client.request("GET", "/users/me/settings"))
+        payload = await _run_api(client.request("GET", "/users/me/settings"))
+        return _sanitize_user_settings(payload) if isinstance(payload, dict) else payload
 
     @mcp.tool(icons=tool_icons)
     async def update_my_settings(
@@ -229,7 +236,8 @@ def build_mcp(settings: Settings) -> FastMCP:
         if not body:
             raise ToolError("Mindestens ein Feld zum Aktualisieren angeben.")
         client = _api_client(settings)
-        return await _run_api(client.request("PATCH", "/users/me/settings", json_body=body))
+        payload = await _run_api(client.request("PATCH", "/users/me/settings", json_body=body))
+        return _sanitize_user_settings(payload) if isinstance(payload, dict) else payload
 
     @mcp.tool(icons=tool_icons, meta=ad_searches_tool_meta())
     async def list_ad_searches() -> dict:

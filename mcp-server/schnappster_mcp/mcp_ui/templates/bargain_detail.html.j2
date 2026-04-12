@@ -15,9 +15,51 @@
       padding: 12px;
       background: transparent;
     }
-    #root { max-width: 42rem; margin: 0 auto; }
-    h1 { font-size: 1.15rem; margin: 0 0 8px; font-weight: 650; }
+    #root { max-width: 46rem; margin: 0 auto; }
+    h1 { font-size: 1.2rem; margin: 0; font-weight: 700; }
     .muted { opacity: 0.75; font-size: 0.85rem; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+      border-radius: 14px;
+      background: linear-gradient(
+        135deg,
+        color-mix(in oklab, CanvasText 10%, Canvas),
+        color-mix(in oklab, CanvasText 4%, Canvas)
+      );
+      border: 1px solid color-mix(in oklab, CanvasText 12%, Canvas);
+      box-shadow: 0 8px 20px color-mix(in oklab, CanvasText 10%, transparent);
+    }
+    .hero-image-wrap {
+      border-radius: 10px;
+      overflow: hidden;
+      background: color-mix(in oklab, CanvasText 5%, Canvas);
+      border: 1px solid color-mix(in oklab, CanvasText 10%, Canvas);
+      max-height: 18rem;
+    }
+    .hero-image {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 0.82rem;
+      border: 1px solid color-mix(in oklab, CanvasText 14%, Canvas);
+      background: color-mix(in oklab, CanvasText 7%, Canvas);
+    }
     .score {
       display: inline-block;
       padding: 2px 8px;
@@ -38,6 +80,25 @@
       padding: 10px 12px;
       border-radius: 10px;
       background: color-mix(in oklab, CanvasText 6%, Canvas);
+    }
+    .expandable-text {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .expand-toggle {
+      margin-top: 8px;
+      border: 1px solid color-mix(in oklab, CanvasText 20%, Canvas);
+      background: color-mix(in oklab, CanvasText 4%, Canvas);
+      color: inherit;
+      border-radius: 8px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.86rem;
+    }
+    .expand-toggle:hover {
+      background: color-mix(in oklab, CanvasText 9%, Canvas);
     }
     a.link { color: inherit; word-break: break-all; }
     .empty { opacity: 0.7; font-size: 0.9rem; }
@@ -84,20 +145,41 @@
       const title = data.title || "Anzeige";
       const score =
         data.bargain_score != null ? String(data.bargain_score) : "—";
+      const imageUrl = resolvePrimaryImage(data);
 
-      const head = el("div", null, [
-        el("h1", null, [text(title)]),
-        el("p", { className: "muted" }, [
-          text("Score: "),
-          el("span", { className: "score" }, [text(score)]),
-          text(
-            data.city || data.postal_code
-              ? " · " + [data.postal_code, data.city].filter(Boolean).join(" ")
-              : ""
-          ),
-        ]),
-      ]);
-      root.appendChild(head);
+      const locationText = [data.postal_code, data.city].filter(Boolean).join(" ");
+      const offerBits = [
+        data.price != null ? "Preis: " + fmtPrice(data.price) : null,
+        data.seller_name ? "Verkäufer: " + data.seller_name : null,
+        data.seller_type ? "Typ: " + data.seller_type : null,
+      ].filter(Boolean);
+
+      const heroChildren = [];
+      if (imageUrl) {
+        heroChildren.push(
+          el("div", { className: "hero-image-wrap" }, [
+            el("img", {
+              className: "hero-image",
+              src: imageUrl,
+              alt: title,
+              loading: "lazy",
+              referrerPolicy: "no-referrer",
+            }),
+          ])
+        );
+      }
+      heroChildren.push(
+        el("div", null, [
+          el("h2", null, [text("Angebot")]),
+          el("h1", null, [text(title)]),
+          el("div", { className: "hero-meta" }, [
+            el("span", { className: "chip score" }, [text("Score: " + score)]),
+            ...(locationText ? [el("span", { className: "chip" }, [text(locationText)])] : []),
+            ...offerBits.map((entry) => el("span", { className: "chip" }, [text(entry)])),
+          ]),
+        ])
+      );
+      root.appendChild(el("div", { className: "hero" }, heroChildren));
 
       if (data.url) {
         const ka = el(
@@ -129,28 +211,65 @@
         );
       };
 
-      addSection("Kurzfassung", data.ai_summary);
-      addSection("Begründung", data.ai_reasoning);
-
-      const sellerBits = [
-        data.seller_name && "Verkäufer: " + data.seller_name,
-        data.seller_type && "Typ: " + data.seller_type,
-        data.price != null && "Preis: " + fmtPrice(data.price),
-      ].filter(Boolean);
-      if (sellerBits.length) {
+      const addExpandableSection = (label, bodyText, previewLength = 260) => {
+        if (!bodyText) return;
+        const normalizedText = String(bodyText).trim();
+        if (!normalizedText) return;
+        if (normalizedText.length <= previewLength) {
+          addSection(label, normalizedText);
+          return;
+        }
+        const preview = normalizedText.slice(0, previewLength).trimEnd() + " …";
+        const collapsedText = el("p", { className: "expandable-text" }, [text(preview)]);
+        const fullText = el(
+          "p",
+          { className: "expandable-text", hidden: true },
+          [text(normalizedText)]
+        );
+        const toggle = el("button", { className: "expand-toggle", type: "button" }, [
+          text("Mehr anzeigen"),
+        ]);
+        toggle.addEventListener("click", () => {
+          const expanded = !fullText.hidden;
+          fullText.hidden = expanded;
+          collapsedText.hidden = !expanded;
+          toggle.textContent = expanded ? "Mehr anzeigen" : "Weniger anzeigen";
+        });
         root.appendChild(
           el("div", { className: "section" }, [
-            el("h2", null, [text("Angebot")]),
-            el("div", { className: "box" }, [
-              text(sellerBits.join(" · ")),
-            ]),
+            el("h2", null, [text(label)]),
+            el("div", { className: "box" }, [collapsedText, fullText, toggle]),
           ])
         );
-      }
+      };
+
+      addSection("Kurzfassung", data.ai_summary);
+      addExpandableSection("Begründung", data.ai_reasoning);
 
       if (data.description) {
-        addSection("Beschreibung", data.description);
+        addExpandableSection("Beschreibung", data.description);
       }
+    }
+
+    function resolvePrimaryImage(data) {
+      if (!data || typeof data !== "object") return null;
+      if (typeof data.image_url === "string" && data.image_url.trim() !== "") {
+        return data.image_url.trim();
+      }
+      if (Array.isArray(data.image_urls)) {
+        const first = data.image_urls.find(
+          (entry) => typeof entry === "string" && entry.trim() !== ""
+        );
+        return first ? String(first).trim() : null;
+      }
+      if (typeof data.image_urls === "string") {
+        const first = data.image_urls
+          .split(",")
+          .map((entry) => entry.trim())
+          .find((entry) => entry !== "");
+        return first || null;
+      }
+      return null;
     }
 
     function renderStatus(message) {
