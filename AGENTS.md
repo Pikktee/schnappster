@@ -13,7 +13,7 @@ Package manager is `uv`. CLI entry points live in root `pyproject.toml` (inkl. *
 ```bash
 uv run start              # Next.js on :3000 (hot reload) + FastAPI (runs tests first)
 uv run start --skip-tests # Same without tests
-uv run start --prod       # FastAPI only (no Next.js dev server)
+uv run start --prod       # FastAPI only (no Next dev server; use ``cd web && npm run dev`` separately if needed)
 uv run start --port 8080  # Custom backend port
 uv run scrape [adsearch_id]  # Manually trigger a scrape
 uv run analyze [limit]       # Manually trigger AI analysis
@@ -36,12 +36,12 @@ uv run ruff format .         # Format
 
 ```bash
 cd web
-npm run dev     # Dev server (proxies API to localhost:8000)
-npm run build   # Static export to web/out/ (served by FastAPI)
+npm run dev     # Dev server (:3000); set ``NEXT_PUBLIC_API_URL`` to the API origin (e.g. http://127.0.0.1:8000)
+npm run build   # Production build (Vercel uses this; ``npm start`` runs ``next start``)
 npm run lint    # ESLint
 ```
 
-Static export → `web/out/`, served by FastAPI after `npm run build`. `NEXT_PUBLIC_API_URL`: empty = same origin.
+Frontend and API are separate processes: locally ``uv run start`` starts both; production uses Vercel (web) + Railway (API). Set ``NEXT_PUBLIC_API_URL`` to the public API URL (e.g. ``https://api.<domain>``).
 
 ### Docker
 
@@ -100,7 +100,7 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Build/dev workflow a
 
 - `web/lib/api.ts` — all API calls, typed against `web/lib/types.ts`
 - `web/app/(app)/` — route group for the main app layout (sidebar)
-- Dynamic detail routes (`/ads/[id]`, `/searches/[id]`) are handled by FastAPI serving the pre-rendered `id=0` shell as fallback, then the client router fetches actual data
+- Dynamic detail routes (`/ads/[id]`, `/searches/[id]`) are normal Next.js App Router pages; data is fetched in the browser from the API
 - `web/components/ui/` — shadcn/ui primitives (don't modify directly)
 
 ### Key conventions

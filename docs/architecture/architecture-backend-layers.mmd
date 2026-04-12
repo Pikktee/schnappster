@@ -4,19 +4,16 @@
 %% PNG erzeugen: npx -y @mermaid-js/mermaid-cli/mmdc -i architecture-backend-layers.mmd -o architecture-backend-layers.png
 
 flowchart TB
-    A["1. Entry<br/><b>main.py</b>, bootstrap, CORS, Lifespan, Router, Static Mount"]
+    A["1. Entry<br/><b>main.py</b>, bootstrap, CORS, Lifespan, API-Router"]
     B["2. routes/api<br/>ads, adsearch, aianalysislogs, errorlogs, scraperuns, settings, version"]
-    C["3. routes/frontend<br/>SPA-Fallback, mount web/out"]
-    D["4. services<br/>ScraperService, AIService, SettingsService, telegram"]
-    E["5. scraper<br/>httpclient, parser"]
-    F["6. models<br/>Ad, AdSearch, ErrorLog, ScrapeRun, AppSettings"]
-    G["7. core<br/>db, config, logging, background_jobs"]
-    CLI["8. CLI<br/><b>start</b>, scrape, analyze, dbreset"]
+    D["3. services<br/>ScraperService, AIService, SettingsService, telegram"]
+    E["4. scraper<br/>httpclient, parser"]
+    F["5. models<br/>Ad, AdSearch, ErrorLog, ScrapeRun, AppSettings"]
+    G["6. core<br/>db, config, logging, background_jobs"]
+    CLI["7. CLI<br/><b>start</b>, scrape, analyze, dbreset"]
 
     A --> B
-    A --> C
     B --> D
-    C --> D
     D --> E
     D --> F
     D --> G
@@ -26,7 +23,6 @@ flowchart TB
 
     style A fill:#e8f4f8
     style B fill:#fff4e6
-    style C fill:#fff4e6
     style D fill:#e8f5e9
     style E fill:#f3e5f5
     style F fill:#fce4ec

@@ -12,12 +12,12 @@ Web und API laufen als getrennte Deployments mit eigenen Domains:
 
 - **Frontend (Vercel):** `https://app.<domain>`
 - **Backend API (Railway):** `https://api.<domain>`
-- **Routing:** Frontend ruft API unter `https://api.<domain>/api/...` auf
+- **Routing:** Frontend ruft die REST-API unter derselben Basis-URL auf (z. B. `https://api.<domain>/ads`, `https://api.<domain>/version/` …), konfiguriert über `NEXT_PUBLIC_API_URL`
 - **TLS/HTTPS:** wird durch Vercel und Railway + DNS-Domain-Mapping bereitgestellt
 
 Das Backend beinhaltet weiterhin den kompletten fachlichen Runtime-Anteil:
 
-- **FastAPI** mit Endpunkten unter `/api`
+- **FastAPI** mit REST-Endpunkten an der Wurzel (z. B. `/ads`, `/adsearches`, `/version/`)
 - **APScheduler** fuer Scrape-, Analyze- und Cleanup-Jobs (im API-Prozess)
 - **ScraperService** -> **Kleinanzeigen.de**
 - **AIService** -> **OpenAI-kompatible API**
@@ -31,7 +31,7 @@ CORS ist in der Produktion notwendig, da Frontend und API auf unterschiedlichen 
 Lokal bleiben Frontend und API ebenfalls getrennt:
 
 - **Next.js Dev Server:** `http://localhost:3000`
-- **FastAPI API:** `http://localhost:8000/api/...`
+- **FastAPI API:** `http://localhost:8000` (z. B. `/ads`, `/version/`)
 - **CORS:** `localhost:3000` muss fuer die lokale API freigegeben sein
 
 Die Background Jobs laufen lokal wie in Produktion im FastAPI-Prozess.
@@ -43,15 +43,13 @@ Quelle: `architecture-backend-layers.mmd` (Mermaid).
 PNG neu erzeugen:
 `npx -p @mermaid-js/mermaid-cli mmdc -i architecture-backend-layers.mmd -o architecture-backend-layers.png`
 
-- **Entry:** `main.py` -> `create_app()` in `core/bootstrap.py` (CORS, Lifespan, Router)
+- **Entry:** `main.py` -> `create_app()` in `core/bootstrap.py` (CORS, Lifespan, API-Router)
 - **routes/api:** REST-Endpunkte (ads, adsearch, aianalysislogs, errorlogs, scraperuns, settings, version)
 - **services:** ScraperService, AIService, SettingsService, Telegram
 - **scraper:** HTTP/HTML (httpclient, parser) - keine Business-Logik
 - **models:** SQLModel-Tabellen und API-Schemas
 - **core:** DB, Config, Logging, BackgroundJobs (APScheduler)
 - **cli:** Einstiegspunkte (`uv run start`, `scrape`, `analyze`, `dbreset`); nutzt services, core, models
-
-Hinweis: Der fruehere Frontend-Mount im FastAPI-Bootstrap ist nicht mehr Teil des Zielbilds fuer Produktion.
 
 ### 3. Scheduler- und Analyze-Flow (`architecture-scheduler-flow.png`)
 

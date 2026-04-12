@@ -3,7 +3,7 @@
 ## Phase 1 - Backend: Auth und Multi-User
 
 1. Manuelle Vorarbeiten aus `90-manual-supabase-and-external-setup.md` abschliessen
-2. Backend-Migration auf Postgres/Supabase (Static Export bleibt vorerst funktionsfaehig)
+2. Backend-Migration auf Postgres/Supabase (Frontend bleibt eigenstaendiges Next.js)
 3. RLS-Policies und Session-Kontexte
 4. Jobs auf Service-Role + `owner_id` umstellen
 5. Versionierte SQL-Migrationen fuer MVP aufsetzen und Tests auf Postgres-kompatiblen Stand bringen

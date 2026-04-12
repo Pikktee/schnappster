@@ -358,7 +358,7 @@
             <h4>Frontend</h4>
             <p>Next.js / React, TypeScript</p>
             <p>UI: Listen, Formulare, Dashboard</p>
-            <p>Wird zu statischem HTML/JS gebaut</p>
+            <p>Läuft als Next.js-App (Dev-Server oder Vercel)</p>
           </div>
           <div class="diagram-arrow-between" aria-hidden="true">↔</div>
           <div class="diagram-box backend">
@@ -394,8 +394,7 @@
           <div class="tech-block tech-block-deployment">
             <h4>Deployment</h4>
             <div class="deployment-mode">
-              <strong>Produktion</strong> <code>npm run build</code> in <code>web/</code>, dann <code>uv run start --prod</code><br/>
-              FastAPI liefert API und statisches Frontend (<code>web/out/</code>). Gleicher Origin.
+              <strong>Produktion</strong> Frontend z. B. <strong>Vercel</strong> (<code>npm run build</code> in <code>web/</code>), API z. B. <strong>Railway</strong> (<code>uv run start --prod</code> bzw. Uvicorn im Container). Getrennte Origins; CORS + <code>NEXT_PUBLIC_API_URL</code>.
             </div>
             <div class="deployment-mode">
               <strong>Dev</strong> <code>uv run start</code><br/>
@@ -469,10 +468,10 @@
       <!-- Frontend in Kürze -->
       <section>
         <h2>Frontend in Kürze</h2>
-        <p class="subtitle">Next.js + React, statisch gebaut, eine klare Struktur.</p>
+        <p class="subtitle">Next.js + React, eigenständige App, klare Struktur.</p>
         <div class="frontend-blocks">
           <div class="frontend-block">
-            <strong>Stack</strong> — Next.js 16, React 19, Tailwind v4, shadcn/ui. Build: <strong>Static Export</strong> (web/out/).
+            <strong>Stack</strong> — Next.js 16, React 19, Tailwind v4, shadcn/ui. Build: <strong>next build</strong> (Deployment z. B. Vercel).
           </div>
           <div class="frontend-block">
             <strong>API & Typen</strong> — Alle Aufrufe in <code>web/lib/api.ts</code>, Typen in <code>web/lib/types.ts</code>.
@@ -481,7 +480,7 @@
             <strong>Layout</strong> — Routen unter <code>web/app/(app)/</code>, gemeinsame <strong>Sidebar</strong> für die App.
           </div>
           <div class="frontend-block">
-            <strong>Dynamische Routen</strong> — /ads/[id], /searches/[id]: FastAPI liefert eine Shell, der <strong>Client</strong> lädt die echten Daten per API.
+            <strong>Dynamische Routen</strong> — /ads/[id], /searches/[id]: Next.js-Seiten; der <strong>Client</strong> lädt die Daten per REST-API.
           </div>
         </div>
       </section>

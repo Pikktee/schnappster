@@ -178,7 +178,7 @@ Diese Datei ist **kein** Ziel für dauerhafte Verweise aus `AGENTS.md` / `CLAUDE
 <details>
 <summary><strong>AGENTS.md-Ergänzungen nach der Migration</strong> (zum Aufklappen & Kopieren)</summary>
 
-Nach **Postgres + Supabase + Multi-Tenancy** die folgenden Teile in **`AGENTS.md`** übernehmen (Sprache Englisch wie die restliche Datei). **`Key conventions`** und **`Testing`** anpassen; neue Sektion vor **`## Output Format`** einfügen. **Commands** (Static Export vs. Next-Node, `npm run build`, Docker) an den dann gültigen Stack anpassen — siehe Deployment-Abschnitt in diesem Dokument. Ergänzend gelten die inhaltlichen Regeln unter **Konventionen für die Umsetzungsphase** weiter oben in diesem Dokument (teilweise Deutsch, fürs Vibe-Coding).
+Nach **Postgres + Supabase + Multi-Tenancy** die folgenden Teile in **`AGENTS.md`** übernehmen (Sprache Englisch wie die restliche Datei). **`Key conventions`** und **`Testing`** anpassen; neue Sektion vor **`## Output Format`** einfügen. **Commands** (getrenntes Next + FastAPI, `npm run build`, Docker) an den dann gültigen Stack anpassen — siehe Deployment-Abschnitt in diesem Dokument. Ergänzend gelten die inhaltlichen Regeln unter **Konventionen für die Umsetzungsphase** weiter oben in diesem Dokument (teilweise Deutsch, fürs Vibe-Coding).
 
 **1. In `### Key conventions` — die Bullet „Database“ und „AppSettings“ ersetzen durch:**
 
@@ -711,9 +711,9 @@ Für DB-Assertions: **PostgreSQL** (Docker, `pytest-postgresql`, CI-Service). **
 
 ### Warum Frontend und Backend trennen?
 
-Der aktuelle Ansatz (Next.js als Static Export, durch FastAPI ausgeliefert) hat mit der SaaS-Umstellung einen entscheidenden Nachteil: **`middleware.ts` funktioniert nur im Node.js-Modus** — nicht beim Static Export. Ohne Middleware können nicht eingeloggte User nicht server-seitig auf `/login` umgeleitet werden; der Redirect passiert erst im Browser (sichtbarer Flash, schlechtere UX, kein sicheres Route-Guarding).
+**Im Monorepo ist der Static-Export entfernt:** Next.js und FastAPI laufen getrennt (lokal: `uv run start` startet Next :3000 und API :8000; Produktion: Vercel + Railway). Das ermöglicht u. a. **`middleware.ts`** im Node-/Vercel-Modus — nicht möglich beim früheren rein statischen Export unter `web/out/`.
 
-Gleichzeitig macht die Trennung auch operativ mehr Sinn: FastAPI macht reines API, Next.js macht reines Frontend, Caddy schaltet als Reverse Proxy davor.
+Für eine spätere vollständige SaaS-Zielarchitektur bleibt optional ein Reverse Proxy (z. B. Caddy) denkbar; derzeit reichen getrennte Domains + CORS.
 
 ### Ziel-Architektur
 
@@ -726,26 +726,11 @@ Internet → Caddy (Port 80/443, TLS automatisch)
 
 Alle drei Dienste laufen als Docker-Container, verwaltet mit Docker Compose.
 
-### Was sich ändert
+### Was sich geändert hat (Monorepo, umgesetzt)
 
-**`web/next.config.mjs`** — Static Export entfernen:
-```js
-// Vorher:
-...(process.env.NODE_ENV === "production" && { output: "export" }),
-trailingSlash: true,
-
-// Nachher: beides entfernen — Next.js läuft als Node.js-Server
-// images.unoptimized: true kann bleiben (oder entfernen für optimierte Images)
-```
-
-**`app/core/bootstrap.py`** — Frontend-Serving entfernen:
-```python
-# Entfernen:
-app.include_router(frontend_router)  # war Fallback für Dynamic Routes
-mount_frontend(app)                  # war StaticFiles für web/out/
-```
-
-FastAPI wird damit ein reiner API-Server. Der `frontend_router` und `mount_frontend` können aus `app/routes/` gelöscht werden.
+- **`web/next.config.mjs`:** kein `output: "export"` mehr; Next läuft als normale App (`next dev` / `next start` / Vercel).
+- **`app/core/bootstrap.py`:** kein `frontend_router`, kein `mount_frontend`; Modul **`app/routes/frontend/`** entfernt.
+- **`Dockerfile` (API-Image):** kein Node-Build-Stadium, kein Kopieren von `web/out/`.
 
 ### Docker Compose
 
@@ -938,7 +923,7 @@ uv run start                # Next.js :3000 + API (Standard)
 uv run start --prod         # nur API; Frontend bei Bedarf separat, z. B. cd web && npm run dev
 ```
 
-**Hinweis:** Sobald `output: "export"` entfällt, prüfen, ob `uv run start` / `uv run start --prod` für lokale Workflows noch passen — Produktions-Compose nutzt `npm run build` + `npm start` für Next. Caddy/Docker lokal nicht nötig.
+**Hinweis:** Für eine spätere **SaaS-Docker-Compose**-Variante mit Caddy vor API + Next siehe die Bausteine weiter oben; das aktuelle Repo-`docker-compose.yml` startet nur den API-Container.
 
 ---
 
@@ -1002,10 +987,9 @@ Durch Supabase entsteht kein zusätzlicher Ops-Aufwand für den DB-Server.
 
 ### Phase 1 — Backend: Auth & Multi-Tenancy
 
-**Deployment-Vorbereitung (einmalig):**
-- `web/next.config.mjs`: `output: 'export'` und `trailingSlash` entfernen
-- `app/core/bootstrap.py`: `frontend_router` und `mount_frontend` entfernen
-- `Dockerfile`, `web/Dockerfile`, `docker-compose.yml`, `Caddyfile` anlegen
+**Deployment-Vorbereitung (einmalig):** *(Teil im Monorepo erledigt: kein Static-Export, kein FastAPI-Frontend-Mount, schlankes API-`Dockerfile`.)*
+- ~~`web/next.config.mjs`: Static-Export / FastAPI-Auslieferung~~ erledigt
+- Für die **SaaS-Zielarchitektur** weiterhin optional: eigenes `web/Dockerfile`, erweitertes `docker-compose.yml`, `Caddyfile` nach den folgenden Bausteinen
 
 **Supabase-Setup (einmalig, manuell):**
 - Projekte `schnappster-dev` und `schnappster-prod` auf supabase.com anlegen

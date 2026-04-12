@@ -11,8 +11,7 @@ import type {
 } from "./types"
 import { supabase } from "./supabase"
 
-// Use relative URL by default so the static export can be served
-// from the same origin as the FastAPI backend.
+// Leer = gleicher Origin (nur sinnvoll bei Reverse-Proxy); lokal/Vercel: z. B. http://127.0.0.1:8000 bzw. https://api.example.com
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
 
 export class ApiAuthError extends Error {}

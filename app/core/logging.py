@@ -37,3 +37,7 @@ def setup_logging(level: int = logging.INFO) -> None:
 
     # Ausführliche APScheduler-Job-Registrierungs-Meldungen dämpfen
     logging.getLogger("apscheduler").setLevel(logging.WARNING)
+
+    # Jede httpx-Anfrage (z. B. Supabase GET /auth/v1/user) sonst auf INFO
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)

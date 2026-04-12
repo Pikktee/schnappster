@@ -46,7 +46,7 @@ Sicherer Produktionsstart mit getrenntem Frontend- und Backend-Deployment sowie 
 ## 5) Smoke-Tests nach Deploy
 
 - [ ] Frontend unter `https://app.<domain>` erreichbar
-- [ ] API-Healthcheck antwortet unter `https://api.<domain>/api/...`
+- [ ] API erreichbar (z. B. `GET https://api.<domain>/version/`)
 - [ ] Login/Session funktioniert im Browser
 - [ ] Mindestens ein API-Call aus Frontend funktioniert ohne CORS-Fehler
 - [ ] Scrape-Job startet planmaessig

@@ -1,5 +1,14 @@
 {
   "html.validate.styles": false,
   "markdown.validate.enabled": false,
-  "markdownlint.run": "off"
+  "markdown.validate.fileLinks.enabled": "ignore",
+  "markdown.validate.fragmentLinks.enabled": "ignore",
+  "markdown.validate.referenceLinks.enabled": "ignore",
+  "markdown.validate.fileLinks.markdownFragmentLinks": "ignore",
+  "markdown.validate.unusedLinkDefinitions.enabled": "ignore",
+  "markdown.validate.duplicateLinkDefinitions.enabled": "ignore",
+  "markdownlint.run": "off",
+  "markdownlint.config": {
+    "default": false
+  }
 }

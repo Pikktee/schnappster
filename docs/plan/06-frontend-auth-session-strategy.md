@@ -15,7 +15,7 @@ Robuste Session-Fuehrung zwischen Next.js Frontend und FastAPI API.
 - Supabase JS Client speichert Session im localStorage (Standardverhalten)
 - API-Requests senden `Authorization: Bearer <access_token>`
 - Kein SSR, kein Cookie-basiertes Session-Management
-- Static Export bleibt moeglich
+- Next.js laeuft als eigene App (lokal/Vercel); kein statischer Export durch FastAPI
 
 ### Begruendung
 

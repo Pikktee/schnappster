@@ -107,7 +107,7 @@ uv run start --skip-tests
 uv run start --port 8080
 ```
 
-Die API lauscht auf http://localhost:8000 (Standard; mit `--port 8080` z. B. auf :8080). Das gebaute Frontend liegt unter `web/out/` und wird von FastAPI ausgeliefert, sobald `npm run build` im Ordner `web/` gelaufen ist.
+Die API lauscht auf http://localhost:8000 (Standard; mit `--port 8080` z. B. auf :8080). Das Next-Frontend läuft getrennt auf http://localhost:3000 (`npm run dev` im Ordner `web/` oder automatisch mit `uv run start`).
 
 ### CLI Commands
 

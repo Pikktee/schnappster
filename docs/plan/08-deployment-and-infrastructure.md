@@ -13,17 +13,16 @@ Hinweis: Server-/DNS-/TLS-Operations sind als manuelle Schritte in
 - Backend API auf Railway (`api.<domain>`)
 - HTTPS/TLS und Domains ueber Vercel/Railway + DNS
 
-## Aenderungen gegenueber aktuellem Stand
+## Ist-Stand (Monorepo)
 
-- API und Web als getrennte Deployments betreiben (Vercel + Railway)
-- Frontend-Serving im FastAPI-Bootstrap entfernen (`frontend_router`, `mount_frontend`)
-- `NEXT_PUBLIC_API_URL` auf `https://api.<domain>` setzen
+- API und Web sind getrennte Deployments (Vercel + Railway)
+- FastAPI liefert nur die REST-API (kein Ausliefern von Next-Build-Artefakten)
+- `NEXT_PUBLIC_API_URL` im Frontend auf `https://api.<domain>` setzen
 
-## Routing-Pfadabgleich (entschieden)
+## Routing
 
-- Backend erwartet `/api/...` (bereits im Ist-Zustand so implementiert)
-- Frontend ruft API immer ueber `https://api.<domain>/api/...` auf
-- Kein Reverse-Proxy-Prefix-Stripping noetig
+- Backend: REST-Pfade an der Wurzel (z. B. `/ads`, `/adsearches`, `/version/`)
+- Frontend: Basis-URL `https://api.<domain>` + jeweiliger Pfad (kein globales `/api`-Prefix im FastAPI-Router)
 
 ## CORS
 

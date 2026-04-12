@@ -1,9 +1,9 @@
 """Startet die Schnappster-API.
 
 Verwendung:
-    uv run start                      # Tests, Next.js :3000 + API (Port 8000)
-    uv run start --prod               # Nur API (ohne Next.js-Devserver)
-    uv run start --port 8080          # Backend-Port 8080 (Frontend weiter :3000)
+    uv run start                      # Tests, Next.js :3000 + FastAPI-API :8000
+    uv run start --prod               # Nur FastAPI (Next bei Bedarf: ``cd web && npm run dev``)
+    uv run start --port 8080          # API-Port 8080; Next-Devserver bleibt :3000
     uv run start --skip-tests         # Tests überspringen
 """
 
@@ -128,7 +128,7 @@ def start_frontend_dev(port: int) -> subprocess.Popen[bytes]:
 
 
 def main() -> None:
-    """Argumente parsen, Tests (optional), Next.js-Devserver außer bei --prod, Uvicorn starten."""
+    """Argumente parsen, Tests (optional), Next-Devserver außer bei ``--prod``, Uvicorn starten."""
     setup_logging()
 
     port, skip_tests, dev_mode = _parse_start_args()
