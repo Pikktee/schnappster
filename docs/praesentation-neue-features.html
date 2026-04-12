@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Schnappster – Neue Features</title>
+  <link rel="icon" type="image/svg+xml" href="_static/logo.svg" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.0/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.0/dist/theme/white.css" id="theme" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --r-heading-font: 'Lexend', sans-serif;
+      --r-main-font: 'Lexend', sans-serif;
+      --primary: #F59E0B;
+      --primary-foreground: #FFFFFF;
+      --link: #D97706;
+      --primary-glow: rgba(245, 158, 11, 0.15);
+      --background: #FAFAF9;
+      --foreground: #1C1917;
+      --muted: #F5F5F4;
+      --muted-foreground: #78716C;
+      --accent: #FEF3C7;
+      --accent-foreground: #92400E;
+      --border: #E7E5E4;
+      --card: #FFFFFF;
+      --radius: 0.5rem;
+      --radius-lg: 0.75rem;
+    }
+    .reveal {
+      font-family: var(--r-main-font);
+      color: var(--foreground);
+      background: var(--background);
+      font-size: 30px;
+    }
+    .reveal .slides { text-align: left; }
+    .reveal .slides { align-items: flex-start !important; justify-content: flex-start !important; }
+    .reveal .slides > section {
+      padding: 0.25em 0.6em 0.5em !important;
+      box-sizing: border-box;
+      height: 100%;
+      overflow: hidden;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: flex-start !important;
+    }
+    .reveal h1, .reveal h2, .reveal h3 { font-family: var(--r-heading-font); font-weight: 700; }
+    .reveal h1 { color: var(--foreground); font-size: 1.55em; margin: 0 0 0.2em; letter-spacing: -0.02em; }
+    .reveal h2 {
+      color: var(--foreground);
+      font-size: 1.25em;
+      border-bottom: 3px solid var(--primary);
+      padding-bottom: 0.15em;
+      margin: 0 0 0.3em;
+      font-weight: 600;
+    }
+    .reveal h3 { font-size: 1em; color: var(--muted-foreground); margin: 0.3em 0 0.15em; font-weight: 600; }
+    .reveal p, .reveal li { font-size: 0.9em; line-height: 1.5; color: var(--foreground); margin: 0.12em 0; }
+    .reveal ul { margin: 0.15em 0 0; padding-left: 1.2em; }
+    .reveal li { margin-bottom: 0.08em; }
+    .reveal strong { color: var(--accent-foreground); font-weight: 600; }
+    .reveal a { color: var(--link); }
+    .reveal .subtitle { color: var(--muted-foreground); font-size: 0.88em; margin: 0.05em 0 0.2em; font-weight: 400; }
+    .reveal section.stack { padding: 0; }
+    .reveal pre {
+      font-size: 0.5em;
+      margin: 0.2em 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      background: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.5em 0.75em;
+    }
+    .reveal code {
+      background: var(--accent);
+      color: var(--accent-foreground);
+      padding: 0.12em 0.32em;
+      border-radius: 4px;
+      font-size: 0.95em;
+      font-weight: 500;
+    }
+    .reveal table {
+      font-size: 0.78em;
+      margin: 0.15em 0;
+      border-collapse: collapse;
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .reveal th, .reveal td { border: 1px solid var(--border); padding: 0.3em 0.55em; text-align: left; }
+    .reveal th { background: var(--accent); color: var(--accent-foreground); font-weight: 600; }
+    .reveal tr:nth-child(even) { background: var(--muted); }
+    /* Titelfolie */
+    .reveal .title-slide {
+      text-align: center;
+      background: linear-gradient(160deg, var(--background) 0%, color-mix(in srgb, var(--primary) 8%, var(--background)) 100%);
+      padding: 0 0.6em 0.5em !important;
+      justify-content: flex-start !important;
+      margin-top: -0.55em !important;
+    }
+    .reveal .slides > section.title-slide { padding-top: 0 !important; }
+    .reveal .title-slide > *:first-child { margin-top: 0 !important; }
+    .reveal .title-slide .title-logo {
+      width: 9em;
+      height: 9em;
+      margin: 0 auto 0.12em;
+      display: block;
+      max-width: 320px;
+      max-height: 320px;
+    }
+    .reveal .title-slide h1 { margin: 0 0 0.04em; font-size: 1.5em; color: var(--foreground); }
+    .reveal .title-slide .subtitle { margin: 0 0 0.05em; font-size: 0.82em; }
+    .reveal .title-slide .title-screenshot-wrap {
+      margin: 0.5em auto 0;
+      padding: 0;
+      line-height: 0;
+      display: inline-block;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 0 0 1px var(--border);
+      max-width: 94%;
+    }
+    .reveal .title-slide .title-screenshot-wrap img {
+      display: block;
+      width: auto;
+      max-width: 100%;
+      max-height: 24em;
+      object-fit: contain;
+      vertical-align: bottom;
+    }
+    /* Architektur-Blöcke */
+    .reveal .arch-blocks { margin-top: 0.25em; }
+    .reveal .arch-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5em 1.2em;
+      margin-bottom: 0.35em;
+    }
+    .reveal .arch-item {
+      font-size: 0.85em;
+      line-height: 1.4;
+      padding: 0.25em 0.4em;
+      background: var(--muted);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--primary);
+    }
+    /* Flow-Phasen */
+    .reveal .flow-phases { margin-top: 0.2em; }
+    .reveal .flow-phase {
+      font-size: 0.82em;
+      padding: 0.35em 0.5em;
+      margin-bottom: 0.4em;
+      background: var(--muted);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--primary);
+    }
+    .reveal .flow-phase:last-child { margin-bottom: 0; }
+    .reveal .flow-phase h4 {
+      margin: 0 0 0.2em;
+      font-size: 1em;
+      font-weight: 600;
+      color: var(--foreground);
+      border: none;
+      padding: 0;
+    }
+    .reveal .flow-phase > p { margin: 0 0 0.2em; color: var(--muted-foreground); font-size: 0.92em; }
+    .reveal .flow-phase-list {
+      margin: 0;
+      padding-left: 1.1em;
+      line-height: 1.4;
+    }
+    .reveal .flow-phase-list li { margin-bottom: 0.12em; }
+    /* Feature-Blöcke */
+    .reveal .feature-blocks { margin-top: 0.3em; }
+    .reveal .feature-block {
+      font-size: 0.88em;
+      line-height: 1.5;
+      padding: 0.35em 0.5em;
+      margin-bottom: 0.3em;
+      background: var(--muted);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--primary);
+      color: var(--foreground);
+    }
+    .reveal .feature-block strong { color: var(--accent-foreground); }
+    .reveal .feature-block.highlight {
+      background: var(--accent);
+      border-left-color: var(--accent-foreground);
+    }
+    /* Diagramm */
+    .reveal .diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.2rem;
+      margin: 0.35em 0;
+      flex-wrap: wrap;
+    }
+    .reveal .diagram-box {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 0.6rem 1rem;
+      min-width: 180px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .reveal .diagram-box.backend { border-color: var(--primary); background: var(--accent); }
+    .reveal .diagram-box.frontend { border-color: var(--border); background: var(--muted); }
+    .reveal .diagram-box.mcp { border-color: #6366F1; background: #EEF2FF; }
+    .reveal .diagram-box.auth { border-color: #10B981; background: #ECFDF5; }
+    .reveal .diagram-box h4 { margin: 0 0 0.25em; font-size: 0.9em; font-weight: 600; color: var(--foreground); }
+    .reveal .diagram-box p { margin: 0; font-size: 0.75em; color: var(--muted-foreground); }
+    .reveal .diagram-arrow-between {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8em;
+      color: var(--primary);
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .reveal .diagram-simple {
+      flex-direction: row;
+      justify-content: center;
+      gap: 1rem;
+      margin: 0.6em 0;
+    }
+    .reveal .diagram-simple .diagram-box { flex: 1; max-width: 260px; }
+    /* Abschnitte */
+    .reveal .section-note { font-size: 0.78em; color: var(--muted-foreground); margin: 0.15em 0 0; }
+    .reveal .screenshot {
+      max-height: 20em;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      object-fit: contain;
+    }
+    .reveal .thanks { text-align: center; padding: 0.5em 0; }
+    .reveal .thanks h2 { border: none; color: var(--foreground); margin: 0; }
+    .reveal .thanks .subtitle { margin-top: 0.25em; }
+    /* Pipeline */
+    .reveal .pipeline {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      margin: 0.5em 0;
+      flex-wrap: wrap;
+    }
+    .reveal .pipeline-step {
+      background: var(--muted);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.4rem 0.7rem;
+      text-align: center;
+      font-size: 0.78em;
+      font-weight: 500;
+    }
+    .reveal .pipeline-step.active { border-color: var(--primary); background: var(--accent); }
+    .reveal .pipeline-arrow { font-size: 1.2em; color: var(--primary); flex-shrink: 0; }
+    /* MCP Tools Tabelle */
+    .reveal .mcp-tools-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.3em 0.8em;
+      margin-top: 0.2em;
+    }
+    .reveal .mcp-tool-item {
+      font-size: 0.78em;
+      padding: 0.2em 0.35em;
+      background: var(--muted);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--primary);
+      line-height: 1.35;
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- 1: Titelfolie -->
+      <section class="title-slide">
+        <img src="_static/logo.svg" alt="Schnappster" class="title-logo" width="300" height="300" />
+        <h1>Schnappster — Neue Features</h1>
+        <p class="subtitle">Von der Einzel-App zum Mehrbenutzersystem mit KI-Anbindung</p>
+        <div class="title-screenshot-wrap">
+          <img src="screenshots/schnappster_frontend_dashboard.png" alt="Dashboard" />
+        </div>
+      </section>
+
+      <!-- 2: Überblick -->
+      <section>
+        <h2>Was hat sich getan?</h2>
+        <p class="subtitle">Von der persönlichen App zur produktionsreifen Plattform.</p>
+        <div class="feature-blocks">
+          <div class="feature-block highlight">
+            <strong>Mehrbenutzer-Fähigkeit</strong> — Supabase Auth, Row-Level Security, Login/Registrierung, OAuth (Google).
+          </div>
+          <div class="feature-block">
+            <strong>Automatisches Deployment</strong> — Git-Tag löst Build &amp; Deploy aus: Vercel (Frontend) + Railway (Backend).
+          </div>
+          <div class="feature-block">
+            <strong>Remote MCP-Server</strong> — KI-Assistenten (Claude, Cursor) greifen über das Internet auf Schnappster zu.
+          </div>
+          <div class="feature-block">
+            <strong>MCP Apps</strong> — Eingebettete HTML-Oberflächen direkt im KI-Chat.
+          </div>
+        </div>
+      </section>
+
+      <!-- 3: Mehrbenutzer – Architektur -->
+      <section>
+        <h2>Mehrbenutzer-Fähigkeit</h2>
+        <p class="subtitle">Jeder Nutzer sieht nur seine eigenen Daten — auf jeder Ebene.</p>
+        <div class="diagram diagram-simple">
+          <div class="diagram-box frontend">
+            <h4>Frontend</h4>
+            <p>Login / Registrierung</p>
+            <p>Session via Supabase JS</p>
+          </div>
+          <div class="diagram-arrow-between" aria-hidden="true">→</div>
+          <div class="diagram-box auth">
+            <h4>Supabase Auth</h4>
+            <p>JWT-Tokens</p>
+            <p>OAuth (Google)</p>
+          </div>
+          <div class="diagram-arrow-between" aria-hidden="true">→</div>
+          <div class="diagram-box backend">
+            <h4>Backend API</h4>
+            <p>Token-Validierung</p>
+            <p>Daten-Isolation</p>
+          </div>
+        </div>
+        <div class="flow-phases">
+          <div class="flow-phase">
+            <h4>Doppelte Absicherung</h4>
+            <ol class="flow-phase-list">
+              <li><strong>Anwendungsebene:</strong> Jede API-Abfrage filtert nach <code>owner_id = aktueller Nutzer</code>.</li>
+              <li><strong>Datenbankebene:</strong> PostgreSQL Row-Level Security (RLS) — selbst bei einem Bug im Code kommt kein Nutzer an fremde Daten.</li>
+            </ol>
+          </div>
+        </div>
+        <p class="section-note">Rollen-System: <strong>User</strong> (eigene Daten) und <strong>Admin</strong> (globale Einstellungen).</p>
+      </section>
+
+      <!-- 4: Mehrbenutzer – RLS -->
+      <section>
+        <h2>Row-Level Security (RLS)</h2>
+        <p class="subtitle">PostgreSQL filtert automatisch — Nutzer sehen nur ihre Zeilen.</p>
+        <div class="flow-phases">
+          <div class="flow-phase">
+            <h4>Wie funktioniert das?</h4>
+            <ol class="flow-phase-list">
+              <li>Nutzer meldet sich an → erhält ein <strong>JWT</strong> (JSON Web Token) von Supabase.</li>
+              <li>Bei jeder API-Anfrage wird die <strong>User-ID aus dem Token</strong> in die Datenbank-Session geschrieben.</li>
+              <li>PostgreSQL-Policies prüfen automatisch: <code>owner_id = JWT.sub</code>.</li>
+              <li>Nur passende Zeilen werden zurückgegeben — <strong>transparent und ohne extra Code</strong>.</li>
+            </ol>
+          </div>
+        </div>
+        <table style="margin-top: 0.3em;">
+          <thead>
+            <tr><th>Tabelle</th><th>Isolation</th><th>Policy</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>ad_searches</td><td>owner_id</td><td>Nur eigene Suchaufträge</td></tr>
+            <tr><td>ads</td><td>owner_id</td><td>Nur eigene Anzeigen</td></tr>
+            <tr><td>user_settings</td><td>user_id</td><td>Nur eigene Einstellungen</td></tr>
+            <tr><td>app_settings</td><td>—</td><td>Nur Admin</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 5: Automatisches Deployment -->
+      <section>
+        <h2>Automatisches Deployment</h2>
+        <p class="subtitle">Ein Befehl → alles wird gebaut und deployed.</p>
+        <div class="pipeline">
+          <div class="pipeline-step active">uv run release</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step">Git-Tag (v0.7.x)</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step active">GitHub Actions</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step">3 parallele Jobs</div>
+        </div>
+        <div class="arch-blocks" style="margin-top: 0.4em;">
+          <div class="arch-row">
+            <div class="arch-item">
+              <strong>Vercel</strong> — Frontend (Next.js) bauen und deployen. Eigene Domain: <code>app.&lt;domain&gt;</code>
+            </div>
+            <div class="arch-item">
+              <strong>Railway (API)</strong> — Backend-Container deployen. Domain: <code>api.&lt;domain&gt;</code>
+            </div>
+          </div>
+          <div class="arch-row">
+            <div class="arch-item">
+              <strong>Railway (MCP)</strong> — MCP-Server als eigenen Service deployen. Domain: <code>mcp.&lt;domain&gt;</code>
+            </div>
+            <div class="arch-item">
+              <strong>Release-CLI</strong> — Version bumpen, Tag erstellen, pushen. Alles automatisch.
+            </div>
+          </div>
+        </div>
+        <p class="section-note">Kein manuelles Deployen mehr — Push eines Tags startet die gesamte Pipeline.</p>
+      </section>
+
+      <!-- 6: Systemübersicht Produktion -->
+      <section>
+        <h2>Systemübersicht Produktion</h2>
+        <p class="subtitle">Drei getrennte Services, eine gemeinsame Auth-Schicht.</p>
+        <div class="diagram diagram-simple" style="gap: 0.6rem;">
+          <div class="diagram-box frontend" style="max-width: 220px;">
+            <h4>Vercel</h4>
+            <p>Next.js Frontend</p>
+            <p>app.&lt;domain&gt;</p>
+          </div>
+          <div class="diagram-arrow-between" style="font-size: 1.2em;" aria-hidden="true">↔</div>
+          <div class="diagram-box backend" style="max-width: 220px;">
+            <h4>Railway</h4>
+            <p>FastAPI + Scraper + KI</p>
+            <p>api.&lt;domain&gt;</p>
+          </div>
+          <div class="diagram-arrow-between" style="font-size: 1.2em;" aria-hidden="true">↔</div>
+          <div class="diagram-box mcp" style="max-width: 220px;">
+            <h4>Railway</h4>
+            <p>MCP-Server</p>
+            <p>mcp.&lt;domain&gt;</p>
+          </div>
+        </div>
+        <div style="text-align: center; margin: 0.3em 0;">
+          <div class="diagram-box auth" style="display: inline-block; min-width: 300px;">
+            <h4>Supabase</h4>
+            <p>Auth (JWT) + PostgreSQL (RLS) + OAuth 2.1 Server</p>
+          </div>
+        </div>
+        <p class="section-note">Alle drei Services nutzen Supabase für Authentifizierung. CORS regelt die erlaubten Origins.</p>
+      </section>
+
+      <!-- 7: Remote MCP-Server -->
+      <section>
+        <h2>Remote MCP-Server</h2>
+        <p class="subtitle">KI-Assistenten bedienen Schnappster über das Internet.</p>
+        <div class="feature-blocks">
+          <div class="feature-block">
+            <strong>Was ist MCP?</strong> — Model Context Protocol: ein Standard, über den KI-Assistenten auf externe Dienste zugreifen.
+          </div>
+          <div class="feature-block highlight">
+            <strong>Authentifizierung</strong> — Supabase OAuth 2.1: Der KI-Client (z.&nbsp;B. Cursor) öffnet einen Browser-Login. Kein manuelles Token-Kopieren.
+          </div>
+          <div class="feature-block">
+            <strong>Transport</strong> — Streamable HTTP (kein WebSocket). Cloudflare Quick Tunnel für die Entwicklung.
+          </div>
+        </div>
+        <div class="mcp-tools-grid" style="margin-top: 0.3em;">
+          <div class="mcp-tool-item"><strong>list_recent_bargains</strong> — Schnäppchen abrufen</div>
+          <div class="mcp-tool-item"><strong>show_bargain_detail</strong> — Detailansicht</div>
+          <div class="mcp-tool-item"><strong>list_ad_searches</strong> — Suchaufträge anzeigen</div>
+          <div class="mcp-tool-item"><strong>create_ad_search</strong> — Neuen Suchauftrag anlegen</div>
+          <div class="mcp-tool-item"><strong>update_ad_search</strong> — Suchauftrag ändern</div>
+          <div class="mcp-tool-item"><strong>delete_ad_search</strong> — Suchauftrag löschen</div>
+          <div class="mcp-tool-item"><strong>get_my_settings</strong> — Einstellungen lesen</div>
+          <div class="mcp-tool-item"><strong>update_my_settings</strong> — Einstellungen ändern</div>
+        </div>
+      </section>
+
+      <!-- 8: MCP Apps -->
+      <section>
+        <h2>MCP Apps</h2>
+        <p class="subtitle">Visuelle Oberflächen direkt im KI-Chat — ohne Browser-Wechsel.</p>
+        <div class="flow-phases">
+          <div class="flow-phase">
+            <h4>Konzept</h4>
+            <p>MCP Apps sind HTML-Seiten, die der MCP-Server als Ressourcen bereitstellt. Der KI-Client (z.&nbsp;B. Claude) rendert sie inline — der Nutzer sieht eine interaktive Ansicht statt reinem Text.</p>
+          </div>
+          <div class="flow-phase">
+            <h4>Drei eingebettete Views</h4>
+            <ol class="flow-phase-list">
+              <li><strong>Schnäppchen-Detail</strong> — Anzeige mit Bildern, Score, Beschreibung und KI-Begründung.</li>
+              <li><strong>Schnäppchen-Liste</strong> — Tabellarische Übersicht der besten Funde, sortiert nach Score.</li>
+              <li><strong>Suchaufträge</strong> — Verwaltung aller gespeicherten Suchanfragen.</li>
+            </ol>
+          </div>
+        </div>
+        <p class="section-note">Technik: Jinja2-Templates → HTML+JS, ausgeliefert als <code>text/html;profile=mcp-app</code>.</p>
+      </section>
+
+      <!-- 9: Zusammenfassung -->
+      <section>
+        <h2>Zusammenfassung</h2>
+        <p class="subtitle">Vom Einzelplatz-Tool zur vernetzten Plattform.</p>
+        <table>
+          <thead>
+            <tr><th>Bereich</th><th>Vorher</th><th>Jetzt</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Benutzer</td><td>Einzelnutzer, kein Login</td><td>Mehrbenutzer, Supabase Auth + RLS</td></tr>
+            <tr><td>Datenbank</td><td>SQLite lokal</td><td>PostgreSQL (Supabase), RLS-Policies</td></tr>
+            <tr><td>Deployment</td><td>Manuell / Docker</td><td>Automatisch via Git-Tag (Vercel + Railway)</td></tr>
+            <tr><td>KI-Zugriff</td><td>Nur intern (Analyse)</td><td>Remote MCP-Server mit OAuth</td></tr>
+            <tr><td>Bedienung</td><td>Nur Web-Browser</td><td>Web + KI-Assistenten (Claude, Cursor)</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 10: Ende -->
+      <section class="thanks">
+        <h2>Danke!</h2>
+        <p class="subtitle">Fragen?</p>
+      </section>
+
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.2.0/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      center: true,
+      transition: 'slide',
+      transitionSpeed: 'default',
+      fragments: false,
+      showNotes: false,
+      margin: 0.04,
+      width: 1200,
+      height: 700,
+      minScale: 0.2,
+      maxScale: 1,
+      display: 'block'
+    });
+  </script>
+</body>
+</html>
