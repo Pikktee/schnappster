@@ -77,7 +77,7 @@ class NoStoreApiMiddleware:
 
 def setup_cors(app: FastAPI) -> None:
     """
-    CORS-Middleware für die Entwicklung (uv run start --dev): Frontend auf :3000, API auf :8000;
+    CORS-Middleware für die Entwicklung (uv run start, Standard): Frontend auf :3000, API auf :8000;
     der Browser blockiert Cross-Origin-Requests ohne Access-Control-Allow-Origin.
     """
     allowed_origins = _ensure_dev_next_origin_aliases(

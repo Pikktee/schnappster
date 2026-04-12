@@ -9,13 +9,13 @@ console = Console()
 
 _COMMANDS = (
     (
-        "start \\[--skip-tests] \\[--dev] \\[--port PORT]",
-        "Startet den Backend-Server. Zuerst laufen die Tests. Mit --dev zusätzlich das "
-        "Frontend (Next.js) mit Hot-Reload.",
+        "start \\[--skip-tests] \\[--prod] \\[--port PORT]",
+        "Startet standardmäßig Next.js-Devserver (:3000) und FastAPI (:8000); zuerst laufen die "
+        "Tests. Mit --prod nur die API (kein npm run dev).",
         (
             ("--skip-tests", "Tests nicht ausführen"),
-            ("--dev", "Backend + Next.js-Devserver (Frontend meist :3000)"),
-            ("--port PORT", "Port fürs Backend (Standard: 8000)"),
+            ("--prod", "Nur FastAPI/Uvicorn (kein Next.js-Devserver)"),
+            ("--port PORT", "Port nur für die API (Standard: 8000); Next.js bleibt :3000"),
         ),
     ),
     (

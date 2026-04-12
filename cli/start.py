@@ -1,11 +1,10 @@
 """Startet die Schnappster-API.
 
 Verwendung:
-    uv run start                      # Tests und API starten (Port 8000)
-    uv run start --port 8080          # Port 8080 nutzen
-    uv run start --skip-tests         # Tests überspringen, API starten
-    uv run start --dev                # Dev-Modus: Next.js :3000 + Backend
-    uv run start --dev --port 8080    # Dev-Modus auf Port 8080
+    uv run start                      # Tests, Next.js :3000 + API (Port 8000)
+    uv run start --prod               # Nur API (ohne Next.js-Devserver)
+    uv run start --port 8080          # Backend-Port 8080 (Frontend weiter :3000)
+    uv run start --skip-tests         # Tests überspringen
 """
 
 from __future__ import annotations
@@ -30,7 +29,7 @@ def _parse_start_args() -> tuple[int, bool, bool]:
     argv = sys.argv[1:]
     port = DEFAULT_PORT
     skip_tests = False
-    dev_mode = False
+    dev_mode = True
     i = 0
     while i < len(argv):
         arg = argv[i]
@@ -62,8 +61,8 @@ def _parse_start_args() -> tuple[int, bool, bool]:
             continue
         if arg == "--skip-tests":
             skip_tests = True
-        elif arg == "--dev":
-            dev_mode = True
+        elif arg == "--prod":
+            dev_mode = False
         i += 1
     return port, skip_tests, dev_mode
 
@@ -129,7 +128,7 @@ def start_frontend_dev(port: int) -> subprocess.Popen[bytes]:
 
 
 def main() -> None:
-    """Argumente parsen, Tests (optional), Dev-Frontend bei --dev, Uvicorn starten."""
+    """Argumente parsen, Tests (optional), Next.js-Devserver außer bei --prod, Uvicorn starten."""
     setup_logging()
 
     port, skip_tests, dev_mode = _parse_start_args()
@@ -154,7 +153,7 @@ def main() -> None:
                 frontend_proc.terminate()
     else:
         print("\n" + "=" * 60)
-        print("🚀  STARTING SCHNAPPSTER API")
+        print("🚀  STARTING SCHNAPPSTER API (BACKEND ONLY)")
         print("=" * 60)
         print(f"  App:      http://localhost:{port}")
         print("=" * 60 + "\n")

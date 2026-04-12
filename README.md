@@ -94,27 +94,28 @@ Chat-ID-ENV mehr notwendig).
 ### Server starten
 
 ```bash
-# Mit Tests vorher
+# Mit Tests vorher: Next.js :3000 (Hot Reload) + API :8000
 uv run start
+
+# Nur Backend (z. B. wenn das Frontend separat läuft)
+uv run start --prod
 
 # Ohne Tests
 uv run start --skip-tests
 
-# Anderen Port nutzen (z. B. 8080)
+# Anderen Port für die API (z. B. 8080; Frontend bleibt :3000)
 uv run start --port 8080
-
-# Dev-Modus: Frontend auf :3000 (Hot Reload), Backend auf :8000
-uv run start --dev
 ```
 
-Der Server startet auf http://localhost:8000 (Standard-Port; mit `--port 8080` z. B. auf :8080). Ohne `--dev` wird das Frontend vor dem Start gebaut und von FastAPI ausgeliefert.
+Die API lauscht auf http://localhost:8000 (Standard; mit `--port 8080` z. B. auf :8080). Das gebaute Frontend liegt unter `web/out/` und wird von FastAPI ausgeliefert, sobald `npm run build` im Ordner `web/` gelaufen ist.
 
 ### CLI Commands
 
 | Command | Beschreibung |
 |---------|-------------|
-| `uv run start` | Startet den FastAPI Server (Standard-Port 8000) |
-| `uv run start --port 8080` | Server auf Port 8080 starten |
+| `uv run start` | Next.js-Devserver + FastAPI (Standard API-Port 8000) |
+| `uv run start --prod` | Nur FastAPI |
+| `uv run start --port 8080` | API auf Port 8080 |
 | `uv run scrape [adsearch_id]` | Manueller Scraping-Start |
 | `uv run analyze [limit]` | Manuelle KI-Analyse starten |
 | `uv run dbreset` | Datenbank zurücksetzen (bei Schema-Änderungen) |

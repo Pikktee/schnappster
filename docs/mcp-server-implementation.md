@@ -80,9 +80,8 @@ Dynamic Registration bedeutet nicht ohne Redirect-Regeln: Supabase weist u. a.
 
 #### 4. Schnappster lokal starten
 
-1. **API:** `uv run start --skip-tests` (oder `--dev`), damit `SCHNAPPSTER_API_BASE_URL` erreichbar ist.
-2. **Frontend:** `cd web && npm run dev` (oder über `uv run start --dev`), damit die Freigabeseite unter der Site URL erreichbar ist (lokal z. B. **`http://localhost:3000/connect/`** mit Next.js `trailingSlash`).
-3. **MCP:** `uv run mcp-server --tunnel`, öffentliche **`MCP_RESOURCE_SERVER_URL`** aus der Konsole notieren.
+1. **Schnappster:** `uv run start --skip-tests` startet API und Next.js-Devserver; `SCHNAPPSTER_API_BASE_URL` erreichbar, Freigabeseite lokal z. B. unter **`http://localhost:3000/connect/`** (Next.js `trailingSlash`).
+2. **MCP:** `uv run mcp-server --tunnel`, öffentliche **`MCP_RESOURCE_SERVER_URL`** aus der Konsole notieren.
 
 #### 5. Cursor
 

@@ -11,10 +11,10 @@ A personal web app that periodically scrapes Kleinanzeigen.de search results, an
 Package manager is `uv`. CLI entry points live in root `pyproject.toml` (inkl. **`mcp-server`** → `cli/mcp_server/cli.py`). Das Unterprojekt **`schnappster-mcp`** (`mcp-server/pyproject.toml`, editable) liefert **`schnappster-mcp`** / den Import **`schnappster_mcp`**.
 
 ```bash
-uv run start              # Start FastAPI server (runs tests first)
-uv run start --skip-tests # Start without running tests
-uv run start --dev        # Dev mode: Next.js on :3000 (hot reload) + backend on :8000
-uv run start --port 8080  # Custom port
+uv run start              # Next.js on :3000 (hot reload) + FastAPI (runs tests first)
+uv run start --skip-tests # Same without tests
+uv run start --prod       # FastAPI only (no Next.js dev server)
+uv run start --port 8080  # Custom backend port
 uv run scrape [adsearch_id]  # Manually trigger a scrape
 uv run analyze [limit]       # Manually trigger AI analysis
 uv run dbreset               # Drop and recreate DB (no Alembic – use this for schema changes)

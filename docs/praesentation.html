@@ -394,11 +394,11 @@
           <div class="tech-block tech-block-deployment">
             <h4>Deployment</h4>
             <div class="deployment-mode">
-              <strong>Produktion</strong> <code>uv run start</code><br/>
-              Ein Server: FastAPI liefert API und Frontend (web/out/). Gleicher Origin.
+              <strong>Produktion</strong> <code>npm run build</code> in <code>web/</code>, dann <code>uv run start --prod</code><br/>
+              FastAPI liefert API und statisches Frontend (<code>web/out/</code>). Gleicher Origin.
             </div>
             <div class="deployment-mode">
-              <strong>Dev</strong> <code>uv run start --dev</code><br/>
+              <strong>Dev</strong> <code>uv run start</code><br/>
               Zwei Prozesse: Frontend :3000, Backend :8000. CORS.
             </div>
           </div>
@@ -489,7 +489,7 @@
       <!-- Demo / Befehle -->
       <section>
         <h2>Demo & Befehle</h2>
-        <pre><code>uv run start [--skip-tests] [--dev] [--port PORT]  # Server starten
+        <pre><code>uv run start [--skip-tests] [--prod] [--port PORT]  # Server starten
 uv run scrape [adsearch_id]                         # Scraping manuell
 uv run analyze [limit]                              # KI-Auswertung
 uv run dbreset                                      # DB löschen und neu anlegen

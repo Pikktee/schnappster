@@ -934,11 +934,11 @@ Für automatisches Deployment: GitHub Actions Workflow, der nach Push auf `main`
 
 Nach Entfernen des Static Exports weiter mit getrennten Prozessen (wie bisher üblich):
 ```bash
-uv run start --dev          # oder API nur: uvicorn … — je nach pyproject-Skript
-cd web && npm run dev       # Next.js auf :3000, Proxy /api/* → :8000
+uv run start                # Next.js :3000 + API (Standard)
+uv run start --prod         # nur API; Frontend bei Bedarf separat, z. B. cd web && npm run dev
 ```
 
-**Hinweis:** Sobald `output: "export"` entfällt, prüfen, ob `uv run start` (ohne `--dev`) noch sinnvoll ist — Produktions-Compose nutzt `npm run build` + `npm start` für Next; lokal ist **`--dev` / `npm run dev`** der Referenz-Workflow. Caddy/Docker lokal nicht nötig.
+**Hinweis:** Sobald `output: "export"` entfällt, prüfen, ob `uv run start` / `uv run start --prod` für lokale Workflows noch passen — Produktions-Compose nutzt `npm run build` + `npm start` für Next. Caddy/Docker lokal nicht nötig.
 
 ---
 
