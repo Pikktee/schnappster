@@ -33,6 +33,8 @@ def init_db() -> None:
         if _is_sqlite:
             _ensure_user_settings_columns(session)
             _drop_obsolete_user_settings_columns_sqlite(session)
+        elif _is_postgres:
+            _drop_obsolete_user_settings_columns_postgres(session)
         session.commit()
 
 
@@ -55,13 +57,23 @@ def _ensure_user_settings_columns(session: Session) -> None:
     )
 
 
+# Aus dem Modell entfernt; alte DBs koennen NOT NULL-Spalten haben, die INSERTs ohne Wert brechen.
+_OBSOLETE_USER_SETTINGS_COLUMNS: tuple[str, ...] = ("notify_email", "notify_mode")
+
+
 def _drop_obsolete_user_settings_columns_sqlite(session: Session) -> None:
     """Entfernt nicht mehr genutzte Spalten (Feature entfernt, kein Alembic)."""
     table_name = "user_settings"
-    column_name = "notify_email"
-    if not _column_exists_sqlite(session, table_name, column_name):
-        return
-    session.execute(text(f"ALTER TABLE {table_name} DROP COLUMN {column_name}"))
+    for column_name in _OBSOLETE_USER_SETTINGS_COLUMNS:
+        if not _column_exists_sqlite(session, table_name, column_name):
+            continue
+        session.execute(text(f"ALTER TABLE {table_name} DROP COLUMN {column_name}"))
+
+
+def _drop_obsolete_user_settings_columns_postgres(session: Session) -> None:
+    """Entfernt Legacy-Spalten, die nicht mehr im SQLModel stehen (NOT NULL blockierte INSERTs)."""
+    for column_name in _OBSOLETE_USER_SETTINGS_COLUMNS:
+        session.execute(text(f"ALTER TABLE user_settings DROP COLUMN IF EXISTS {column_name}"))
 
 
 def get_db_session():
