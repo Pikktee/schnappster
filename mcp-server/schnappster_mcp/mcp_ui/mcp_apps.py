@@ -113,7 +113,8 @@ def register_mcp_apps(
         """Zeigt Details zu einer analysierten Anzeige in der MCP-App-Ansicht an.
 
         Parameter ``ad_id`` ist die interne Schnappster-Anzeigen-ID (z. B. aus
-        ``list_recent_bargains``).
+        ``list_recent_bargains``). Vor dem Aufruf kurz an den Nutzer einordnen; die Karte
+        ergänzt nur die visuelle Darstellung.
         """
         client = get_api_client()
         payload = await run_api(client.request("GET", f"/ads/{ad_id}"))

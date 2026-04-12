@@ -16,7 +16,7 @@
     .toolbar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 10px;
       margin-bottom: 10px;
       flex-wrap: wrap;
@@ -112,7 +112,6 @@
     const root = document.getElementById("root");
     const state = {
       items: [],
-      total: 0,
       sortBy: "score",
       notice: "",
       error: "",
@@ -192,59 +191,6 @@
       return JSON.parse(block.text);
     }
 
-    async function requestBargainDetail(item) {
-      if (typeof app.callServerTool === "function") {
-        try {
-          await app.callServerTool({
-            name: "show_bargain_detail",
-            arguments: { ad_id: item.id },
-          });
-          return;
-        } catch (_e) {
-          /* Host oder Tool — Fallback unten */
-        }
-      }
-      if (typeof app.sendMessage === "function") {
-        if (typeof app.updateModelContext === "function") {
-          const title = item.title || "Anzeige";
-          await app.updateModelContext({
-            content: [
-              {
-                type: "text",
-                text:
-                  "Auswahl in der Schnäppchen-Liste: **" +
-                  title +
-                  "** (interne Schnappster-ID `" +
-                  String(item.id) +
-                  "`).",
-              },
-            ],
-          });
-        }
-        await app.sendMessage({
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text:
-                "Bitte die Schnäppchen-Detailansicht (Tool show_bargain_detail) für ad_id=" +
-                String(item.id) +
-                " anzeigen.",
-            },
-          ],
-        });
-        return;
-      }
-      throw new Error("Weder callServerTool noch sendMessage verfügbar.");
-    }
-
-    async function callServerToolOrThrow(name, args) {
-      if (typeof app.callServerTool !== "function") {
-        throw new Error("Direkte Server-Tool-Calls werden vom Host nicht unterstützt.");
-      }
-      return app.callServerTool({ name, arguments: args });
-    }
-
     function render() {
       root.innerHTML = "";
 
@@ -252,7 +198,12 @@
       const subtitle = el(
         "p",
         { className: "muted" },
-        [text("Interaktive Ansicht für list_recent_bargains mit Direktaufruf der Detailansicht.")]
+        [
+          text(
+            "Sortierbare Übersicht; Titel verlinken zur Anzeige bei Kleinanzeigen. " +
+              "Kurzfassung und Trefferzahlen stehen im Chat-Text der KI."
+          ),
+        ]
       );
       root.appendChild(title);
       root.appendChild(subtitle);
@@ -268,10 +219,8 @@
         render();
       });
 
-      const controls = el("div", { className: "controls" }, [sortSelect]);
       const top = el("div", { className: "toolbar" }, [
-        el("strong", null, [text("Treffer: " + state.items.length + " von " + state.total)]),
-        controls,
+        el("div", { className: "controls" }, [sortSelect]),
       ]);
       root.appendChild(top);
 
@@ -296,7 +245,6 @@
             el("th", null, [text("Titel")]),
             el("th", null, [text("Preis")]),
             el("th", null, [text("Datum")]),
-            el("th", null, [text("Aktion")]),
           ]),
         ]),
         el("tbody", null, []),
@@ -305,22 +253,6 @@
 
       for (const item of sortedItems()) {
         const score = item.bargain_score == null ? "—" : String(item.bargain_score);
-        const detailButton = el("button", { type: "button" }, [text("Details")]);
-        detailButton.addEventListener("click", async () => {
-          state.notice = "Lade Detailansicht…";
-          state.error = "";
-          render();
-          try {
-            await requestBargainDetail(item);
-            state.notice = "Detailansicht wurde angefordert.";
-            state.error = "";
-          } catch (err) {
-            state.notice = "";
-            state.error = "Detailansicht fehlgeschlagen: " + stringifyError(err);
-          }
-          render();
-        });
-
         let titleCell;
         if (item.url) {
           const ka = el(
@@ -351,7 +283,6 @@
           el("td", null, [titleCell]),
           el("td", null, [text(fmtPrice(item.price))]),
           el("td", null, [text(fmtDate(item.first_seen_at))]),
-          el("td", null, [detailButton]),
         ]);
         body.appendChild(row);
       }
@@ -366,7 +297,6 @@
         const payload = parseToolTextContent(content);
         const items = Array.isArray(payload?.items) ? payload.items : [];
         state.items = items;
-        state.total = Number(payload?.total ?? items.length);
         state.notice = "";
         state.error = "";
         render();

@@ -14,7 +14,7 @@
     #root { max-width: 68rem; margin: 0 auto; }
     .toolbar {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
@@ -213,7 +213,9 @@
       root.appendChild(el("h1", null, [text("Suchauftrags-Manager")]));
       root.appendChild(
         el("p", { className: "muted" }, [
-          text("Verwaltung der gespeicherten Suchaufträge inklusive Aktiv/Inaktiv-Toggle."),
+          text(
+            "Aktivieren/Deaktivieren und Neu laden. Anzahl und Einordnung stehen im Chat-Text der KI."
+          ),
         ])
       );
 
@@ -222,7 +224,6 @@
 
       root.appendChild(
         el("div", { className: "toolbar" }, [
-          el("strong", null, [text("Suchaufträge: " + state.searches.length)]),
           refreshBtn,
         ])
       );
