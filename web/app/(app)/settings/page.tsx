@@ -63,7 +63,6 @@ export default function SettingsPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [notifyTelegram, setNotifyTelegram] = useState(false)
-  const [notifyEmail, setNotifyEmail] = useState(false)
   const [notifyMinScore, setNotifyMinScore] = useState("8")
   const [telegramChatId, setTelegramChatId] = useState("")
   const [oldPassword, setOldPassword] = useState("")
@@ -92,7 +91,6 @@ export default function SettingsPage() {
         setAvatarUrl(profile.avatar_url)
         setIsAdmin(profile.role === "admin")
         setNotifyTelegram(userSettings.notify_telegram)
-        setNotifyEmail(userSettings.notify_email)
         setNotifyMinScore(String(userSettings.notify_min_score))
         setTelegramChatId(userSettings.telegram_chat_id ?? "")
         setTelegramConfigured(telegramConfig.configured)
@@ -155,7 +153,6 @@ export default function SettingsPage() {
         updateMySettings({
           display_name: nameTrimmed,
           notify_telegram: notifyTelegram,
-          notify_email: notifyEmail,
           notify_min_score: Number(notifyMinScore),
           telegram_chat_id: chatTrimmed || null,
         }),
@@ -319,15 +316,6 @@ export default function SettingsPage() {
                   Telegram-Benachrichtigungen sind derzeit systemweit deaktiviert.
                 </p>
               )}
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <Label htmlFor="notify-email" className="flex items-center gap-1.5">
-                    <span>Per E-Mail benachrichtigen</span>
-                    <HelpTip text="Sendet dir eine E-Mail, sobald ein passendes Angebot gefunden wurde." />
-                  </Label>
-                </div>
-                <Switch id="notify-email" checked={notifyEmail} onCheckedChange={setNotifyEmail} />
-              </div>
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-1">
                   <Label

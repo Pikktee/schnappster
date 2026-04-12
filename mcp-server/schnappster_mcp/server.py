@@ -202,7 +202,6 @@ def build_mcp(settings: Settings) -> FastMCP:
         display_name: str | None = None,
         telegram_chat_id: str | None = None,
         notify_telegram: bool | None = None,
-        notify_email: bool | None = None,
         notify_min_score: int | None = None,
     ) -> dict:
         """Aktualisiert persönliche Einstellungen (nur angegebene Felder)."""
@@ -213,8 +212,6 @@ def build_mcp(settings: Settings) -> FastMCP:
             body["telegram_chat_id"] = telegram_chat_id
         if notify_telegram is not None:
             body["notify_telegram"] = notify_telegram
-        if notify_email is not None:
-            body["notify_email"] = notify_email
         if notify_min_score is not None:
             body["notify_min_score"] = notify_min_score
         if not body:

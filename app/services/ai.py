@@ -178,7 +178,7 @@ class AIService:
         self._notify_if_enabled(ad, result["score"])
 
     def _notify_if_enabled(self, ad: Ad, score: float) -> None:
-        """Versendet Benachrichtigungen gemaess UserSettings."""
+        """Versendet Telegram-Benachrichtigungen gemaess UserSettings."""
         settings_service = SettingsService(self.session)
         user_settings = settings_service.get_user_settings(ad.owner_id)
         if score < user_settings.notify_min_score:

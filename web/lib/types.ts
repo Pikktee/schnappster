@@ -96,7 +96,6 @@ export interface UserSettings {
   display_name: string
   telegram_chat_id: string | null
   notify_telegram: boolean
-  notify_email: boolean
   notify_min_score: number
   deletion_pending: boolean
 }

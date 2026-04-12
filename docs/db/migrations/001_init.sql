@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS user_settings (
     display_name_user_set BOOLEAN NOT NULL DEFAULT FALSE,
     telegram_chat_id TEXT NULL,
     notify_telegram BOOLEAN NOT NULL DEFAULT FALSE,
-    notify_email BOOLEAN NOT NULL DEFAULT FALSE,
     notify_min_score INTEGER NOT NULL DEFAULT 8,
     deletion_pending BOOLEAN NOT NULL DEFAULT FALSE
 );

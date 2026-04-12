@@ -32,6 +32,7 @@ def init_db() -> None:
     with Session(db_engine) as session:
         if _is_sqlite:
             _ensure_user_settings_columns(session)
+            _drop_obsolete_user_settings_columns_sqlite(session)
         session.commit()
 
 
@@ -52,6 +53,15 @@ def _ensure_user_settings_columns(session: Session) -> None:
             "ADD COLUMN display_name_user_set BOOLEAN NOT NULL DEFAULT 0"
         )
     )
+
+
+def _drop_obsolete_user_settings_columns_sqlite(session: Session) -> None:
+    """Entfernt nicht mehr genutzte Spalten (Feature entfernt, kein Alembic)."""
+    table_name = "user_settings"
+    column_name = "notify_email"
+    if not _column_exists_sqlite(session, table_name, column_name):
+        return
+    session.execute(text(f"ALTER TABLE {table_name} DROP COLUMN {column_name}"))
 
 
 def get_db_session():

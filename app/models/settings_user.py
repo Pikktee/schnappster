@@ -13,7 +13,6 @@ class UserSettings(SQLModel, table=True):
     display_name_user_set: bool = Field(default=False)
     telegram_chat_id: str | None = None
     notify_telegram: bool = False
-    notify_email: bool = False
     notify_min_score: int = Field(default=8, ge=0, le=10)
     deletion_pending: bool = False
 
@@ -25,7 +24,6 @@ class UserSettingsRead(SQLModel):
     display_name: str
     telegram_chat_id: str | None
     notify_telegram: bool
-    notify_email: bool
     notify_min_score: int
     deletion_pending: bool
 
@@ -36,7 +34,6 @@ class UserSettingsUpdate(SQLModel):
     display_name: str | None = None
     telegram_chat_id: str | None = None
     notify_telegram: bool | None = None
-    notify_email: bool | None = None
     notify_min_score: int | None = Field(default=None, ge=0, le=10)
 
 
