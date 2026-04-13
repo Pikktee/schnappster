@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Schnappster &amp; MCP-Server</title>
+  <title>Remote MCP-Server mit Nutzer-Autorisierung</title>
   <link rel="icon" type="image/svg+xml" href="_static/logo.svg" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.0/dist/reveal.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.0/dist/theme/white.css" id="theme" />
@@ -110,7 +110,7 @@
       max-width: 320px;
       max-height: 320px;
     }
-    .reveal .title-slide h1 { margin: 0 0 0.04em; font-size: 1.5em; color: var(--foreground); }
+    .reveal .title-slide h1 { margin: 0 0 0.04em; font-size: 1.3em; color: var(--foreground); }
     .reveal .title-slide .subtitle { margin: 0 0 0.05em; font-size: 0.82em; }
     .reveal .title-slide .title-screenshot-wrap {
       margin: 0.5em auto 0;
@@ -285,9 +285,9 @@
       <!-- 1: Titelfolie -->
       <section class="title-slide">
         <img src="_static/logo.svg" alt="Schnappster" class="title-logo" width="300" height="300" />
-        <h1>Schnappster &amp; MCP-Server</h1>
-        <p class="subtitle">Mehrbenutzersystem, Deployment-Pipeline und KI-Steuerung per MCP</p>
-        <div class="title-screenshot-wrap">
+        <h1>Remote MCP-Server mit Nutzer-Autorisierung</h1>
+        <p class="subtitle" style="margin-top: 0.3em;">Schnappster als Tool für KI-Assistenten</p>
+        <div class="title-screenshot-wrap" style="margin-top: 0.9em;">
           <img src="screenshots/schnappster_frontend_dashboard.png" alt="Dashboard" />
         </div>
       </section>
@@ -295,19 +295,84 @@
       <!-- 2: Ziel des Projekts -->
       <section>
         <h2>Ziel</h2>
-        <p class="subtitle">Einen Remote MCP-Server mit OAuth-Autorisierung implementieren.</p>
-        <ul style="margin-top: 0.5em;">
-          <li>Schnappster über das Internet per <strong>KI-Assistent</strong> steuerbar machen</li>
-          <li>Nutzer-Autorisierung über <strong>OAuth 2.1</strong> (Supabase)</li>
-        </ul>
-        <h3 style="margin-top: 0.8em;">Schritte vorab</h3>
-        <ul>
-          <li>Weiterentwicklung zum <strong>Mehrbenutzersystem</strong></li>
-          <li><strong>Automatisches Deployment</strong> der drei Services</li>
-        </ul>
+        <div style="display: flex; align-items: flex-start; gap: 1.2em; margin-top: 0.3em;">
+          <div style="flex: 1;">
+            <p style="font-size: 1.05em; font-weight: 600; color: var(--accent-foreground); margin: 0 0 0.4em;">Einen Remote MCP-Server mit Nutzer-Autorisierung bauen.</p>
+            <ul>
+              <li>Schnappster als Tool für <strong>KI-Assistenten</strong> bereitstellen</li>
+              <li>Nutzer-Autorisierung über <strong>OAuth 2.1</strong> (Supabase)</li>
+            </ul>
+            <h3 style="margin-top: 0.8em;">Was dafür nötig war</h3>
+            <ul>
+              <li>Weiterentwicklung zum <strong>Mehrbenutzersystem</strong></li>
+              <li><strong>Automatisches Deployment</strong> (Frontend, API, MCP-Server)</li>
+            </ul>
+          </div>
+          <div style="flex: 0 0 auto; max-width: 13em; font-size: 0.72em; margin: 0; padding: 0.6em 0.8em; background: #EEF2FF; border: 2px solid #6366F1; border-radius: var(--radius-lg); line-height: 1.45;">
+            <div style="font-weight: 700; color: #4338CA; margin-bottom: 0.3em; display: flex; align-items: center; gap: 0.35em;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              MCP
+            </div>
+            <div style="color: var(--muted-foreground); font-size: 0.9em;">Model Context Protocol</div>
+            <div style="margin-top: 0.4em; color: var(--foreground);">Offener Standard von Anthropic, über den Sprachmodelle Tools aufrufen und mit externen Systemen interagieren.</div>
+          </div>
+        </div>
       </section>
 
-      <!-- 3: Systemübersicht -->
+      <!-- Mehrbenutzer -->
+      <section>
+        <h2>Mehrbenutzersystem</h2>
+
+        <!-- Supabase oben -->
+        <div style="background: #ECFDF5; border: 2px solid #10B981; border-radius: var(--radius-lg); padding: 0.5em 0.9em; margin-top: 0.3em; box-shadow: 0 2px 8px rgba(16,185,129,0.08);">
+          <div style="display: flex; align-items: baseline; gap: 0.6em; margin-bottom: 0.25em;">
+            <span style="font-size: 0.82em; font-weight: 700; color: #065F46;">Supabase</span>
+            <span style="font-size: 0.68em; color: #047857;">Managed Datenbank- und Auth-Plattform (Open Source).</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4em;">
+            <div style="background: #D1FAE5; border-radius: var(--radius); padding: 0.3em 0.5em; font-size: 0.7em; color: #065F46; font-weight: 500;">PostgreSQL + Row-Level Security</div>
+            <div style="background: #D1FAE5; border-radius: var(--radius); padding: 0.3em 0.5em; font-size: 0.7em; color: #065F46; font-weight: 500;">Login per E-Mail oder Google</div>
+            <div style="background: #D1FAE5; border-radius: var(--radius); padding: 0.3em 0.5em; font-size: 0.7em; color: #065F46; font-weight: 500;">JWT-Token pro Nutzer</div>
+            <div style="background: #D1FAE5; border-radius: var(--radius); padding: 0.3em 0.5em; font-size: 0.7em; color: #065F46; font-weight: 500;">OAuth 2.1 Server</div>
+          </div>
+        </div>
+
+        <!-- Drei Karten darunter -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5em; margin-top: 0.5em;">
+          <div style="background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 0.5em 0.7em; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+            <div style="font-size: 0.76em; font-weight: 700; color: var(--accent-foreground); margin-bottom: 0.25em;">RLS (Row-Level Security)</div>
+            <ul style="margin: 0; padding-left: 1em; font-size: 0.72em; color: var(--foreground); line-height: 1.6;">
+              <li>PostgreSQL-Policies pro Nutzer</li>
+              <li>Durchgesetzt direkt in der Datenbank</li>
+            </ul>
+          </div>
+          <div style="background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 0.5em 0.7em; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+            <div style="font-size: 0.76em; font-weight: 700; color: var(--accent-foreground); margin-bottom: 0.25em;">Schnappster API</div>
+            <ul style="margin: 0; padding-left: 1em; font-size: 0.72em; color: var(--foreground); line-height: 1.6;">
+              <li>JWT-Token wird bei jedem Request validiert</li>
+              <li>Nutzer-ID fließt in alle Datenbankabfragen ein</li>
+            </ul>
+          </div>
+          <div style="background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 0.5em 0.7em; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+            <div style="font-size: 0.76em; font-weight: 700; color: var(--accent-foreground); margin-bottom: 0.25em;">Nutzerrollen</div>
+            <ul style="margin: 0; padding-left: 1em; font-size: 0.72em; color: var(--foreground); line-height: 1.6;">
+              <li>User — eigene Suchaufträge, Schnäppchen &amp; Einstellungen</li>
+              <li>Admin — wie User, zusätzlich Systemeinstellungen, Scraper &amp; KI-Analyse</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Deployment -->
+      <section>
+        <h2>Automatisches Deployment</h2>
+        <p class="subtitle">Ein Befehl deployt alles: <code>uv run release</code></p>
+        <div style="text-align: center; margin: 0.3em 0;">
+          <img src="schnappster-deployment.png" alt="Deployment-Pipeline: Release-Tag → GitHub Actions → Vercel + Railway (API + MCP)" class="screenshot" style="max-height: 22em;" />
+        </div>
+      </section>
+
+      <!-- Systemübersicht -->
       <section>
         <h2>Systemübersicht</h2>
         <div style="text-align: center; margin: 0.2em 0;">
@@ -315,67 +380,66 @@
         </div>
       </section>
 
-      <!-- 3: Mehrbenutzer (war 2) -->
+      <!-- MCP Tech Stack -->
       <section>
-        <h2>Mehrbenutzersystem</h2>
-        <p class="subtitle">Supabase Auth + PostgreSQL Row-Level Security.</p>
-        <div class="diagram diagram-simple">
-          <div class="diagram-box frontend">
-            <h4>Login / OAuth</h4>
-            <p>E-Mail oder Google</p>
+        <h2>MCP-Server — Tech Stack</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.55em; margin-top: 0.3em;">
+
+          <div style="background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 0.5em 0.7em; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+            <div style="font-size: 0.78em; font-weight: 700; color: var(--accent-foreground); margin-bottom: 0.3em; display: flex; align-items: center; gap: 0.3em;">
+              <span style="display:inline-block; width:0.55em; height:0.55em; border-radius:50%; background:#F59E0B; flex-shrink:0;"></span>
+              Python 3.13
+            </div>
+            <ul style="margin: 0; padding-left: 1.1em; font-size: 0.76em; color: var(--foreground); line-height: 1.6;">
+              <li>FastMCP — Streamable HTTP</li>
+              <li>httpx — API-Client</li>
+              <li>MCP Apps — eingebettete HTML-Oberflächen</li>
+            </ul>
           </div>
-          <div class="diagram-arrow-between" aria-hidden="true">→</div>
-          <div class="diagram-box auth">
-            <h4>Supabase</h4>
-            <p>JWT-Token</p>
+
+          <div style="background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 0.5em 0.7em; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+            <div style="font-size: 0.78em; font-weight: 700; color: #065F46; margin-bottom: 0.3em; display: flex; align-items: center; gap: 0.3em;">
+              <span style="display:inline-block; width:0.55em; height:0.55em; border-radius:50%; background:#10B981; flex-shrink:0;"></span>
+              Autorisierung
+            </div>
+            <ul style="margin: 0; padding-left: 1.1em; font-size: 0.76em; color: var(--foreground); line-height: 1.6;">
+              <li>Supabase OAuth 2.1 Server</li>
+              <li>Token-Verifikation per JWT</li>
+            </ul>
           </div>
-          <div class="diagram-arrow-between" aria-hidden="true">→</div>
-          <div class="diagram-box backend">
-            <h4>API + DB</h4>
-            <p>Daten-Isolation</p>
+
+          <div style="background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 0.5em 0.7em; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+            <div style="font-size: 0.78em; font-weight: 700; color: #1E40AF; margin-bottom: 0.3em; display: flex; align-items: center; gap: 0.3em;">
+              <span style="display:inline-block; width:0.55em; height:0.55em; border-radius:50%; background:#3B82F6; flex-shrink:0;"></span>
+              Betrieb
+            </div>
+            <ul style="margin: 0; padding-left: 1.1em; font-size: 0.76em; color: var(--foreground); line-height: 1.6;">
+              <li>Railway — eigener Service, parallel zur API</li>
+            </ul>
           </div>
+
+          <div style="background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 0.5em 0.7em; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+            <div style="font-size: 0.78em; font-weight: 700; color: #4338CA; margin-bottom: 0.3em; display: flex; align-items: center; gap: 0.3em;">
+              <span style="display:inline-block; width:0.55em; height:0.55em; border-radius:50%; background:#6366F1; flex-shrink:0;"></span>
+              Entwicklung
+            </div>
+            <ul style="margin: 0; padding-left: 1.1em; font-size: 0.76em; color: var(--foreground); line-height: 1.6;">
+              <li>Cloudflare Quick Tunnel — HTTPS</li>
+              <li>HTTP-Proxy (mitmproxy)</li>
+            </ul>
+          </div>
+
         </div>
-        <ul>
-          <li><strong>API-Ebene:</strong> jede Abfrage filtert nach <code>owner_id</code></li>
-          <li><strong>DB-Ebene:</strong> RLS-Policies als Sicherheitsnetz</li>
-          <li><strong>Rollen:</strong> User (eigene Daten) / Admin (globale Einstellungen)</li>
-        </ul>
       </section>
 
-      <!-- 3: Deployment -->
-      <section>
-        <h2>Automatisches Deployment</h2>
-        <p class="subtitle">Ein Befehl deployed alles — drei parallele Jobs.</p>
-        <div style="text-align: center; margin: 0.3em 0;">
-          <img src="schnappster-deployment.png" alt="Deployment-Pipeline: Release-Tag → GitHub Actions → Vercel + Railway (API + MCP)" class="screenshot" style="max-height: 22em;" />
-        </div>
-      </section>
-
-      <!-- 4: Was ist MCP? -->
-      <section>
-        <h2>Was ist MCP?</h2>
-        <p class="subtitle">Model Context Protocol — ein offener Standard von Anthropic.</p>
-        <div class="feature-blocks">
-          <div class="feature-block highlight">
-            KI-Modelle können von sich aus <strong>nicht</strong> auf externe Systeme zugreifen.
-            MCP definiert ein Protokoll, über das sie <strong>Tools aufrufen</strong> und <strong>Aktionen ausführen</strong>.
-          </div>
-        </div>
-        <ul style="margin-top: 0.4em;">
-          <li><strong>MCP-Server</strong> stellt Tools bereit</li>
-          <li><strong>MCP-Client</strong> (Claude, Cursor, ...) entdeckt sie automatisch</li>
-          <li>Nutzer tippt natürliche Sprache → KI ruft passende Tools auf</li>
-        </ul>
-      </section>
-
-      <!-- 5: Der Schnappster MCP-Server -->
+      <!-- Der Schnappster MCP-Server -->
       <section>
         <h2>Der Schnappster MCP-Server</h2>
-        <p class="subtitle">Proxy zwischen KI-Client und Schnappster-API.</p>
+        <p class="subtitle">Vermittler zwischen KI-Client und Schnappster-API.</p>
         <div class="diagram diagram-simple" style="gap: 0.8rem;">
           <div class="diagram-box mcp" style="max-width: 200px;">
             <h4>KI-Client</h4>
-            <p>Claude, Cursor, ...</p>
+            <p>Claude, Cursor, …</p>
           </div>
           <div class="diagram-arrow-between" style="font-size: 1.4em;" aria-hidden="true">↔</div>
           <div class="diagram-box backend" style="max-width: 200px;">
@@ -399,20 +463,6 @@
         <p class="section-note">Gleiche Berechtigungen wie im Browser — Bearer-Token wird durchgereicht.</p>
       </section>
 
-      <!-- 6: MCP-Auth -->
-      <section>
-        <h2>MCP-Autorisierung</h2>
-        <p class="subtitle">OAuth 2.1 via Supabase — kein manuelles Token-Kopieren.</p>
-        <ol>
-          <li>MCP-Server-URL in Cursor eintragen</li>
-          <li>Cursor erkennt den OAuth-Server automatisch</li>
-          <li>Browser öffnet sich → <strong>Supabase-Login</strong></li>
-          <li>Nutzer bestätigt Freigabe auf <strong>/connect</strong></li>
-          <li>Cursor erhält Token → <strong>alle Tools sofort bereit</strong></li>
-        </ol>
-        <p class="section-note">Funktioniert mit <strong>Cursor</strong>, <strong>Claude</strong> und jedem MCP-fähigen Client.</p>
-      </section>
-
       <!-- 7: MCP Apps -->
       <section>
         <h2>MCP Apps</h2>
@@ -434,22 +484,6 @@
         </div>
       </section>
 
-      <!-- 8: Zusammenfassung -->
-      <section>
-        <h2>Zusammenfassung</h2>
-        <table>
-          <thead>
-            <tr><th>Bereich</th><th>Vorher</th><th>Jetzt</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Benutzer</td><td>Einzelnutzer</td><td>Supabase Auth + RLS</td></tr>
-            <tr><td>Datenbank</td><td>SQLite</td><td>PostgreSQL + RLS-Policies</td></tr>
-            <tr><td>Deployment</td><td>Manuell</td><td>Git-Tag → Vercel + Railway</td></tr>
-            <tr><td>KI-Zugriff</td><td>Nur intern</td><td>Remote MCP-Server + OAuth</td></tr>
-            <tr><td>Bedienung</td><td>Nur Browser</td><td>Browser + KI-Assistenten</td></tr>
-          </tbody>
-        </table>
-      </section>
 
       <!-- 10: Ende -->
       <section class="thanks">
