@@ -14,6 +14,10 @@ db_engine = create_engine(
     config.database_url,
     echo=False,
     connect_args=_connect_args,
+    pool_size=3,
+    max_overflow=0,
+    pool_timeout=10,
+    pool_pre_ping=True,
 )
 
 
