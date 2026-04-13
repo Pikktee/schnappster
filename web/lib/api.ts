@@ -14,6 +14,7 @@ import { supabase } from "./supabase"
 // Leer = gleicher Origin (nur sinnvoll bei Reverse-Proxy); lokal/Vercel: z. B. http://127.0.0.1:8000 bzw. https://api.example.com
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
 const API_TIMEOUT_MS = 15000
+const ACCESS_TOKEN_TIMEOUT_MS = 5000
 
 export class ApiAuthError extends Error {}
 let accessTokenInFlight: Promise<string | null> | null = null
@@ -48,12 +49,25 @@ function formatFastApiDetail(detail: unknown): string {
 async function getAccessToken(): Promise<string | null> {
   if (!supabase) return null
   if (!accessTokenInFlight) {
-    accessTokenInFlight = supabase.auth
-      .getSession()
-      .then(({ data }) => data.session?.access_token ?? null)
-      .finally(() => {
-        accessTokenInFlight = null
-      })
+    accessTokenInFlight = new Promise<string | null>((resolve) => {
+      const timeoutId = window.setTimeout(() => {
+        resolve(null)
+      }, ACCESS_TOKEN_TIMEOUT_MS)
+
+      supabase.auth
+        .getSession()
+        .then(({ data }) => {
+          resolve(data.session?.access_token ?? null)
+        })
+        .catch(() => {
+          resolve(null)
+        })
+        .finally(() => {
+          window.clearTimeout(timeoutId)
+        })
+    }).finally(() => {
+      accessTokenInFlight = null
+    })
   }
   return accessTokenInFlight
 }
