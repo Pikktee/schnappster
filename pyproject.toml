@@ -1,6 +1,6 @@
 [project]
 name = "schnappster"
-version = "0.7.39"
+version = "0.7.40"
 description = "Kleinanzeigen.de Schnäppchen-Finder"
 readme = "README.md"
 requires-python = ">=3.13"
