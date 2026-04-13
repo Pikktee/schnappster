@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, Fragment } from "react"
+import { useEffect, useRef, useState, Fragment, useCallback } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/empty-state"
@@ -14,6 +14,7 @@ import {
   clearScrapeRuns,
   clearErrorLogs,
   clearAIAnalysisLogs,
+  ApiAbortError,
 } from "@/lib/api"
 import type { AdSearch, ScrapeRun, ErrorLog, AIAnalysisLog } from "@/lib/types"
 import { timeAgo } from "@/lib/format"
@@ -37,6 +38,7 @@ import {
 } from "lucide-react"
 import { ContentReveal } from "@/components/content-reveal"
 import { usePageHead } from "../page-head-context"
+import { useAbortSignal } from "@/hooks/use-abort-signal"
 
 const LIMIT = 100
 const LOGS_REQUEST_TIMEOUT_MS = 12000
@@ -46,7 +48,7 @@ type LoadResult<T> =
   | { ok: false; error: string }
 
 function timeoutLoad<T>(promise: Promise<T>, label: string): Promise<LoadResult<T>> {
-  return new Promise<LoadResult<T>>((resolve) => {
+  return new Promise<LoadResult<T>>((resolve, reject) => {
     const timeoutId = window.setTimeout(() => {
       resolve({ ok: false, error: `${label}: Zeitüberschreitung` })
     }, LOGS_REQUEST_TIMEOUT_MS)
@@ -56,6 +58,10 @@ function timeoutLoad<T>(promise: Promise<T>, label: string): Promise<LoadResult<
         resolve({ ok: true, data })
       })
       .catch((error: unknown) => {
+        if (error instanceof ApiAbortError) {
+          reject(error)
+          return
+        }
         const message = error instanceof Error ? error.message : `${label}: Laden fehlgeschlagen`
         resolve({ ok: false, error: message })
       })
@@ -77,19 +83,28 @@ export default function LogsPage() {
   const [expandedAi, setExpandedAi] = useState<Set<number>>(new Set())
   const { setHeaderActions } = usePageHead()
   const loadRequestIdRef = useRef(0)
-  const isMountedRef = useRef(true)
+  const getSignal = useAbortSignal()
 
-  async function load() {
+  const load = useCallback(async () => {
+    const signal = getSignal()
     const requestId = ++loadRequestIdRef.current
     setLoading(true)
-    const [searchesResult, runsResult, errorsResult, aiResult] = await Promise.all([
-      timeoutLoad(fetchSearches(), "Suchaufträge"),
-      timeoutLoad(fetchScrapeRuns({ limit: LIMIT }), "Scraper-Durchläufe"),
-      timeoutLoad(fetchErrorLogs({ limit: LIMIT }), "Fehlerprotokolle"),
-      timeoutLoad(fetchAIAnalysisLogs({ limit: LIMIT }), "AI-Analysen"),
-    ])
+    let searchesResult: LoadResult<AdSearch[]>
+    let runsResult: LoadResult<ScrapeRun[]>
+    let errorsResult: LoadResult<ErrorLog[]>
+    let aiResult: LoadResult<AIAnalysisLog[]>
+    try {
+      [searchesResult, runsResult, errorsResult, aiResult] = await Promise.all([
+        timeoutLoad(fetchSearches({ signal }), "Suchaufträge"),
+        timeoutLoad(fetchScrapeRuns({ limit: LIMIT, signal }), "Scraper-Durchläufe"),
+        timeoutLoad(fetchErrorLogs({ limit: LIMIT, signal }), "Fehlerprotokolle"),
+        timeoutLoad(fetchAIAnalysisLogs({ limit: LIMIT, signal }), "AI-Analysen"),
+      ])
+    } catch {
+      return // AbortError — component unmounted
+    }
 
-    if (!isMountedRef.current || loadRequestIdRef.current !== requestId) return
+    if (signal.aborted || loadRequestIdRef.current !== requestId) return
 
     if (searchesResult.ok) setSearches(searchesResult.data)
     if (runsResult.ok) setScraperuns(runsResult.data)
@@ -105,15 +120,11 @@ export default function LogsPage() {
     }
 
     setLoading(false)
-  }
+  }, [getSignal])
 
   useEffect(() => {
-    isMountedRef.current = true
     void load()
-    return () => {
-      isMountedRef.current = false
-    }
-  }, [])
+  }, [load])
 
   useEffect(() => {
     if (!loading) {

@@ -31,7 +31,7 @@ import { Button } from "@/components/ui/button"
 import { ScoreBadge } from "@/components/score-badge"
 import { SellerRatingTag } from "@/components/seller-rating-tag"
 import { ExternalLink } from "@/components/external-link"
-import { fetchAd, fetchSearch } from "@/lib/api"
+import { fetchAd, fetchSearch, ApiAbortError } from "@/lib/api"
 import type { Ad, AdSearch } from "@/lib/types"
 import {
   formatPrice,
@@ -42,6 +42,7 @@ import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ContentReveal } from "@/components/content-reveal"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
+import { useAbortSignal } from "@/hooks/use-abort-signal"
 import { usePageHead } from "../../page-head-context"
 
 export function AdDetailPage() {
@@ -64,29 +65,34 @@ export function AdDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [imgErrors, setImgErrors] = useState<Set<number>>(new Set())
 
+  const getSignal = useAbortSignal()
+
   const load = useCallback(async () => {
     if (Number.isNaN(id)) return
+    const signal = getSignal()
     setLoading(true)
     setError(null)
     try {
-      const adData = await fetchAd(id)
+      const adData = await fetchAd(id, { signal })
       setAd(adData)
       try {
-        const searchData = await fetchSearch(adData.adsearch_id)
+        const searchData = await fetchSearch(adData.adsearch_id, { signal })
         setSearch(searchData)
-      } catch {
+      } catch (e) {
+        if (e instanceof ApiAbortError) return
         setSearch(null)
       }
     } catch (e) {
+      if (e instanceof ApiAbortError) return
       const msg = e instanceof Error ? e.message : "Anzeige konnte nicht geladen werden."
       setError(msg)
       toast.error(msg)
       setAd(null)
       setSearch(null)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
-  }, [id])
+  }, [id, getSignal])
 
   useEffect(() => {
     load()

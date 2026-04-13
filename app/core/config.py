@@ -28,10 +28,11 @@ class Config(BaseSettings):
     openai_model: str = "google/gemini-2.0-flash-001"
     openai_base_url: str = "https://openrouter.ai/api/v1"
     telegram_bot_token: str = ""
-    db_pool_size: int = 10
-    db_max_overflow: int = 20
-    db_pool_timeout: int = 10
-    db_connect_timeout: int = 5
+    db_pool_size: int = 5
+    db_max_overflow: int = 2
+    db_pool_timeout: int = 20
+    db_connect_timeout: int = 3
+    db_pool_recycle: int = 300
 
     # Pydantic-Einstellungen
     model_config = {
@@ -59,6 +60,11 @@ class Config(BaseSettings):
         # Leere CORS-Liste (z. B. CORS_ALLOWED_ORIGINS= in .env) wuerde kein ACAO-Header liefern.
         if not self.cors_allowed_origins.strip():
             self.cors_allowed_origins = "http://localhost:3000,http://127.0.0.1:3000"
+        self.db_pool_size = max(self.db_pool_size, 1)
+        self.db_max_overflow = max(self.db_max_overflow, 0)
+        self.db_pool_timeout = max(self.db_pool_timeout, 1)
+        self.db_connect_timeout = max(self.db_connect_timeout, 1)
+        self.db_pool_recycle = max(self.db_pool_recycle, 60)
         return self
 
 

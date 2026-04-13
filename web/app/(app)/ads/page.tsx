@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect, useState, useCallback } from "react"
+import { Suspense, useEffect, useState, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { LayoutGrid, TableIcon, SlidersHorizontal, ChevronLeft, ChevronRight, RotateCcw, Euro, Star, MapPin, Clock, SearchX } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -32,7 +32,7 @@ import { ScoreBadge } from "@/components/score-badge"
 import { EmptyState } from "@/components/empty-state"
 import { ExternalLink } from "@/components/external-link"
 import { ContentReveal } from "@/components/content-reveal"
-import { fetchAdsPaginated, fetchSearches } from "@/lib/api"
+import { fetchAdsPaginated, fetchSearches, ApiAbortError } from "@/lib/api"
 import type { Ad, AdSearch } from "@/lib/types"
 import { formatPrice, timeAgo } from "@/lib/format"
 import { toast } from "sonner"
@@ -105,6 +105,7 @@ function AdsPageContent() {
   const [sortBy, setSortBy] = useState<SortOption>((searchParams.get("sort") as SortOption) || "date")
   const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get("view") as ViewMode) || "cards")
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1)
+  const loadRequestIdRef = useRef(0)
 
   const updateUrl = useCallback((params: Record<string, string>) => {
     const sp = new URLSearchParams(searchParams.toString())
@@ -120,6 +121,7 @@ function AdsPageContent() {
   }, [searchParams, router])
 
   const loadAds = useCallback(async (p: number, score: string, search: string, sort: string) => {
+    const requestId = ++loadRequestIdRef.current
     setLoading(true)
     setError(null)
     try {
@@ -138,11 +140,12 @@ function AdsPageContent() {
       setTotal(result.total)
       setSearches(s)
     } catch (e) {
+      if (e instanceof ApiAbortError) return
       const msg = e instanceof Error ? e.message : "Angebote konnten nicht geladen werden."
       setError(msg)
       toast.error(msg)
     } finally {
-      setLoading(false)
+      if (requestId === loadRequestIdRef.current) setLoading(false)
     }
   }, [])
 

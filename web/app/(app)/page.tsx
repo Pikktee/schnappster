@@ -8,12 +8,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard } from "@/components/stat-card"
 import { LatestDeals } from "@/components/latest-deals"
 import { ContentReveal } from "@/components/content-reveal"
-import { fetchSearches, fetchAdsPaginated, fetchScrapeRuns } from "@/lib/api"
+import { fetchSearches, fetchAdsPaginated, fetchScrapeRuns, ApiAbortError } from "@/lib/api"
 import type { Ad, AdSearch, ScrapeRun } from "@/lib/types"
 import { timeAgo } from "@/lib/format"
 import { toast } from "sonner"
 import Link from "next/link"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
+import { useAbortSignal } from "@/hooks/use-abort-signal"
 
 const WELCOME_DISMISSED_KEY = "schnappster-welcome-dismissed"
 
@@ -31,28 +32,32 @@ export default function DashboardPage() {
     setWelcomeDismissed(localStorage.getItem(WELCOME_DISMISSED_KEY) === "true")
   }, [])
 
+  const getSignal = useAbortSignal()
+
   const load = useCallback(async () => {
+    const signal = getSignal()
     setLoading(true)
     setError(null)
     try {
       const [s, countRes, dealsRes, r] = await Promise.all([
-        fetchSearches(),
-        fetchAdsPaginated({ limit: 1 }),
-        fetchAdsPaginated({ min_score: 8, sort: "date", limit: 5 }),
-        fetchScrapeRuns({ limit: 100 }),
+        fetchSearches({ signal }),
+        fetchAdsPaginated({ limit: 1, signal }),
+        fetchAdsPaginated({ min_score: 8, sort: "date", limit: 5, signal }),
+        fetchScrapeRuns({ limit: 100, signal }),
       ])
       setSearches(s)
       setTotalAds(countRes.total)
       setLatestDeals(dealsRes.items)
       setScraperuns(r)
     } catch (e) {
+      if (e instanceof ApiAbortError) return
       const msg = e instanceof Error ? e.message : "Daten konnten nicht geladen werden."
       setError(msg)
       toast.error(msg)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
-  }, [])
+  }, [getSignal])
 
   useEffect(() => {
     load()

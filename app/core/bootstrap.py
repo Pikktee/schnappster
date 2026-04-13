@@ -8,6 +8,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from app.core import init_db, setup_logging
+from app.core.auth import close_auth_http_client
 from app.core.background_jobs import get_background_jobs
 from app.core.fastapi_app import SchnappsterFastAPI
 from app.core.middlewares import setup_cors, setup_no_store_api
@@ -28,6 +29,7 @@ async def lifespan(app: SchnappsterFastAPI):
     yield
 
     jobs.stop()
+    await close_auth_http_client()
 
 
 def create_app() -> SchnappsterFastAPI:

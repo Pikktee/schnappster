@@ -42,6 +42,27 @@ import { fetchErrorLogs, fetchMe, fetchVersion } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/components/auth-provider"
 
+const DEBUG_ENDPOINT = "http://127.0.0.1:7779/ingest/bfe3bd6e-2abc-4ac9-b804-18a979d98c6d"
+const DEBUG_SESSION_ID = "af5e93"
+
+function debugLog(message: string, data: Record<string, unknown>) {
+  // #region agent log
+  fetch(DEBUG_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": DEBUG_SESSION_ID },
+    body: JSON.stringify({
+      sessionId: DEBUG_SESSION_ID,
+      runId: "frontend-round3",
+      hypothesisId: "H13",
+      location: "web/components/app-sidebar.tsx",
+      message,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {})
+  // #endregion
+}
+
 const navItems = [
   { label: "Start", href: "/", icon: Home },
   { label: "Suchaufträge", href: "/searches/", icon: Search },
@@ -74,18 +95,37 @@ export function AppSidebar() {
   const [profileDisplayName, setProfileDisplayName] = useState<string | null>(null)
 
   useEffect(() => {
+    // #region agent log
+    debugLog("fetchVersion start", {})
+    // #endregion
     fetchVersion()
-      .then(({ version: v }) => setVersionLabel(`v${v}`))
+      .then(({ version: v }) => {
+        // #region agent log
+        debugLog("fetchVersion success", { version: v })
+        // #endregion
+        setVersionLabel(`v${v}`)
+      })
       .catch(() => setVersionLabel("—"))
   }, [])
 
   useEffect(() => {
     if (!user) {
+      // #region agent log
+      debugLog("skip fetchMe no user", {})
+      // #endregion
       setProfileDisplayName(null)
       return
     }
+    // #region agent log
+    debugLog("fetchMe start", { userId: user.id })
+    // #endregion
     fetchMe()
-      .then((profile) => setProfileDisplayName(profile.display_name))
+      .then((profile) => {
+        // #region agent log
+        debugLog("fetchMe success", { userId: user.id, hasName: Boolean(profile.display_name) })
+        // #endregion
+        setProfileDisplayName(profile.display_name)
+      })
       .catch(() => setProfileDisplayName(null))
   }, [user?.id])
 

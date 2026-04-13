@@ -13,10 +13,20 @@ import { getSessionWithTimeout, supabase } from "./supabase"
 
 // Leer = gleicher Origin (nur sinnvoll bei Reverse-Proxy); lokal/Vercel: z. B. http://127.0.0.1:8000 bzw. https://api.example.com
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
-const API_TIMEOUT_MS = 15000
+const API_TIMEOUT_MS = 60000
+const DEBUG_ENDPOINT = "http://127.0.0.1:7779/ingest/bfe3bd6e-2abc-4ac9-b804-18a979d98c6d"
+const DEBUG_SESSION_ID = "af5e93"
 
 export class ApiAuthError extends Error {}
+export class ApiAbortError extends Error {
+  override name = "ApiAbortError" as const
+}
 let accessTokenInFlight: Promise<string | null> | null = null
+const inFlightGetRequests = new Map<
+  string,
+  { promise: Promise<unknown>; startedAt: number }
+>()
+const DEDUPE_MAX_AGE_MS = 4000
 
 /** FastAPI kann `detail` als String, Array von Validation-Error-Objekten oder Objekt liefern. */
 function formatFastApiDetail(detail: unknown): string {
@@ -57,16 +67,109 @@ async function getAccessToken(): Promise<string | null> {
   return accessTokenInFlight
 }
 
+type SignalOpt = { signal?: AbortSignal }
+
+function shouldDebugPath(path: string): boolean {
+  return (
+    path.startsWith("/users/me") ||
+    path.startsWith("/ads/") ||
+    path.startsWith("/searches/") ||
+    path.startsWith("/adsearches/") ||
+    path.startsWith("/version/")
+  )
+}
+
+function debugLog(hypothesisId: string, location: string, message: string, data: Record<string, unknown>) {
+  // #region agent log
+  fetch(DEBUG_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": DEBUG_SESSION_ID },
+    body: JSON.stringify({
+      sessionId: DEBUG_SESSION_ID,
+      runId: "frontend-round2",
+      hypothesisId,
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {})
+  // #endregion
+}
+
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const method = options?.method ?? "GET"
+  const userSignal = options?.signal
+  const fullUrl = `${BASE_URL}${path}`
+  const dedupeKey =
+    method === "GET" && !userSignal && !options?.body ? `${method}:${fullUrl}` : null
+  if (dedupeKey) {
+    const existingEntry = inFlightGetRequests.get(dedupeKey)
+    if (existingEntry) {
+      const ageMs = Date.now() - existingEntry.startedAt
+      if (ageMs <= DEDUPE_MAX_AGE_MS) {
+        if (shouldDebugPath(path)) {
+          debugLog("H16", "web/lib/api.ts:apiFetch", "dedupe hit", {
+            path,
+            dedupeKey,
+            ageMs,
+          })
+        }
+        return existingEntry.promise as Promise<T>
+      }
+      if (shouldDebugPath(path)) {
+        debugLog("H17", "web/lib/api.ts:apiFetch", "dedupe stale bypass", {
+          path,
+          dedupeKey,
+          ageMs,
+        })
+      }
+      inFlightGetRequests.delete(dedupeKey)
+    }
+  }
+
+  const requestPromise = apiFetchInternal<T>(path, options, fullUrl, userSignal)
+  if (dedupeKey) {
+    inFlightGetRequests.set(dedupeKey, { promise: requestPromise, startedAt: Date.now() })
+    if (shouldDebugPath(path)) {
+      debugLog("H18", "web/lib/api.ts:apiFetch", "dedupe register", { path, dedupeKey })
+    }
+    requestPromise.finally(() => {
+      inFlightGetRequests.delete(dedupeKey)
+      if (shouldDebugPath(path)) {
+        debugLog("H18", "web/lib/api.ts:apiFetch", "dedupe clear", { path, dedupeKey })
+      }
+    })
+  }
+  return requestPromise
+}
+
+async function apiFetchInternal<T>(
+  path: string,
+  options: RequestInit | undefined,
+  fullUrl: string,
+  userSignal: AbortSignal | undefined,
+): Promise<T> {
+  const tokenStartedAt = Date.now()
+  if (shouldDebugPath(path)) {
+    debugLog("H11", "web/lib/api.ts:apiFetch", "token request start", { path })
+  }
   const token = await getAccessToken()
+  if (shouldDebugPath(path)) {
+    debugLog("H11", "web/lib/api.ts:apiFetch", "token request success", {
+      path,
+      hasToken: Boolean(token),
+      elapsedMs: Date.now() - tokenStartedAt,
+    })
+  }
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
   const customHeaders = options?.headers ?? {}
-  const fullUrl = `${BASE_URL}${path}`
   const controller = new AbortController()
+  let timedOut = false
   const timeoutId = window.setTimeout(() => {
+    timedOut = true
     controller.abort()
   }, API_TIMEOUT_MS)
-  const userSignal = options?.signal
   const onAbort = () => controller.abort()
   if (userSignal) {
     if (userSignal.aborted) {
@@ -76,6 +179,14 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     }
   }
   let res: Response
+  const requestStartedAt = Date.now()
+  if (shouldDebugPath(path)) {
+    debugLog("H5", "web/lib/api.ts:apiFetch", "request start", {
+      path,
+      hasUserSignal: Boolean(userSignal),
+      method: options?.method ?? "GET",
+    })
+  }
   try {
     res = await fetch(fullUrl, {
       cache: "no-store",
@@ -89,7 +200,17 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     })
   } catch (err: unknown) {
     if (err instanceof Error && err.name === "AbortError") {
-      throw new Error("Zeitüberschreitung beim Laden. Bitte erneut versuchen.")
+      if (shouldDebugPath(path)) {
+        debugLog("H6", "web/lib/api.ts:apiFetch", "request aborted", {
+          path,
+          timedOut,
+          elapsedMs: Date.now() - requestStartedAt,
+        })
+      }
+      if (timedOut) {
+        throw new Error("Zeitüberschreitung beim Laden. Bitte erneut versuchen.")
+      }
+      throw new ApiAbortError("Request abgebrochen")
     }
     throw new Error("Keine Verbindung zum Server — bitte Internetverbindung prüfen.")
   } finally {
@@ -99,6 +220,13 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     }
   }
   if (!res.ok) {
+    if (shouldDebugPath(path)) {
+      debugLog("H7", "web/lib/api.ts:apiFetch", "request non-ok response", {
+        path,
+        status: res.status,
+        elapsedMs: Date.now() - requestStartedAt,
+      })
+    }
     const body = await res.json().catch(() => ({}))
     if (res.status === 401) {
       await supabase?.auth.signOut()
@@ -119,12 +247,19 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   }
   // 204 No Content has no body — do not call res.json()
   if (res.status === 204) return undefined as T
+  if (shouldDebugPath(path)) {
+    debugLog("H5", "web/lib/api.ts:apiFetch", "request success", {
+      path,
+      status: res.status,
+      elapsedMs: Date.now() - requestStartedAt,
+    })
+  }
   return res.json()
 }
 
 // AdSearches
-export const fetchSearches = () => apiFetch<AdSearch[]>("/adsearches/")
-export const fetchSearch = (id: number) => apiFetch<AdSearch>(`/adsearches/${id}`)
+export const fetchSearches = (opts?: SignalOpt) => apiFetch<AdSearch[]>("/adsearches/", opts)
+export const fetchSearch = (id: number, opts?: SignalOpt) => apiFetch<AdSearch>(`/adsearches/${id}`, opts)
 export const createSearch = (data: Partial<AdSearch>) =>
   apiFetch<AdSearch>("/adsearches/", { method: "POST", body: JSON.stringify(data) })
 export const updateSearch = (id: number, data: Partial<AdSearch>) =>
@@ -133,13 +268,13 @@ export const deleteSearch = (id: number) =>
   apiFetch<void>(`/adsearches/${id}`, { method: "DELETE" })
 
 // Ads
-export const fetchAds = async (params?: { adsearch_id?: number; is_analyzed?: boolean }): Promise<Ad[]> => {
+export const fetchAds = async (params?: { adsearch_id?: number; is_analyzed?: boolean; signal?: AbortSignal }): Promise<Ad[]> => {
   const searchParams = new URLSearchParams()
   if (params?.adsearch_id) searchParams.set("adsearch_id", String(params.adsearch_id))
   if (params?.is_analyzed !== undefined) searchParams.set("is_analyzed", String(params.is_analyzed))
   searchParams.set("limit", "100")
   const qs = searchParams.toString()
-  const res = await apiFetch<PaginatedAds>(`/ads/?${qs}`)
+  const res = await apiFetch<PaginatedAds>(`/ads/?${qs}`, { signal: params?.signal })
   return res.items
 }
 
@@ -150,6 +285,7 @@ export const fetchAdsPaginated = (params: {
   sort?: string
   limit?: number
   offset?: number
+  signal?: AbortSignal
 }) => {
   const sp = new URLSearchParams()
   if (params.adsearch_id) sp.set("adsearch_id", String(params.adsearch_id))
@@ -158,50 +294,50 @@ export const fetchAdsPaginated = (params: {
   if (params.sort) sp.set("sort", params.sort)
   if (params.limit) sp.set("limit", String(params.limit))
   if (params.offset) sp.set("offset", String(params.offset))
-  return apiFetch<PaginatedAds>(`/ads/?${sp.toString()}`)
+  return apiFetch<PaginatedAds>(`/ads/?${sp.toString()}`, { signal: params.signal })
 }
-export const fetchAd = (id: number) => apiFetch<Ad>(`/ads/${id}`)
+export const fetchAd = (id: number, opts?: SignalOpt) => apiFetch<Ad>(`/ads/${id}`, opts)
 export const deleteAd = (id: number) =>
   apiFetch<void>(`/ads/${id}`, { method: "DELETE" })
 
 // ScrapeRuns
-export const fetchScrapeRuns = (params?: { adsearch_id?: number; limit?: number }) => {
+export const fetchScrapeRuns = (params?: { adsearch_id?: number; limit?: number; signal?: AbortSignal }) => {
   const searchParams = new URLSearchParams()
   if (params?.adsearch_id) searchParams.set("adsearch_id", String(params.adsearch_id))
   if (params?.limit) searchParams.set("limit", String(params.limit))
   const qs = searchParams.toString()
-  return apiFetch<ScrapeRun[]>(`/scraperuns/${qs ? `?${qs}` : ""}`)
+  return apiFetch<ScrapeRun[]>(`/scraperuns/${qs ? `?${qs}` : ""}`, { signal: params?.signal })
 }
 export const clearScrapeRuns = () =>
   apiFetch<void>("/scraperuns/", { method: "DELETE" })
 
 // ErrorLogs
-export const fetchErrorLogs = (params?: { adsearch_id?: number; limit?: number }) => {
+export const fetchErrorLogs = (params?: { adsearch_id?: number; limit?: number; signal?: AbortSignal }) => {
   const searchParams = new URLSearchParams()
   if (params?.adsearch_id) searchParams.set("adsearch_id", String(params.adsearch_id))
   if (params?.limit) searchParams.set("limit", String(params.limit))
   const qs = searchParams.toString()
-  return apiFetch<ErrorLog[]>(`/errorlogs/${qs ? `?${qs}` : ""}`)
+  return apiFetch<ErrorLog[]>(`/errorlogs/${qs ? `?${qs}` : ""}`, { signal: params?.signal })
 }
 export const clearErrorLogs = () =>
   apiFetch<void>("/errorlogs/", { method: "DELETE" })
 
 // AIAnalysisLogs
-export const fetchAIAnalysisLogs = (params?: { adsearch_id?: number; limit?: number }) => {
+export const fetchAIAnalysisLogs = (params?: { adsearch_id?: number; limit?: number; signal?: AbortSignal }) => {
   const searchParams = new URLSearchParams()
   if (params?.adsearch_id) searchParams.set("adsearch_id", String(params.adsearch_id))
   if (params?.limit) searchParams.set("limit", String(params.limit))
   const qs = searchParams.toString()
-  return apiFetch<AIAnalysisLog[]>(`/aianalysislogs/${qs ? `?${qs}` : ""}`)
+  return apiFetch<AIAnalysisLog[]>(`/aianalysislogs/${qs ? `?${qs}` : ""}`, { signal: params?.signal })
 }
 export const clearAIAnalysisLogs = () =>
   apiFetch<void>("/aianalysislogs/", { method: "DELETE" })
 
 // Settings
-export const fetchSettings = () => apiFetch<AppSetting[]>("/settings/")
-export const fetchSetting = (key: string) => apiFetch<AppSetting>(`/settings/${key}`)
-export const fetchTelegramConfigured = () =>
-  apiFetch<{ configured: boolean }>("/settings/telegram-configured")
+export const fetchSettings = (opts?: SignalOpt) => apiFetch<AppSetting[]>("/settings/", opts)
+export const fetchSetting = (key: string, opts?: SignalOpt) => apiFetch<AppSetting>(`/settings/${key}`, opts)
+export const fetchTelegramConfigured = (opts?: SignalOpt) =>
+  apiFetch<{ configured: boolean }>("/settings/telegram-configured", opts)
 export const updateSetting = (key: string, value: string) =>
   apiFetch<AppSetting>(`/settings/${key}`, {
     method: "PUT",
@@ -209,17 +345,17 @@ export const updateSetting = (key: string, value: string) =>
   })
 
 // Version (from backend / pyproject.toml)
-export const fetchVersion = () =>
-  apiFetch<{ version: string }>("/version/")
+export const fetchVersion = (opts?: SignalOpt) =>
+  apiFetch<{ version: string }>("/version/", opts)
 
 // User / Account
-export const fetchMe = () => apiFetch<UserProfile>("/users/me/")
+export const fetchMe = (opts?: SignalOpt) => apiFetch<UserProfile>("/users/me/", opts)
 export const updateMe = (data: { display_name: string }) =>
   apiFetch<UserProfile>("/users/me/", {
     method: "PATCH",
     body: JSON.stringify(data),
   })
-export const fetchMySettings = () => apiFetch<UserSettings>("/users/me/settings")
+export const fetchMySettings = (opts?: SignalOpt) => apiFetch<UserSettings>("/users/me/settings", opts)
 export const updateMySettings = (data: Partial<UserSettings>) =>
   apiFetch<UserSettings>("/users/me/settings", {
     method: "PATCH",

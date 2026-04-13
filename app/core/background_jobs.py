@@ -10,7 +10,7 @@ from apscheduler.schedulers.background import (  # pyright: ignore[reportMissing
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from app.core.db import db_engine
+from app.core.db import bg_engine
 from app.models.ad import Ad
 from app.models.logs_error import ErrorLog
 from app.services.scraper import ScraperService
@@ -110,7 +110,7 @@ class BackgroundJobs:
 
     def _run_scrape_ads(self) -> None:
         """Job: scrape_due_searches ausführen; bei neuen Anzeigen Analyzer in die Queue."""
-        with Session(db_engine) as session:
+        with Session(bg_engine) as session:
             total_new = ScraperService(session).scrape_due_searches()
 
         # Bei neuen Anzeigen KI-Analyse anstoßen
@@ -125,7 +125,7 @@ class BackgroundJobs:
 
     def _run_analyze_ads(self) -> None:
         """Job: unbearbeitete Anzeigen analysieren; bei Rückstand erneut einplanen."""
-        with Session(db_engine) as session:
+        with Session(bg_engine) as session:
             run_ok = False
             analyzed = 0
             try:
@@ -168,7 +168,7 @@ class BackgroundJobs:
 
     def _run_cleanup_old_ads(self) -> None:
         """Job: Anzeigen löschen, die älter als die konfigurierte Anzahl Tage sind."""
-        with Session(db_engine) as session:
+        with Session(bg_engine) as session:
             days = SettingsService(session).get_int("auto_delete_ads_days")
             if days == 0:
                 logger.debug("Auto-delete disabled (auto_delete_ads_days=0)")

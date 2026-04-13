@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Plus, SearchX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,12 +13,34 @@ import { SearchCard } from "@/components/search-card"
 import { SearchForm } from "@/components/search-form"
 import { EmptyState } from "@/components/empty-state"
 import { ContentReveal } from "@/components/content-reveal"
-import { fetchSearches, createSearch, deleteSearch } from "@/lib/api"
+import { fetchSearches, createSearch, deleteSearch, ApiAbortError } from "@/lib/api"
 import type { AdSearch } from "@/lib/types"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
+import { useAbortSignal } from "@/hooks/use-abort-signal"
 import { usePageHead } from "../page-head-context"
+
+const DEBUG_ENDPOINT = "http://127.0.0.1:7779/ingest/bfe3bd6e-2abc-4ac9-b804-18a979d98c6d"
+const DEBUG_SESSION_ID = "af5e93"
+
+function debugLog(message: string, data: Record<string, unknown>) {
+  // #region agent log
+  fetch(DEBUG_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": DEBUG_SESSION_ID },
+    body: JSON.stringify({
+      sessionId: DEBUG_SESSION_ID,
+      runId: "frontend-round3",
+      hypothesisId: "H15",
+      location: "web/app/(app)/searches/page.tsx:loadSearches",
+      message,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {})
+  // #endregion
+}
 
 export default function SearchesPage() {
   const [searches, setSearches] = useState<AdSearch[]>([])
@@ -29,29 +51,45 @@ export default function SearchesPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [formDirty, setFormDirty] = useState(false)
   const { setHeaderActions } = usePageHead()
+  const getSignal = useAbortSignal()
 
-  async function loadSearches(opts?: { silent?: boolean }) {
+  const loadSearches = useCallback(async (opts?: { silent?: boolean }) => {
+    const signal = getSignal()
+    const startedAt = Date.now()
+    // #region agent log
+    debugLog("load start", { silent: Boolean(opts?.silent) })
+    // #endregion
     if (!opts?.silent) {
       setLoading(true)
       setError(null)
     }
     try {
-      const data = await fetchSearches()
+      const data = await fetchSearches({ signal })
       setSearches(data)
+      // #region agent log
+      debugLog("load success", { count: data.length, elapsedMs: Date.now() - startedAt })
+      // #endregion
     } catch (e) {
+      if (e instanceof ApiAbortError) return
       const msg = e instanceof Error ? e.message : "Suchaufträge konnten nicht geladen werden."
+      // #region agent log
+      debugLog("load error", { msg, elapsedMs: Date.now() - startedAt })
+      // #endregion
       if (!opts?.silent) {
         setError(msg)
         toast.error(msg)
       }
     } finally {
-      setLoading(false)
+      // #region agent log
+      debugLog("load finally", { aborted: signal.aborted, elapsedMs: Date.now() - startedAt })
+      // #endregion
+      if (!signal.aborted) setLoading(false)
     }
-  }
+  }, [getSignal])
 
   useEffect(() => {
     loadSearches()
-  }, [])
+  }, [loadSearches])
 
   useRefetchOnFocus(() => loadSearches({ silent: true }))
 
@@ -123,7 +161,7 @@ export default function SearchesPage() {
       <ContentReveal className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-4 py-12">
           <p className="text-destructive">{error}</p>
-          <Button variant="outline" onClick={loadSearches} className="cursor-pointer">
+          <Button variant="outline" onClick={() => loadSearches()} className="cursor-pointer">
             Erneut laden
           </Button>
         </div>

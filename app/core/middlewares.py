@@ -1,11 +1,14 @@
 """Anwendungs-Middleware: CORS (Dev) und API-Cache-Steuerung."""
 
+import time
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.config import config
+from app.core.debug_runtime import write_debug_log
 
 # Öffentliche REST-Pfade (ohne früheres globales /api-Prefix); für Cache-Control: no-store.
 _API_PATH_PREFIXES: tuple[str, ...] = (
@@ -65,14 +68,45 @@ class NoStoreApiMiddleware:
             return
 
         path = scope.get("path") or ""
+        request_started_at = time.time_ns() // 1_000_000
+        response_status: int | None = None
+        should_debug = path.startswith(
+            ("/ads", "/adsearches", "/users/me", "/version", "/settings", "/searches")
+        )
+        if should_debug:
+            # region agent log
+            write_debug_log(
+                run_id="backend-round3",
+                hypothesis_id="H14",
+                location="app/core/middlewares.py:NoStoreApiMiddleware",
+                message="request start",
+                data={"path": path, "method": scope.get("method")},
+            )
+            # endregion
 
         async def send_wrapper(message: Message) -> None:
+            nonlocal response_status
             if message["type"] == "http.response.start" and _is_rest_api_path(path):
                 headers = MutableHeaders(scope=message)
                 headers["Cache-Control"] = "no-store"
+                response_status = int(message.get("status", 0))
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
+        if should_debug:
+            # region agent log
+            write_debug_log(
+                run_id="backend-round3",
+                hypothesis_id="H14",
+                location="app/core/middlewares.py:NoStoreApiMiddleware",
+                message="request end",
+                data={
+                    "path": path,
+                    "status": response_status,
+                    "elapsed_ms": (time.time_ns() // 1_000_000) - request_started_at,
+                },
+            )
+            # endregion
 
 
 def setup_cors(app: FastAPI) -> None:

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import {
   ArrowLeft,
@@ -48,7 +48,7 @@ import { SearchForm } from "@/components/search-form"
 import { ScoreBadge } from "@/components/score-badge"
 import { ExternalLink } from "@/components/external-link"
 import { EmptyState } from "@/components/empty-state"
-import { fetchSearch, fetchAds, updateSearch, deleteSearch } from "@/lib/api"
+import { fetchSearch, fetchAds, updateSearch, deleteSearch, ApiAbortError } from "@/lib/api"
 import type { Ad, AdSearch } from "@/lib/types"
 import { formatPrice, formatScrapeInterval, timeAgo, truncateUrl } from "@/lib/format"
 import { toast } from "sonner"
@@ -76,9 +76,11 @@ export function SearchDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isToggling, setIsToggling] = useState(false)
   const [formDirty, setFormDirty] = useState(false)
+  const loadRequestIdRef = useRef(0)
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (Number.isNaN(id)) return
+    const requestId = ++loadRequestIdRef.current
     if (!opts?.silent) {
       setLoading(true)
       setError(null)
@@ -91,6 +93,7 @@ export function SearchDetailPage() {
       setSearch(s)
       setAds(a.sort((x, y) => new Date(y.first_seen_at).getTime() - new Date(x.first_seen_at).getTime()))
     } catch (e) {
+      if (e instanceof ApiAbortError) return
       const msg = e instanceof Error ? e.message : "Daten konnten nicht geladen werden."
       if (!opts?.silent) {
         setError(msg)
@@ -99,7 +102,7 @@ export function SearchDetailPage() {
         setAds([])
       }
     } finally {
-      setLoading(false)
+      if (requestId === loadRequestIdRef.current) setLoading(false)
     }
   }, [id])
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type KeyboardEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { Save, User, Bell, Shield, Trash2, Lock, HelpCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -26,6 +26,7 @@ import {
   updateMe,
   updateMySettings,
   updateSetting,
+  ApiAbortError,
 } from "@/lib/api"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -79,14 +80,19 @@ export default function SettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
 
+  const abortRef = useRef<AbortController | null>(null)
   useEffect(() => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const signal = controller.signal
     async function load() {
       setLoading(true)
       try {
         const [profile, userSettings, telegramConfig] = await Promise.all([
-          fetchMe(),
-          fetchMySettings(),
-          fetchTelegramConfigured(),
+          fetchMe({ signal }),
+          fetchMySettings({ signal }),
+          fetchTelegramConfigured({ signal }),
         ])
         setDisplayName(profile.display_name)
         setEmail(profile.email ?? "")
@@ -98,19 +104,21 @@ export default function SettingsPage() {
         setTelegramConfigured(telegramConfig.configured)
         if (profile.role === "admin") {
           const [exclude, minRating] = await Promise.all([
-            fetchSetting("exclude_commercial_sellers"),
-            fetchSetting("min_seller_rating"),
+            fetchSetting("exclude_commercial_sellers", { signal }),
+            fetchSetting("min_seller_rating", { signal }),
           ])
           setExcludeCommercialSellers(exclude.value === "true")
           setMinSellerRating(minRating.value)
         }
-      } catch {
+      } catch (e) {
+        if (e instanceof ApiAbortError) return
         toast.error("Einstellungen konnten nicht geladen werden.")
       } finally {
-        setLoading(false)
+        if (!signal.aborted) setLoading(false)
       }
     }
     load()
+    return () => controller.abort()
   }, [])
 
   const settingsValidation = useMemo(

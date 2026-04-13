@@ -1,15 +1,25 @@
 """Datenbank-Engine, Session-Abhaengigkeiten und Initialisierung."""
 
-import json
+import threading
 from typing import Annotated
 
 from fastapi import Depends
+from sqlalchemy import NullPool
 from sqlmodel import Session, SQLModel, create_engine, text
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.config import config
+from app.core.debug_runtime import write_debug_log
 
-_connect_args: dict[str, object] = {"connect_timeout": config.db_connect_timeout}
+_connect_args: dict[str, object] = {
+    "connect_timeout": config.db_connect_timeout,
+    # prepare_threshold=None: psycopg3 darf keine server-seitigen prepared statements nutzen.
+    # Supabase Transaction-Mode-Pooler (Supavisor) routet Queries an wechselnde Backends —
+    # prepared statements sind dort nicht portabel und loesen DuplicatePreparedStatement aus.
+    "prepare_threshold": None,
+}
+
+# --- API-Engine: QueuePool fuer schnelle, kurzlebige Requests ---
 db_engine = create_engine(
     config.database_url,
     echo=False,
@@ -17,8 +27,18 @@ db_engine = create_engine(
     pool_size=config.db_pool_size,
     max_overflow=config.db_max_overflow,
     pool_timeout=config.db_pool_timeout,
+    pool_recycle=config.db_pool_recycle,
     pool_pre_ping=True,
     pool_use_lifo=True,
+)
+
+# --- Background-Engine: NullPool fuer Scraper/Analyzer, die Sessions minutenlang halten ---
+# Separate Engine, damit lang laufende Hintergrund-Jobs nie den API-Pool blockieren.
+bg_engine = create_engine(
+    config.database_url,
+    echo=False,
+    connect_args=_connect_args,
+    poolclass=NullPool,
 )
 
 
@@ -47,23 +67,40 @@ def get_db_session():
 
 
 def get_user_db_session(current_user: CurrentUser = Depends(get_current_user)):  # noqa: B008
-    """DB-Session im User-Kontext (JWT-Claims fuer Postgres-Sessions / RLS)."""
+    """DB-Session mit Auth-Guard — stellt sicher, dass nur authentifizierte User zugreifen.
+
+    Alle Routen filtern bereits auf Anwendungsebene nach ``owner_id``; Postgres-RLS
+    (``set_config``) ist daher nicht noetig und wuerde den Transaction-Mode-Pooler
+    von Supabase blockieren (Session-State ist dort nicht portabel).
+    """
     with Session(db_engine) as session:
-        # JWT-`sub` fuer RLS; kein set_config('role') (entspricht SET ROLE, oft fehlerhaft).
-        claims = json.dumps(
-            {
-                "sub": current_user.user_id,
-                "role": "authenticated",
-                "app_metadata": current_user.app_metadata,
+        # region agent log
+        write_debug_log(
+            run_id="post-fix",
+            hypothesis_id="H2",
+            location="app/core/db.py:get_user_db_session",
+            message="opened authenticated db session",
+            data={
+                "thread_id": threading.get_ident(),
+                "has_user": bool(current_user.id),
+                "pool_status": db_engine.pool.status(),
             },
-            default=str,
-            allow_nan=False,
         )
-        session.execute(
-            text("SELECT set_config('request.jwt.claims', :claims, true)"),
-            {"claims": claims},
-        )
+        # endregion
         yield session
+        # region agent log
+        write_debug_log(
+            run_id="post-fix",
+            hypothesis_id="H2",
+            location="app/core/db.py:get_user_db_session",
+            message="closing authenticated db session",
+            data={
+                "thread_id": threading.get_ident(),
+                "has_user": bool(current_user.id),
+                "pool_status": db_engine.pool.status(),
+            },
+        )
+        # endregion
 
 
 # Abhängigkeit für FastAPI
