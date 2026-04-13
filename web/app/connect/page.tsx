@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { buildLoginUrlWithConnectReturn } from "@/lib/connect-return-path"
-import { supabase } from "@/lib/supabase"
+import { getSessionWithTimeout, supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import type { OAuthAuthorizationDetails } from "@supabase/auth-js"
 
@@ -133,9 +133,7 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
     let cancelled = false
 
     void (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      const session = await getSessionWithTimeout()
       if (cancelled) {
         return
       }

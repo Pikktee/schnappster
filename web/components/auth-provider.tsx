@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react"
 import type { Session, User } from "@supabase/supabase-js"
-import { supabase } from "@/lib/supabase"
+import { getSessionWithTimeout, supabase } from "@/lib/supabase"
 
 type AuthContextType = {
   user: User | null
@@ -23,12 +23,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!supabase) {
+      setLoading(false)
       return
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setUser(data.session?.user ?? null)
+    let cancelled = false
+
+    void getSessionWithTimeout().then((nextSession) => {
+      if (cancelled) return
+      setSession(nextSession)
+      setUser(nextSession?.user ?? null)
       setLoading(false)
     })
 
@@ -39,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => {
+      cancelled = true
       listener.subscription.unsubscribe()
     }
   }, [])
