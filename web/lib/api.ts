@@ -13,8 +13,10 @@ import { supabase } from "./supabase"
 
 // Leer = gleicher Origin (nur sinnvoll bei Reverse-Proxy); lokal/Vercel: z. B. http://127.0.0.1:8000 bzw. https://api.example.com
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
+const API_TIMEOUT_MS = 15000
 
 export class ApiAuthError extends Error {}
+let accessTokenInFlight: Promise<string | null> | null = null
 
 /** FastAPI kann `detail` als String, Array von Validation-Error-Objekten oder Objekt liefern. */
 function formatFastApiDetail(detail: unknown): string {
@@ -45,8 +47,15 @@ function formatFastApiDetail(detail: unknown): string {
 
 async function getAccessToken(): Promise<string | null> {
   if (!supabase) return null
-  const { data } = await supabase.auth.getSession()
-  return data.session?.access_token ?? null
+  if (!accessTokenInFlight) {
+    accessTokenInFlight = supabase.auth
+      .getSession()
+      .then(({ data }) => data.session?.access_token ?? null)
+      .finally(() => {
+        accessTokenInFlight = null
+      })
+  }
+  return accessTokenInFlight
 }
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -54,6 +63,19 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
   const customHeaders = options?.headers ?? {}
   const fullUrl = `${BASE_URL}${path}`
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => {
+    controller.abort()
+  }, API_TIMEOUT_MS)
+  const userSignal = options?.signal
+  const onAbort = () => controller.abort()
+  if (userSignal) {
+    if (userSignal.aborted) {
+      controller.abort()
+    } else {
+      userSignal.addEventListener("abort", onAbort, { once: true })
+    }
+  }
   let res: Response
   try {
     res = await fetch(fullUrl, {
@@ -63,10 +85,19 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
         ...authHeaders,
         ...(customHeaders as Record<string, string>),
       },
+      signal: controller.signal,
       ...options,
     })
   } catch (err: unknown) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error("Zeitüberschreitung beim Laden. Bitte erneut versuchen.")
+    }
     throw new Error("Keine Verbindung zum Server — bitte Internetverbindung prüfen.")
+  } finally {
+    window.clearTimeout(timeoutId)
+    if (userSignal) {
+      userSignal.removeEventListener("abort", onAbort)
+    }
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
