@@ -32,19 +32,6 @@
       border: 1px solid color-mix(in oklab, CanvasText 12%, Canvas);
       box-shadow: 0 8px 20px color-mix(in oklab, CanvasText 10%, transparent);
     }
-    .hero-image-wrap {
-      border-radius: 10px;
-      overflow: hidden;
-      background: color-mix(in oklab, CanvasText 5%, Canvas);
-      border: 1px solid color-mix(in oklab, CanvasText 10%, Canvas);
-      max-height: 18rem;
-    }
-    .hero-image {
-      display: block;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
     .hero-meta {
       display: flex;
       flex-wrap: wrap;
@@ -118,7 +105,6 @@
       const title = data.title || "Anzeige";
       const score =
         data.bargain_score != null ? String(data.bargain_score) : "—";
-      const imageUrl = resolvePrimaryImage(data);
 
       const locationText = [data.postal_code, data.city].filter(Boolean).join(" ");
       const offerBits = [
@@ -127,34 +113,21 @@
         data.seller_type ? "Typ: " + data.seller_type : null,
       ].filter(Boolean);
 
-      const heroChildren = [];
-      if (imageUrl) {
-        heroChildren.push(
-          el("div", { className: "hero-image-wrap" }, [
-            el("img", {
-              className: "hero-image",
-              src: imageUrl,
-              alt: title,
-              loading: "lazy",
-              referrerPolicy: "no-referrer",
-            }),
-          ])
-        );
-      }
-      heroChildren.push(
-        el("div", null, [
-          el("h2", null, [text("Angebot")]),
-          el("h1", null, [text(title)]),
-          el("div", { className: "hero-meta" }, [
-            el("span", { className: "score " + scoreClass(data.bargain_score) }, [
-              text("Score: " + score),
+      root.appendChild(
+        el("div", { className: "hero" }, [
+          el("div", null, [
+            el("h2", null, [text("Angebot")]),
+            el("h1", null, [text(title)]),
+            el("div", { className: "hero-meta" }, [
+              el("span", { className: "score " + scoreClass(data.bargain_score) }, [
+                text("Score: " + score),
+              ]),
+              ...(locationText ? [el("span", { className: "chip" }, [text(locationText)])] : []),
+              ...offerBits.map((entry) => el("span", { className: "chip" }, [text(entry)])),
             ]),
-            ...(locationText ? [el("span", { className: "chip" }, [text(locationText)])] : []),
-            ...offerBits.map((entry) => el("span", { className: "chip" }, [text(entry)])),
           ]),
         ])
       );
-      root.appendChild(el("div", { className: "hero" }, heroChildren));
 
       if (data.url) {
         const ka = el(
@@ -224,27 +197,6 @@
       if (data.description) {
         addExpandableSection("Beschreibung", data.description);
       }
-    }
-
-    function resolvePrimaryImage(data) {
-      if (!data || typeof data !== "object") return null;
-      if (typeof data.image_url === "string" && data.image_url.trim() !== "") {
-        return data.image_url.trim();
-      }
-      if (Array.isArray(data.image_urls)) {
-        const first = data.image_urls.find(
-          (entry) => typeof entry === "string" && entry.trim() !== ""
-        );
-        return first ? String(first).trim() : null;
-      }
-      if (typeof data.image_urls === "string") {
-        const first = data.image_urls
-          .split(",")
-          .map((entry) => entry.trim())
-          .find((entry) => entry !== "");
-        return first || null;
-      }
-      return null;
     }
 
     function renderStatus(message) {
