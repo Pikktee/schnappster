@@ -337,11 +337,8 @@ function ConnectConsentBody({ authorizationId }: { authorizationId: string }) {
           </div>
 
           <div className="space-y-2.5">
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.2em] text-primary/85">
-              {waitingForRedirect ? "Fast geschafft" : afterRedirect ? "Fertig" : "Gespeichert"}
-            </p>
             <CardTitle className="text-pretty text-[1.625rem] font-semibold leading-[1.2] tracking-[-0.02em] text-foreground sm:text-[1.75rem]">
-              {noAutoUrl ? "Freigabe gespeichert" : "Verbindung hergestellt"}
+              {waitingForRedirect ? "Fast geschafft" : afterRedirect ? "Verbindung hergestellt" : "Verbindung hergestellt"}
             </CardTitle>
           </div>
 
