@@ -4,7 +4,7 @@ import base64
 from collections.abc import Awaitable
 from functools import lru_cache
 from importlib.resources import files
-from typing import Literal
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 from mcp.server.auth.middleware.auth_context import get_access_token
@@ -21,8 +21,8 @@ from schnappster_mcp.core.api_client import SchnappsterApiClient, SchnappsterApi
 from schnappster_mcp.core.auth import SupabaseTokenVerifier
 from schnappster_mcp.core.config import Settings
 from schnappster_mcp.mcp_ui.mcp_apps import (
-    ad_searches_tool_meta,
-    recent_bargains_tool_meta,
+    AdSearchesMcpApp,
+    RecentBargainsMcpApp,
     register_mcp_apps,
 )
 
@@ -104,7 +104,7 @@ def build_mcp(settings: Settings) -> FastMCP:
         """Explizite ``/icon.png``-Route für Clients, die diesen Pfad erwarten."""
         return _branding_png_response()
 
-    @mcp.tool(icons=tool_icons, meta=recent_bargains_tool_meta())
+    @mcp.tool(icons=tool_icons, meta=RecentBargainsMcpApp.tool_meta())
     async def list_recent_bargains(
         limit: int = 24,
         offset: int = 0,
@@ -128,7 +128,13 @@ def build_mcp(settings: Settings) -> FastMCP:
         if adsearch_id is not None:
             params["adsearch_id"] = adsearch_id
         client = _api_client(settings)
-        return await _run_api(client.request("GET", "/ads/", params=params))
+        result = await _run_api(client.request("GET", "/ads/", params=params))
+        # Konsistentes Format: immer {items, total} — unabhängig vom API-Rückgabeformat.
+        if isinstance(result, list):
+            return {"items": result, "total": len(result)}
+        if isinstance(result, dict) and "items" in result:
+            return result
+        return {"items": [], "total": 0}
 
     @mcp.tool(icons=tool_icons)
     async def get_my_settings() -> dict:
@@ -145,22 +151,19 @@ def build_mcp(settings: Settings) -> FastMCP:
         notify_min_score: int | None = None,
     ) -> dict:
         """Aktualisiert persönliche Einstellungen (nur angegebene Felder)."""
-        body: dict[str, str | bool | int] = {}
-        if display_name is not None:
-            body["display_name"] = display_name
-        if telegram_chat_id is not None:
-            body["telegram_chat_id"] = telegram_chat_id
-        if notify_telegram is not None:
-            body["notify_telegram"] = notify_telegram
-        if notify_min_score is not None:
-            body["notify_min_score"] = notify_min_score
+        body = _collect_set_fields(
+            display_name=display_name,
+            telegram_chat_id=telegram_chat_id,
+            notify_telegram=notify_telegram,
+            notify_min_score=notify_min_score,
+        )
         if not body:
             raise ToolError("Mindestens ein Feld zum Aktualisieren angeben.")
         client = _api_client(settings)
         payload = await _run_api(client.request("PATCH", "/users/me/settings", json_body=body))
         return _sanitize_user_settings(payload) if isinstance(payload, dict) else payload
 
-    @mcp.tool(icons=tool_icons, meta=ad_searches_tool_meta())
+    @mcp.tool(icons=tool_icons, meta=AdSearchesMcpApp.tool_meta())
     async def list_ad_searches() -> dict:
         """Listet alle Suchaufträge; Antwort als Objekt mit ``items`` (kein Top-Level-Array).
 
@@ -224,25 +227,17 @@ def build_mcp(settings: Settings) -> FastMCP:
         scrape_interval_minutes: int | None = None,
     ) -> dict:
         """Aktualisiert einen Suchauftrag (nur gesetzte Felder)."""
-        body: dict[str, str | float | bool | int] = {}
-        if name is not None:
-            body["name"] = name
-        if url is not None:
-            body["url"] = url
-        if prompt_addition is not None:
-            body["prompt_addition"] = prompt_addition
-        if min_price is not None:
-            body["min_price"] = min_price
-        if max_price is not None:
-            body["max_price"] = max_price
-        if blacklist_keywords is not None:
-            body["blacklist_keywords"] = blacklist_keywords
-        if is_exclude_images is not None:
-            body["is_exclude_images"] = is_exclude_images
-        if is_active is not None:
-            body["is_active"] = is_active
-        if scrape_interval_minutes is not None:
-            body["scrape_interval_minutes"] = scrape_interval_minutes
+        body = _collect_set_fields(
+            name=name,
+            url=url,
+            prompt_addition=prompt_addition,
+            min_price=min_price,
+            max_price=max_price,
+            blacklist_keywords=blacklist_keywords,
+            is_exclude_images=is_exclude_images,
+            is_active=is_active,
+            scrape_interval_minutes=scrape_interval_minutes,
+        )
         if not body:
             raise ToolError("Mindestens ein Feld zum Aktualisieren angeben.")
         client = _api_client(settings)
@@ -269,6 +264,11 @@ def build_mcp(settings: Settings) -> FastMCP:
 def _schnappster_mcp_icon_png_bytes() -> bytes:
     """PNG-Rohbytes für MCP-Icons und Favicon-Routen (wie ``web/app/icon.png``)."""
     return files("schnappster_mcp").joinpath("assets", "icon.png").read_bytes()
+
+
+def _collect_set_fields(**kwargs: Any) -> dict[str, Any]:
+    """Sammelt nur die Keyword-Argumente, die nicht ``None`` sind (für PATCH-Bodys)."""
+    return {k: v for k, v in kwargs.items() if v is not None}
 
 
 async def _run_api[T](coro: Awaitable[T]) -> T:

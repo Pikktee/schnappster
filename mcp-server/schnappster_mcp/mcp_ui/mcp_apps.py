@@ -13,84 +13,55 @@ from schnappster_mcp.core.api_client import SchnappsterApiClient
 
 from .template_render import render_mcp_app_html
 
+_CDN_DOMAINS = ["https://unpkg.com"]
 
-class BargainDetailMcpApp:
+
+class _BaseMcpApp:
+    """Gemeinsame Logik für alle eingebetteten MCP-Apps (ext-apps).
+
+    Subklassen setzen nur ``VIEW_URI`` und ``_TEMPLATE``.
+    """
+
+    VIEW_URI: str
+    MIME_TYPE: str = "text/html;profile=mcp-app"
+    _TEMPLATE: str
+
+    @classmethod
+    def tool_meta(cls) -> dict[str, Any]:
+        """Meta für MCP-Tools: verknüpft die eingebettete UI-Ressource (resourceUri)."""
+        uri = cls.VIEW_URI
+        return {"ui": {"resourceUri": uri}, "ui/resourceUri": uri}
+
+    @classmethod
+    def resource_meta(cls) -> dict[str, Any]:
+        """Meta für die HTML-Ressource (CSP: erlaubte CDN-Domains für ext-apps)."""
+        return {"ui": {"csp": {"resourceDomains": _CDN_DOMAINS}}}
+
+    @classmethod
+    def embedded_view_html(cls) -> str:
+        """Gerendertes HTML+JS für diese MCP-App."""
+        return render_mcp_app_html(cls._TEMPLATE)
+
+
+class BargainDetailMcpApp(_BaseMcpApp):
     """Detailansicht für ein einzelnes Schnäppchen."""
 
-    VIEW_URI: str = "ui://schnappster/bargain-detail.html"
-    MIME_TYPE: str = "text/html;profile=mcp-app"
-
-    @classmethod
-    def tool_meta(cls) -> dict[str, Any]:
-        """Meta für MCP-Tools: verknüpft die eingebettete UI-Ressource (resourceUri)."""
-        uri = cls.VIEW_URI
-        return {"ui": {"resourceUri": uri}, "ui/resourceUri": uri}
-
-    @classmethod
-    def resource_meta(cls) -> dict[str, Any]:
-        """Meta für die HTML-Ressource (CSP: erlaubte CDN-Domains für ext-apps)."""
-        return {"ui": {"csp": {"resourceDomains": ["https://unpkg.com"]}}}
-
-    @classmethod
-    def embedded_view_html(cls) -> str:
-        """Gerendertes HTML+JS für die Detail-MCP-App."""
-        return render_mcp_app_html("bargain_detail.html.j2")
+    VIEW_URI = "ui://schnappster/bargain-detail.html"
+    _TEMPLATE = "bargain_detail.html.j2"
 
 
-class RecentBargainsMcpApp:
+class RecentBargainsMcpApp(_BaseMcpApp):
     """Tabellarische Übersicht für ``list_recent_bargains``."""
 
-    VIEW_URI: str = "ui://schnappster/recent-bargains.html"
-    MIME_TYPE: str = "text/html;profile=mcp-app"
-
-    @classmethod
-    def tool_meta(cls) -> dict[str, Any]:
-        """Meta für MCP-Tools: verknüpft die eingebettete UI-Ressource (resourceUri)."""
-        uri = cls.VIEW_URI
-        return {"ui": {"resourceUri": uri}, "ui/resourceUri": uri}
-
-    @classmethod
-    def resource_meta(cls) -> dict[str, Any]:
-        """Meta für die HTML-Ressource (CSP: erlaubte CDN-Domains für ext-apps)."""
-        return {"ui": {"csp": {"resourceDomains": ["https://unpkg.com"]}}}
-
-    @classmethod
-    def embedded_view_html(cls) -> str:
-        """Gerendertes HTML+JS für die Tabellenansicht „letzte Schnäppchen“."""
-        return render_mcp_app_html("recent_bargains.html.j2")
+    VIEW_URI = "ui://schnappster/recent-bargains.html"
+    _TEMPLATE = "recent_bargains.html.j2"
 
 
-class AdSearchesMcpApp:
+class AdSearchesMcpApp(_BaseMcpApp):
     """Verwaltung gespeicherter Suchaufträge via ``list_ad_searches``."""
 
-    VIEW_URI: str = "ui://schnappster/ad-searches.html"
-    MIME_TYPE: str = "text/html;profile=mcp-app"
-
-    @classmethod
-    def tool_meta(cls) -> dict[str, Any]:
-        """Meta für MCP-Tools: verknüpft die eingebettete UI-Ressource (resourceUri)."""
-        uri = cls.VIEW_URI
-        return {"ui": {"resourceUri": uri}, "ui/resourceUri": uri}
-
-    @classmethod
-    def resource_meta(cls) -> dict[str, Any]:
-        """Meta für die HTML-Ressource (CSP: erlaubte CDN-Domains für ext-apps)."""
-        return {"ui": {"csp": {"resourceDomains": ["https://unpkg.com"]}}}
-
-    @classmethod
-    def embedded_view_html(cls) -> str:
-        """Gerendertes HTML+JS für die Suchauftrags-Verwaltung."""
-        return render_mcp_app_html("ad_searches.html.j2")
-
-
-def recent_bargains_tool_meta() -> dict[str, Any]:
-    """Meta-Konfiguration für ``list_recent_bargains``."""
-    return RecentBargainsMcpApp.tool_meta()
-
-
-def ad_searches_tool_meta() -> dict[str, Any]:
-    """Meta-Konfiguration für ``list_ad_searches``."""
-    return AdSearchesMcpApp.tool_meta()
+    VIEW_URI = "ui://schnappster/ad-searches.html"
+    _TEMPLATE = "ad_searches.html.j2"
 
 
 def register_mcp_apps(
@@ -102,11 +73,9 @@ def register_mcp_apps(
 ) -> None:
     """Registriert ``show_bargain_detail`` plus HTML-Ressourcen für eingebettete MCP-Apps."""
 
-    app = BargainDetailMcpApp
-
     @mcp.tool(
         icons=tool_icons,
-        meta=app.tool_meta(),
+        meta=BargainDetailMcpApp.tool_meta(),
         title="Schnäppchen-Details",
     )
     async def show_bargain_detail(ad_id: int) -> list[TextContent]:
@@ -121,33 +90,18 @@ def register_mcp_apps(
         text = json.dumps(payload, ensure_ascii=False, default=str)
         return [TextContent(type="text", text=text)]
 
-    @mcp.resource(
-        app.VIEW_URI,
-        mime_type=app.MIME_TYPE,
-        meta=app.resource_meta(),
-    )
-    def bargain_detail_view() -> str:
-        """Gebündelte MCP-App (HTML+JS) für die Detailansicht."""
-        return app.embedded_view_html()
+    for app_cls in (BargainDetailMcpApp, RecentBargainsMcpApp, AdSearchesMcpApp):
+        _register_html_resource(mcp, app_cls)
 
-    recent_bargains = RecentBargainsMcpApp
+
+def _register_html_resource(mcp: FastMCP, app_cls: type[_BaseMcpApp]) -> None:
+    """Registriert eine einzelne HTML-Ressource für eine MCP-App-Klasse."""
+    html = app_cls.embedded_view_html()
 
     @mcp.resource(
-        recent_bargains.VIEW_URI,
-        mime_type=recent_bargains.MIME_TYPE,
-        meta=recent_bargains.resource_meta(),
+        app_cls.VIEW_URI,
+        mime_type=app_cls.MIME_TYPE,
+        meta=app_cls.resource_meta(),
     )
-    def recent_bargains_view() -> str:
-        """Gebündelte MCP-App (HTML+JS) für list_recent_bargains."""
-        return recent_bargains.embedded_view_html()
-
-    ad_searches = AdSearchesMcpApp
-
-    @mcp.resource(
-        ad_searches.VIEW_URI,
-        mime_type=ad_searches.MIME_TYPE,
-        meta=ad_searches.resource_meta(),
-    )
-    def ad_searches_view() -> str:
-        """Gebündelte MCP-App (HTML+JS) für list_ad_searches."""
-        return ad_searches.embedded_view_html()
+    def _view() -> str:
+        return html

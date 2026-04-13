@@ -16,7 +16,7 @@
     .toolbar {
       display: flex;
       align-items: center;
-      justify-content: flex-end;
+      justify-content: space-between;
       gap: 10px;
       margin-bottom: 10px;
       flex-wrap: wrap;
@@ -59,28 +59,7 @@
       font: inherit;
     }
     button:hover { background: color-mix(in oklab, CanvasText 10%, Canvas); }
-    .score {
-      display: inline-block;
-      min-width: 2.2rem;
-      text-align: center;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-weight: 600;
-      font-size: 0.84rem;
-      background: color-mix(in oklab, CanvasText 12%, Canvas);
-    }
-    .score-high {
-      background: color-mix(in oklab, #24a148 28%, Canvas);
-      color: color-mix(in oklab, #24a148 80%, CanvasText);
-    }
-    .score-medium {
-      background: color-mix(in oklab, #f1c21b 30%, Canvas);
-      color: color-mix(in oklab, #8b6a00 65%, CanvasText);
-    }
-    .score-low {
-      background: color-mix(in oklab, #da1e28 24%, Canvas);
-      color: color-mix(in oklab, #a2191f 70%, CanvasText);
-    }
+    {% include '_score.css.j2' %}
     .status {
       margin: 0 0 8px;
       font-size: 0.9rem;
@@ -117,46 +96,7 @@
       error: "",
     };
 
-    function text(t) {
-      return document.createTextNode(t == null ? "" : String(t));
-    }
-
-    function el(tag, props, children) {
-      const n = document.createElement(tag);
-      if (props) Object.assign(n, props);
-      (children || []).forEach((c) => {
-        if (c != null) n.appendChild(c);
-      });
-      return n;
-    }
-
-    function fmtPrice(p) {
-      if (p == null || p === "") return "—";
-      return new Intl.NumberFormat("de-DE", {
-        style: "currency",
-        currency: "EUR",
-        maximumFractionDigits: 0,
-      }).format(Number(p));
-    }
-
-    function fmtDate(value) {
-      if (!value) return "—";
-      try {
-        return new Intl.DateTimeFormat("de-DE", {
-          dateStyle: "short",
-          timeStyle: "short",
-        }).format(new Date(value));
-      } catch (_e) {
-        return String(value);
-      }
-    }
-
-    function scoreClass(score) {
-      if (score == null || Number.isNaN(Number(score))) return "";
-      if (score >= 7) return "score-high";
-      if (score >= 4) return "score-medium";
-      return "score-low";
-    }
+    {% include '_helpers.js.j2' %}
 
     function sortedItems() {
       const items = [...state.items];
@@ -174,15 +114,10 @@
       return items.sort((a, b) => (b.bargain_score ?? -1) - (a.bargain_score ?? -1));
     }
 
-    function stringifyError(err) {
-      if (!err) return "Unbekannter Fehler.";
-      if (typeof err === "string") return err;
-      if (err.message) return String(err.message);
-      try {
-        return JSON.stringify(err);
-      } catch (_e) {
-        return String(err);
-      }
+    function extractItems(payload) {
+      if (Array.isArray(payload)) return payload;
+      if (payload && Array.isArray(payload.items)) return payload.items;
+      return [];
     }
 
     function parseToolTextContent(content) {
@@ -193,6 +128,10 @@
 
     function render() {
       root.innerHTML = "";
+
+      const countLabel = el("span", { className: "muted" }, [
+        text(state.items.length + " Schnäppchen"),
+      ]);
 
       const sortSelect = el("select", null, [
         el("option", { value: "score" }, [text("Sortierung: Score")]),
@@ -206,6 +145,7 @@
       });
 
       const top = el("div", { className: "toolbar" }, [
+        countLabel,
         el("div", { className: "controls" }, [sortSelect]),
       ]);
       root.appendChild(top);
@@ -276,13 +216,12 @@
       root.appendChild(table);
     }
 
-    const app = new App({ name: "Schnappster Bargains", version: "1.0.0" });
+    const app = new App({ name: "Schnappster Schnäppchen", version: "1.0.0" });
 
     app.ontoolresult = ({ content }) => {
       try {
         const payload = parseToolTextContent(content);
-        const items = Array.isArray(payload?.items) ? payload.items : [];
-        state.items = items;
+        state.items = extractItems(payload);
         state.notice = "";
         state.error = "";
         render();

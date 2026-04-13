@@ -69,6 +69,10 @@
     .pill.inactive {
       background: color-mix(in oklab, #8d8d8d 25%, Canvas);
     }
+    .interval {
+      font-size: 0.82rem;
+      opacity: 0.7;
+    }
   </style>
 </head>
 <body>
@@ -85,40 +89,14 @@
       busyIds: new Set(),
     };
 
-    function text(t) {
-      return document.createTextNode(t == null ? "" : String(t));
-    }
+    {% include '_helpers.js.j2' %}
 
-    function el(tag, props, children) {
-      const n = document.createElement(tag);
-      if (props) Object.assign(n, props);
-      (children || []).forEach((c) => {
-        if (c != null) n.appendChild(c);
-      });
-      return n;
-    }
-
-    function fmtDate(value) {
-      if (!value) return "—";
-      try {
-        return new Intl.DateTimeFormat("de-DE", {
-          dateStyle: "short",
-          timeStyle: "short",
-        }).format(new Date(value));
-      } catch (_e) {
-        return String(value);
-      }
-    }
-
-    function stringifyError(err) {
-      if (!err) return "Unbekannter Fehler.";
-      if (typeof err === "string") return err;
-      if (err.message) return String(err.message);
-      try {
-        return JSON.stringify(err);
-      } catch (_e) {
-        return String(err);
-      }
+    function fmtInterval(minutes) {
+      if (minutes == null) return "";
+      if (minutes < 60) return minutes + " Min.";
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      return m > 0 ? h + " Std. " + m + " Min." : h + " Std.";
     }
 
     function searchesFromToolPayload(payload, textBlocks) {
@@ -129,16 +107,6 @@
       }
       if (payload && typeof payload === "object" && payload.id != null) return [payload];
       return [];
-    }
-
-    function parseAdSearchesToolResult(toolResult) {
-      const content = Array.isArray(toolResult?.content) ? toolResult.content : [];
-      const blocks = content.filter((c) => c.type === "text" && c.text);
-      if (!blocks.length) {
-        throw new Error("Keine Textdaten im Tool-Ergebnis.");
-      }
-      const payload = JSON.parse(blocks[0].text);
-      return searchesFromToolPayload(payload, blocks);
     }
 
     async function callServerToolOrThrow(name, args) {
@@ -183,7 +151,8 @@
           el("tr", null, [
             el("th", { scope: "col" }, [text("Name")]),
             el("th", { scope: "col" }, [text("Status")]),
-            el("th", { scope: "col" }, [text("Aktualisiert")]),
+            el("th", { scope: "col" }, [text("Intervall")]),
+            el("th", { scope: "col" }, [text("Zuletzt gescrapt")]),
             el("th", { scope: "col", "aria-label": "Aktiv schalten" }, []),
           ]),
         ]),
@@ -230,6 +199,10 @@
           nameCell = text(label);
         }
 
+        const lastScraped = item.last_scraped_at
+          ? fmtDate(item.last_scraped_at)
+          : "noch nie";
+
         const row = el("tr", null, [
           el("td", null, [nameCell]),
           el("td", null, [
@@ -237,7 +210,12 @@
               text(item.is_active ? "Aktiv" : "Inaktiv"),
             ]),
           ]),
-          el("td", null, [text(fmtDate(item.last_scraped_at))]),
+          el("td", null, [
+            el("span", { className: "interval" }, [
+              text(fmtInterval(item.scrape_interval_minutes)),
+            ]),
+          ]),
+          el("td", null, [text(lastScraped)]),
           el("td", null, [toggleLabel]),
         ]);
         body.appendChild(row);
@@ -246,7 +224,7 @@
       root.appendChild(table);
     }
 
-    const app = new App({ name: "Schnappster AdSearches", version: "1.0.0" });
+    const app = new App({ name: "Schnappster Suchaufträge", version: "1.0.0" });
 
     app.ontoolresult = ({ content }) => {
       try {

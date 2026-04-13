@@ -60,14 +60,7 @@
       border: 1px solid color-mix(in oklab, CanvasText 14%, Canvas);
       background: color-mix(in oklab, CanvasText 7%, Canvas);
     }
-    .score {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-weight: 600;
-      font-size: 0.85rem;
-      background: color-mix(in oklab, CanvasText 12%, Canvas);
-    }
+    {% include '_score.css.j2' %}
     .section { margin-top: 14px; }
     .section h2 {
       font-size: 0.78rem;
@@ -113,27 +106,7 @@
 
     const root = document.getElementById("root");
 
-    function el(tag, props, children) {
-      const n = document.createElement(tag);
-      if (props) Object.assign(n, props);
-      (children || []).forEach((c) => {
-        if (c != null) n.appendChild(c);
-      });
-      return n;
-    }
-
-    function text(t) {
-      return document.createTextNode(t == null ? "" : String(t));
-    }
-
-    function fmtPrice(p) {
-      if (p == null || p === "") return "—";
-      return new Intl.NumberFormat("de-DE", {
-        style: "currency",
-        currency: "EUR",
-        maximumFractionDigits: 0,
-      }).format(Number(p));
-    }
+    {% include '_helpers.js.j2' %}
 
     function render(data) {
       root.innerHTML = "";
@@ -173,7 +146,9 @@
           el("h2", null, [text("Angebot")]),
           el("h1", null, [text(title)]),
           el("div", { className: "hero-meta" }, [
-            el("span", { className: "chip score" }, [text("Score: " + score)]),
+            el("span", { className: "score " + scoreClass(data.bargain_score) }, [
+              text("Score: " + score),
+            ]),
             ...(locationText ? [el("span", { className: "chip" }, [text(locationText)])] : []),
             ...offerBits.map((entry) => el("span", { className: "chip" }, [text(entry)])),
           ]),
@@ -283,17 +258,6 @@
       root.appendChild(
         el("div", { className: "box section" }, [text(message || "Unbekannter Fehler.")])
       );
-    }
-
-    function stringifyError(err) {
-      if (!err) return "Unbekannter Fehler.";
-      if (typeof err === "string") return err;
-      if (err.message) return String(err.message);
-      try {
-        return JSON.stringify(err);
-      } catch (_e) {
-        return String(err);
-      }
     }
 
     function parseMaybeJson(value) {

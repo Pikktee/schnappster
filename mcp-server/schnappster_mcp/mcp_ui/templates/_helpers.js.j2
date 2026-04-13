@@ -1,0 +1,47 @@
+{# Gemeinsame JS-Hilfsfunktionen für alle MCP-App-Templates. #}
+
+function el(tag, props, children) {
+  const n = document.createElement(tag);
+  if (props) Object.assign(n, props);
+  (children || []).forEach((c) => { if (c != null) n.appendChild(c); });
+  return n;
+}
+
+function text(t) {
+  return document.createTextNode(t == null ? "" : String(t));
+}
+
+function fmtPrice(p) {
+  if (p == null || p === "") return "—";
+  return new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(Number(p));
+}
+
+function fmtDate(value) {
+  if (!value) return "—";
+  try {
+    return new Intl.DateTimeFormat("de-DE", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(value));
+  } catch (_e) {
+    return String(value);
+  }
+}
+
+function stringifyError(err) {
+  if (!err) return "Unbekannter Fehler.";
+  if (typeof err === "string") return err;
+  if (err.message) return String(err.message);
+  try { return JSON.stringify(err); } catch (_e) { return String(err); }
+}
+
+function scoreClass(score) {
+  if (score == null || Number.isNaN(Number(score))) return "";
+  if (score >= 7) return "score-high";
+  if (score >= 4) return "score-medium";
+  return "score-low";
+}
