@@ -14,19 +14,13 @@ import { getSessionWithTimeout, supabase } from "./supabase"
 // Leer = gleicher Origin (nur sinnvoll bei Reverse-Proxy); lokal/Vercel: z. B. http://127.0.0.1:8000 bzw. https://api.example.com
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
 const API_TIMEOUT_MS = 60000
-const DEBUG_ENDPOINT = "http://127.0.0.1:7779/ingest/bfe3bd6e-2abc-4ac9-b804-18a979d98c6d"
-const DEBUG_SESSION_ID = "af5e93"
 
 export class ApiAuthError extends Error {}
 export class ApiAbortError extends Error {
   override name = "ApiAbortError" as const
 }
 let accessTokenInFlight: Promise<string | null> | null = null
-const inFlightGetRequests = new Map<
-  string,
-  { promise: Promise<unknown>; startedAt: number }
->()
-const DEDUPE_MAX_AGE_MS = 4000
+const inFlightGetRequests = new Map<string, Promise<unknown>>()
 
 /** FastAPI kann `detail` als String, Array von Validation-Error-Objekten oder Objekt liefern. */
 function formatFastApiDetail(detail: unknown): string {
@@ -69,76 +63,28 @@ async function getAccessToken(): Promise<string | null> {
 
 type SignalOpt = { signal?: AbortSignal }
 
-function shouldDebugPath(path: string): boolean {
-  return (
-    path.startsWith("/users/me") ||
-    path.startsWith("/ads/") ||
-    path.startsWith("/searches/") ||
-    path.startsWith("/adsearches/") ||
-    path.startsWith("/version/")
-  )
-}
-
-function debugLog(hypothesisId: string, location: string, message: string, data: Record<string, unknown>) {
-  // #region agent log
-  fetch(DEBUG_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": DEBUG_SESSION_ID },
-    body: JSON.stringify({
-      sessionId: DEBUG_SESSION_ID,
-      runId: "frontend-round2",
-      hypothesisId,
-      location,
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {})
-  // #endregion
-}
-
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const method = options?.method ?? "GET"
   const userSignal = options?.signal
   const fullUrl = `${BASE_URL}${path}`
+  // Gleiche GET-URL ohne AbortSignal: ein laufender Request reicht (verhindert Doppel-Requests
+  // z. B. bei React Strict Mode oder Refetch, solange der erste noch „pending“ ist). Kein
+  // TTL: Bei langsamer API wuerde sonst nach wenigen Sekunden ein zweiter paralleler Call
+  // starten und Last/Pool unnötig verdoppeln.
   const dedupeKey =
     method === "GET" && !userSignal && !options?.body ? `${method}:${fullUrl}` : null
   if (dedupeKey) {
-    const existingEntry = inFlightGetRequests.get(dedupeKey)
-    if (existingEntry) {
-      const ageMs = Date.now() - existingEntry.startedAt
-      if (ageMs <= DEDUPE_MAX_AGE_MS) {
-        if (shouldDebugPath(path)) {
-          debugLog("H16", "web/lib/api.ts:apiFetch", "dedupe hit", {
-            path,
-            dedupeKey,
-            ageMs,
-          })
-        }
-        return existingEntry.promise as Promise<T>
-      }
-      if (shouldDebugPath(path)) {
-        debugLog("H17", "web/lib/api.ts:apiFetch", "dedupe stale bypass", {
-          path,
-          dedupeKey,
-          ageMs,
-        })
-      }
-      inFlightGetRequests.delete(dedupeKey)
+    const existing = inFlightGetRequests.get(dedupeKey)
+    if (existing) {
+      return existing as Promise<T>
     }
   }
 
   const requestPromise = apiFetchInternal<T>(path, options, fullUrl, userSignal)
   if (dedupeKey) {
-    inFlightGetRequests.set(dedupeKey, { promise: requestPromise, startedAt: Date.now() })
-    if (shouldDebugPath(path)) {
-      debugLog("H18", "web/lib/api.ts:apiFetch", "dedupe register", { path, dedupeKey })
-    }
+    inFlightGetRequests.set(dedupeKey, requestPromise)
     requestPromise.finally(() => {
       inFlightGetRequests.delete(dedupeKey)
-      if (shouldDebugPath(path)) {
-        debugLog("H18", "web/lib/api.ts:apiFetch", "dedupe clear", { path, dedupeKey })
-      }
     })
   }
   return requestPromise
@@ -150,18 +96,7 @@ async function apiFetchInternal<T>(
   fullUrl: string,
   userSignal: AbortSignal | undefined,
 ): Promise<T> {
-  const tokenStartedAt = Date.now()
-  if (shouldDebugPath(path)) {
-    debugLog("H11", "web/lib/api.ts:apiFetch", "token request start", { path })
-  }
   const token = await getAccessToken()
-  if (shouldDebugPath(path)) {
-    debugLog("H11", "web/lib/api.ts:apiFetch", "token request success", {
-      path,
-      hasToken: Boolean(token),
-      elapsedMs: Date.now() - tokenStartedAt,
-    })
-  }
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
   const customHeaders = options?.headers ?? {}
   const controller = new AbortController()
@@ -179,14 +114,6 @@ async function apiFetchInternal<T>(
     }
   }
   let res: Response
-  const requestStartedAt = Date.now()
-  if (shouldDebugPath(path)) {
-    debugLog("H5", "web/lib/api.ts:apiFetch", "request start", {
-      path,
-      hasUserSignal: Boolean(userSignal),
-      method: options?.method ?? "GET",
-    })
-  }
   try {
     res = await fetch(fullUrl, {
       cache: "no-store",
@@ -200,13 +127,6 @@ async function apiFetchInternal<T>(
     })
   } catch (err: unknown) {
     if (err instanceof Error && err.name === "AbortError") {
-      if (shouldDebugPath(path)) {
-        debugLog("H6", "web/lib/api.ts:apiFetch", "request aborted", {
-          path,
-          timedOut,
-          elapsedMs: Date.now() - requestStartedAt,
-        })
-      }
       if (timedOut) {
         throw new Error("Zeitüberschreitung beim Laden. Bitte erneut versuchen.")
       }
@@ -220,13 +140,6 @@ async function apiFetchInternal<T>(
     }
   }
   if (!res.ok) {
-    if (shouldDebugPath(path)) {
-      debugLog("H7", "web/lib/api.ts:apiFetch", "request non-ok response", {
-        path,
-        status: res.status,
-        elapsedMs: Date.now() - requestStartedAt,
-      })
-    }
     const body = await res.json().catch(() => ({}))
     if (res.status === 401) {
       await supabase?.auth.signOut()
@@ -247,13 +160,6 @@ async function apiFetchInternal<T>(
   }
   // 204 No Content has no body — do not call res.json()
   if (res.status === 204) return undefined as T
-  if (shouldDebugPath(path)) {
-    debugLog("H5", "web/lib/api.ts:apiFetch", "request success", {
-      path,
-      status: res.status,
-      elapsedMs: Date.now() - requestStartedAt,
-    })
-  }
   return res.json()
 }
 

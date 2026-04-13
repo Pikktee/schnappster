@@ -91,6 +91,8 @@ class AdSearchCreate(SQLModel):
 class AdSearchRead(SQLModel):
     """API-Ausgabe-Schema für einen Suchauftrag."""
 
+    model_config = {"from_attributes": True}
+
     id: int
     owner_id: str
     name: str

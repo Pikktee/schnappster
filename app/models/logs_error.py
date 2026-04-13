@@ -14,6 +14,7 @@ if TYPE_CHECKING:  # Linter-Fehler vermeiden
 # ----------------------
 class ErrorLog(SQLModel, table=True):
     """Fehlerlog-Tabelle (Scrape-/KI-Fehler für die Anzeige im Frontend)."""
+
     __tablename__ = "error_logs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
@@ -31,6 +32,8 @@ class ErrorLog(SQLModel, table=True):
 # -------------------
 class ErrorLogRead(SQLModel):
     """API-Ausgabe-Schema für einen Fehlerlog-Eintrag."""
+
+    model_config = {"from_attributes": True}
 
     id: int
     adsearch_id: int | None

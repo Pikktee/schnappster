@@ -4,12 +4,14 @@ import logging
 from contextlib import asynccontextmanager
 from importlib.metadata import version
 
+from anyio import to_thread
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from app.core import init_db, setup_logging
+from app.core import config, init_db, setup_logging
 from app.core.auth import close_auth_http_client
 from app.core.background_jobs import get_background_jobs
+from app.core.db import api_async_engine, log_database_pool_at_startup
 from app.core.fastapi_app import SchnappsterFastAPI
 from app.core.middlewares import setup_cors, setup_no_store_api
 from app.routes import api_router
@@ -21,7 +23,16 @@ async def lifespan(app: SchnappsterFastAPI):
     Ende: Jobs stoppen.
     """
     setup_logging()
+    log_database_pool_at_startup()
     init_db()
+
+    lim = to_thread.current_default_thread_limiter()
+    if config.anyio_thread_limit > lim.total_tokens:
+        lim.total_tokens = config.anyio_thread_limit
+        logging.getLogger(__name__).info(
+            "AnyIO thread limit raised to %s (sync routes + run_sync share this pool)",
+            config.anyio_thread_limit,
+        )
 
     jobs = get_background_jobs()
     jobs.start()
@@ -29,6 +40,7 @@ async def lifespan(app: SchnappsterFastAPI):
     yield
 
     jobs.stop()
+    await api_async_engine.dispose()
     await close_auth_http_client()
 
 

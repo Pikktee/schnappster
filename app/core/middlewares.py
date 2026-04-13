@@ -1,5 +1,7 @@
 """Anwendungs-Middleware: CORS (Dev) und API-Cache-Steuerung."""
 
+import logging
+import secrets
 import time
 
 from fastapi import FastAPI
@@ -9,6 +11,9 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.config import config
 from app.core.debug_runtime import write_debug_log
+from app.core.request_context import http_request_trace_id
+
+_request_log = logging.getLogger("schnappster.http")
 
 # Öffentliche REST-Pfade (ohne früheres globales /api-Prefix); für Cache-Control: no-store.
 _API_PATH_PREFIXES: tuple[str, ...] = (
@@ -68,21 +73,14 @@ class NoStoreApiMiddleware:
             return
 
         path = scope.get("path") or ""
+        method = scope.get("method", "?")
+        req_id = secrets.token_hex(4)
         request_started_at = time.time_ns() // 1_000_000
+        t0 = time.perf_counter()
         response_status: int | None = None
         should_debug = path.startswith(
             ("/ads", "/adsearches", "/users/me", "/version", "/settings", "/searches")
         )
-        if should_debug:
-            # region agent log
-            write_debug_log(
-                run_id="backend-round3",
-                hypothesis_id="H14",
-                location="app/core/middlewares.py:NoStoreApiMiddleware",
-                message="request start",
-                data={"path": path, "method": scope.get("method")},
-            )
-            # endregion
 
         async def send_wrapper(message: Message) -> None:
             nonlocal response_status
@@ -92,21 +90,53 @@ class NoStoreApiMiddleware:
                 response_status = int(message.get("status", 0))
             await send(message)
 
-        await self.app(scope, receive, send_wrapper)
-        if should_debug:
-            # region agent log
-            write_debug_log(
-                run_id="backend-round3",
-                hypothesis_id="H14",
-                location="app/core/middlewares.py:NoStoreApiMiddleware",
-                message="request end",
-                data={
-                    "path": path,
-                    "status": response_status,
-                    "elapsed_ms": (time.time_ns() // 1_000_000) - request_started_at,
-                },
-            )
-            # endregion
+        trace_cv_token = http_request_trace_id.set(req_id)
+        try:
+            if should_debug:
+                # region agent log
+                write_debug_log(
+                    run_id="backend-round3",
+                    hypothesis_id="H14",
+                    location="app/core/middlewares.py:NoStoreApiMiddleware",
+                    message="request start",
+                    data={"path": path, "method": method, "req_id": req_id},
+                )
+                # endregion
+
+            if path.startswith("/ads") or path.startswith("/adsearches"):
+                _request_log.info("HTTP [%s] %s %s … gestartet", req_id, method, path)
+
+            try:
+                await self.app(scope, receive, send_wrapper)
+            finally:
+                if _is_rest_api_path(path):
+                    elapsed_ms = (time.perf_counter() - t0) * 1000
+                    status_txt = str(response_status) if response_status is not None else "n/a"
+                    _request_log.info(
+                        "HTTP [%s] %s %s -> %s %.0fms",
+                        req_id,
+                        method,
+                        path,
+                        status_txt,
+                        elapsed_ms,
+                    )
+            if should_debug:
+                # region agent log
+                write_debug_log(
+                    run_id="backend-round3",
+                    hypothesis_id="H14",
+                    location="app/core/middlewares.py:NoStoreApiMiddleware",
+                    message="request end",
+                    data={
+                        "path": path,
+                        "status": response_status,
+                        "req_id": req_id,
+                        "elapsed_ms": (time.time_ns() // 1_000_000) - request_started_at,
+                    },
+                )
+                # endregion
+        finally:
+            http_request_trace_id.reset(trace_cv_token)
 
 
 def setup_cors(app: FastAPI) -> None:

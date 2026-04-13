@@ -10,7 +10,7 @@ from sqlmodel import SQLModel, select
 
 from app.core.auth import CurrentUser, get_current_user, identity_display_name
 from app.core.config import config
-from app.core.db import UserDbSession
+from app.core.db import UserDbSession, api_async_session_maker, apply_api_statement_timeout_async
 from app.models.adsearch import AdSearch
 from app.models.settings_user import (
     UserProfileRead,
@@ -20,6 +20,7 @@ from app.models.settings_user import (
     UserSettingsUpdate,
 )
 from app.services.settings import SettingsService
+from app.services.settings_async import SettingsAsyncService
 
 router = APIRouter(prefix="/users/me", tags=["Users"])
 
@@ -106,21 +107,27 @@ def _validate_password_strength(password: str) -> None:
 
 
 @router.get("/", response_model=UserProfileRead)
-def get_me(
-    session: UserDbSession,
+async def get_me(
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
-    service = SettingsService(session)
-    settings = service.hydrate_display_name_from_identity(
-        current_user.user_id,
-        identity_display_name(current_user),
-    )
+    """Profil: Async-DB wie /ads — vermeidet Sync-Thread-Pool + QueuePool bei parallelen Tabs."""
+    async with api_async_session_maker() as session:
+        await apply_api_statement_timeout_async(session)
+        svc = SettingsAsyncService(session)
+        settings = await svc.hydrate_display_name_from_identity(
+            current_user.user_id,
+            identity_display_name(current_user),
+        )
+        # Skalare vor Session-Close: ORM nach close kann lazy-load im Async-Kontext triggern.
+        settings_display_name = settings.display_name
+        settings_display_name_user_set = settings.display_name_user_set
+
     avatar_url = current_user.user_metadata.get("avatar_url")
     id_name = identity_display_name(current_user)
     profile_name = (
-        settings.display_name
-        if settings.display_name_user_set
-        else (settings.display_name or id_name)
+        settings_display_name
+        if settings_display_name_user_set
+        else (settings_display_name or id_name)
     )
     return UserProfileRead(
         id=current_user.user_id,

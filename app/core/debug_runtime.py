@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-_DEBUG_LOG_PATH = Path("/Users/henrik/Dev/schnappster/.cursor/debug-af5e93.log")
-_SESSION_ID = "af5e93"
+_DEBUG_LOG_PATH = Path("/Users/henrik/Dev/schnappster/.cursor/debug-c4423a.log")
+_SESSION_ID = "c4423a"
 
 
 def write_debug_log(

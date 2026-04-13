@@ -38,6 +38,7 @@ import { formatPrice, timeAgo } from "@/lib/format"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
+import { useAbortSignal } from "@/hooks/use-abort-signal"
 
 type SortOption = "date" | "price-asc" | "price-desc" | "score-desc"
 type ViewMode = "cards" | "table"
@@ -106,6 +107,7 @@ function AdsPageContent() {
   const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get("view") as ViewMode) || "cards")
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1)
   const loadRequestIdRef = useRef(0)
+  const getSignal = useAbortSignal()
 
   const updateUrl = useCallback((params: Record<string, string>) => {
     const sp = new URLSearchParams(searchParams.toString())
@@ -122,6 +124,7 @@ function AdsPageContent() {
 
   const loadAds = useCallback(async (p: number, score: string, search: string, sort: string) => {
     const requestId = ++loadRequestIdRef.current
+    const signal = getSignal()
     setLoading(true)
     setError(null)
     try {
@@ -133,8 +136,9 @@ function AdsPageContent() {
           sort,
           limit: PAGE_SIZE,
           offset: (p - 1) * PAGE_SIZE,
+          signal,
         }),
-        fetchSearches(),
+        fetchSearches({ signal }),
       ])
       setAds(result.items)
       setTotal(result.total)
@@ -145,9 +149,9 @@ function AdsPageContent() {
       setError(msg)
       toast.error(msg)
     } finally {
-      if (requestId === loadRequestIdRef.current) setLoading(false)
+      if (requestId === loadRequestIdRef.current && !signal.aborted) setLoading(false)
     }
-  }, [])
+  }, [getSignal])
 
   useEffect(() => {
     const stored = loadStoredFilters()

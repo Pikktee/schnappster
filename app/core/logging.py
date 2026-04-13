@@ -41,3 +41,12 @@ def setup_logging(level: int = logging.INFO) -> None:
     # Jede httpx-Anfrage (z. B. Supabase GET /auth/v1/user) sonst auf INFO
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+    # Auth-/Ads-Stufen (run_sync, inflight): DEBUG wuerde am Root (INFO) verworfen.
+    # Eigener Handler + propagate=False wie bei uvicorn — Ausgabe immer sichtbar.
+    for trace_name in ("schnappster.auth", "schnappster.ads"):
+        trace_log = logging.getLogger(trace_name)
+        trace_log.handlers.clear()
+        trace_log.setLevel(logging.DEBUG)
+        trace_log.addHandler(RICH_HANDLER)
+        trace_log.propagate = False

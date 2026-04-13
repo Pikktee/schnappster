@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlmodel import col, select
 
 from app.core.auth import CurrentUser, get_current_user, require_admin
-from app.core.db import UserDbSession
+from app.core.db import UserDbSession, api_async_session_maker, apply_api_statement_timeout_async
 from app.models.adsearch import AdSearch
 from app.models.logs_scraperun import ScrapeRun, ScrapeRunRead
 
@@ -15,8 +15,7 @@ router = APIRouter(prefix="/scraperuns", tags=["ScrapeRuns"])
 # --- Routen ---
 # --------------
 @router.get("/", response_model=list[ScrapeRunRead])
-def list_scraperuns(
-    session: UserDbSession,
+async def list_scraperuns(
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
     adsearch_id: int | None = None,
     limit: int = 50,
@@ -25,22 +24,28 @@ def list_scraperuns(
 
     Normale Nutzer sehen nur Läufe zu eigenen Suchaufträgen; Admins sehen alle (Logs/Übersicht).
     """
-    if current_user.role == "admin":
-        query = select(ScrapeRun).order_by(col(ScrapeRun.started_at).desc()).limit(limit)
+    async with api_async_session_maker() as session:
+        await apply_api_statement_timeout_async(session)
+        if current_user.role == "admin":
+            query = select(ScrapeRun).order_by(col(ScrapeRun.started_at).desc()).limit(limit)
+            if adsearch_id is not None:
+                query = query.where(ScrapeRun.adsearch_id == adsearch_id)
+            res = await session.execute(query)
+            rows = list(res.scalars().all())
+            return [ScrapeRunRead.model_validate(r) for r in rows]
+
+        query = (
+            select(ScrapeRun)
+            .join(AdSearch, col(ScrapeRun.adsearch_id) == col(AdSearch.id))
+            .where(AdSearch.owner_id == current_user.user_id)
+            .order_by(col(ScrapeRun.started_at).desc())
+            .limit(limit)
+        )
         if adsearch_id is not None:
             query = query.where(ScrapeRun.adsearch_id == adsearch_id)
-        return session.exec(query).all()
-
-    query = (
-        select(ScrapeRun)
-        .join(AdSearch, col(ScrapeRun.adsearch_id) == col(AdSearch.id))
-        .where(AdSearch.owner_id == current_user.user_id)
-        .order_by(col(ScrapeRun.started_at).desc())
-        .limit(limit)
-    )
-    if adsearch_id is not None:
-        query = query.where(ScrapeRun.adsearch_id == adsearch_id)
-    return session.exec(query).all()
+        res = await session.execute(query)
+        rows = list(res.scalars().all())
+        return [ScrapeRunRead.model_validate(r) for r in rows]
 
 
 @router.delete("/", status_code=204)

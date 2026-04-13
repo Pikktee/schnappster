@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 # ----------------------
 class AIAnalysisLog(SQLModel, table=True):
     """KI-Analyse-Log (eine Zeile pro erfolgreicher Analyse, Anzeige unter Logs > AI-Analysen)."""
+
     __tablename__ = "ai_analysis_logs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)

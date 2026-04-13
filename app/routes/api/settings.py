@@ -26,7 +26,6 @@ def list_settings(
 
 @router.get("/telegram-configured")
 def get_telegram_configured(
-    session: UserDbSession,
     _: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     """Gibt an, ob Telegram global konfiguriert ist (Bot-Token vorhanden).

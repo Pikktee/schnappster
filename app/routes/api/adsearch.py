@@ -5,7 +5,7 @@ from sqlmodel import select
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.background_jobs import BackgroundJobs, get_background_jobs
-from app.core.db import UserDbSession
+from app.core.db import UserDbSession, api_async_session_maker, apply_api_statement_timeout_async
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearchUpdate
 from app.models.logs_aianalysis import AIAnalysisLog
@@ -21,29 +21,35 @@ router = APIRouter(prefix="/adsearches", tags=["AdSearches"])
 # --- Routen ---
 # --------------
 @router.get("/", response_model=list[AdSearchRead])
-def list_adsearches(session: UserDbSession, current_user: CurrentUser = Depends(get_current_user)):  # noqa: B008
+async def list_adsearches(
+    current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
+):
     """Gibt alle Suchaufträge zurück."""
-    return session.exec(select(AdSearch).where(AdSearch.owner_id == current_user.user_id)).all()
+    async with api_async_session_maker() as session:
+        await apply_api_statement_timeout_async(session)
+        q = select(AdSearch).where(AdSearch.owner_id == current_user.user_id)
+        res = await session.execute(q)
+        rows = list(res.scalars().all())
+        return [AdSearchRead.model_validate(r) for r in rows]
 
 
 @router.get("/{adsearch_id}", response_model=AdSearchRead)
-def get_adsearch(
+async def get_adsearch(
     adsearch_id: int,
-    session: UserDbSession,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     """Gibt einen Suchauftrag anhand der ID zurück; 404 wenn nicht gefunden."""
-    adsearch = session.exec(
-        select(AdSearch).where(
+    async with api_async_session_maker() as session:
+        await apply_api_statement_timeout_async(session)
+        q = select(AdSearch).where(
             AdSearch.id == adsearch_id,
             AdSearch.owner_id == current_user.user_id,
         )
-    ).first()
-
-    if not adsearch:
-        raise HTTPException(status_code=404, detail="AdSearch not found")
-
-    return adsearch
+        res = await session.execute(q)
+        adsearch = res.scalars().first()
+        if not adsearch:
+            raise HTTPException(status_code=404, detail="AdSearch not found")
+        return AdSearchRead.model_validate(adsearch)
 
 
 @router.post("/", response_model=AdSearchRead, status_code=201)
@@ -207,4 +213,3 @@ def _validate_search_url_reachable(url: str) -> str | None:
             detail=f"Die Seite konnte nicht abgerufen werden (HTTP {status}). Bitte URL prüfen.",
         )
     return parse_search_title(html)
-

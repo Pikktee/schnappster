@@ -13,4 +13,3 @@ Projektstruktur (Backend)
 - **routes/** — FastAPI-Router, gebündelt in api_router (main.py)
 - **cli/** — Einstiegspunkte (uv run …)
 """
-

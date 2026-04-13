@@ -21,27 +21,6 @@ import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
 import { useAbortSignal } from "@/hooks/use-abort-signal"
 import { usePageHead } from "../page-head-context"
 
-const DEBUG_ENDPOINT = "http://127.0.0.1:7779/ingest/bfe3bd6e-2abc-4ac9-b804-18a979d98c6d"
-const DEBUG_SESSION_ID = "af5e93"
-
-function debugLog(message: string, data: Record<string, unknown>) {
-  // #region agent log
-  fetch(DEBUG_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": DEBUG_SESSION_ID },
-    body: JSON.stringify({
-      sessionId: DEBUG_SESSION_ID,
-      runId: "frontend-round3",
-      hypothesisId: "H15",
-      location: "web/app/(app)/searches/page.tsx:loadSearches",
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {})
-  // #endregion
-}
-
 export default function SearchesPage() {
   const [searches, setSearches] = useState<AdSearch[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,10 +34,6 @@ export default function SearchesPage() {
 
   const loadSearches = useCallback(async (opts?: { silent?: boolean }) => {
     const signal = getSignal()
-    const startedAt = Date.now()
-    // #region agent log
-    debugLog("load start", { silent: Boolean(opts?.silent) })
-    // #endregion
     if (!opts?.silent) {
       setLoading(true)
       setError(null)
@@ -66,23 +41,14 @@ export default function SearchesPage() {
     try {
       const data = await fetchSearches({ signal })
       setSearches(data)
-      // #region agent log
-      debugLog("load success", { count: data.length, elapsedMs: Date.now() - startedAt })
-      // #endregion
     } catch (e) {
       if (e instanceof ApiAbortError) return
       const msg = e instanceof Error ? e.message : "Suchaufträge konnten nicht geladen werden."
-      // #region agent log
-      debugLog("load error", { msg, elapsedMs: Date.now() - startedAt })
-      // #endregion
       if (!opts?.silent) {
         setError(msg)
         toast.error(msg)
       }
     } finally {
-      // #region agent log
-      debugLog("load finally", { aborted: signal.aborted, elapsedMs: Date.now() - startedAt })
-      // #endregion
       if (!signal.aborted) setLoading(false)
     }
   }, [getSignal])

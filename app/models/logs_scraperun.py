@@ -14,6 +14,7 @@ if TYPE_CHECKING:  # Linter-Fehler vermeiden
 # ----------------------
 class ScrapeRun(SQLModel, table=True):
     """Datenbanktabelle für Scrape-Läufe (ein Datensatz pro Scrape-Durchlauf)."""
+
     __tablename__ = "scrape_runs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
@@ -34,6 +35,8 @@ class ScrapeRun(SQLModel, table=True):
 # -------------------
 class ScrapeRunRead(SQLModel):
     """API-Ausgabe-Schema für einen Scrape-Lauf."""
+
+    model_config = {"from_attributes": True}
 
     id: int
     adsearch_id: int | None
