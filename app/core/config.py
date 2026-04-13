@@ -28,6 +28,10 @@ class Config(BaseSettings):
     openai_model: str = "google/gemini-2.0-flash-001"
     openai_base_url: str = "https://openrouter.ai/api/v1"
     telegram_bot_token: str = ""
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_pool_timeout: int = 10
+    db_connect_timeout: int = 5
 
     # Pydantic-Einstellungen
     model_config = {

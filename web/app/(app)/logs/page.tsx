@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, Fragment } from "react"
+import { useEffect, useRef, useState, Fragment } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/empty-state"
@@ -39,6 +39,31 @@ import { ContentReveal } from "@/components/content-reveal"
 import { usePageHead } from "../page-head-context"
 
 const LIMIT = 100
+const LOGS_REQUEST_TIMEOUT_MS = 12000
+
+type LoadResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string }
+
+function timeoutLoad<T>(promise: Promise<T>, label: string): Promise<LoadResult<T>> {
+  return new Promise<LoadResult<T>>((resolve) => {
+    const timeoutId = window.setTimeout(() => {
+      resolve({ ok: false, error: `${label}: Zeitüberschreitung` })
+    }, LOGS_REQUEST_TIMEOUT_MS)
+
+    promise
+      .then((data) => {
+        resolve({ ok: true, data })
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : `${label}: Laden fehlgeschlagen`
+        resolve({ ok: false, error: message })
+      })
+      .finally(() => {
+        window.clearTimeout(timeoutId)
+      })
+  })
+}
 
 export default function LogsPage() {
   const [searches, setSearches] = useState<AdSearch[]>([])
@@ -51,29 +76,43 @@ export default function LogsPage() {
   const [expandedErrors, setExpandedErrors] = useState<Set<number>>(new Set())
   const [expandedAi, setExpandedAi] = useState<Set<number>>(new Set())
   const { setHeaderActions } = usePageHead()
+  const loadRequestIdRef = useRef(0)
+  const isMountedRef = useRef(true)
 
-  function load() {
+  async function load() {
+    const requestId = ++loadRequestIdRef.current
     setLoading(true)
-    Promise.all([
-      fetchSearches(),
-      fetchScrapeRuns({ limit: LIMIT }),
-      fetchErrorLogs({ limit: LIMIT }),
-      fetchAIAnalysisLogs({ limit: LIMIT }),
+    const [searchesResult, runsResult, errorsResult, aiResult] = await Promise.all([
+      timeoutLoad(fetchSearches(), "Suchaufträge"),
+      timeoutLoad(fetchScrapeRuns({ limit: LIMIT }), "Scraper-Durchläufe"),
+      timeoutLoad(fetchErrorLogs({ limit: LIMIT }), "Fehlerprotokolle"),
+      timeoutLoad(fetchAIAnalysisLogs({ limit: LIMIT }), "AI-Analysen"),
     ])
-      .then(([s, r, e, a]) => {
-        setSearches(s)
-        setScraperuns(r)
-        setErrorLogs(e)
-        setAILogs(a)
-      })
-      .catch((err) => {
-        toast.error(err instanceof Error ? err.message : "Logs konnten nicht geladen werden.")
-      })
-      .finally(() => setLoading(false))
+
+    if (!isMountedRef.current || loadRequestIdRef.current !== requestId) return
+
+    if (searchesResult.ok) setSearches(searchesResult.data)
+    if (runsResult.ok) setScraperuns(runsResult.data)
+    if (errorsResult.ok) setErrorLogs(errorsResult.data)
+    if (aiResult.ok) setAILogs(aiResult.data)
+
+    const failures = [searchesResult, runsResult, errorsResult, aiResult]
+      .filter((result) => !result.ok)
+      .map((result) => result.error)
+
+    if (failures.length > 0) {
+      toast.error(`Teilweise geladen (${4 - failures.length}/4). ${failures[0]}`)
+    }
+
+    setLoading(false)
   }
 
   useEffect(() => {
-    load()
+    isMountedRef.current = true
+    void load()
+    return () => {
+      isMountedRef.current = false
+    }
   }, [])
 
   useEffect(() => {

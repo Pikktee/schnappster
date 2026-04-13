@@ -9,15 +9,16 @@ from sqlmodel import Session, SQLModel, create_engine, text
 from app.core.auth import CurrentUser, get_current_user
 from app.core.config import config
 
-_connect_args: dict[str, object] = {"connect_timeout": 5}
+_connect_args: dict[str, object] = {"connect_timeout": config.db_connect_timeout}
 db_engine = create_engine(
     config.database_url,
     echo=False,
     connect_args=_connect_args,
-    pool_size=3,
-    max_overflow=0,
-    pool_timeout=10,
+    pool_size=config.db_pool_size,
+    max_overflow=config.db_max_overflow,
+    pool_timeout=config.db_pool_timeout,
     pool_pre_ping=True,
+    pool_use_lifo=True,
 )
 
 
