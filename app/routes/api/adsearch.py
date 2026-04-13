@@ -23,7 +23,7 @@ router = APIRouter(prefix="/adsearches", tags=["AdSearches"])
 @router.get("/", response_model=list[AdSearchRead])
 def list_adsearches(session: UserDbSession, current_user: CurrentUser = Depends(get_current_user)):  # noqa: B008
     """Gibt alle Suchaufträge zurück."""
-    return session.exec(select(AdSearch).where(AdSearch.owner_id == current_user.tenant_id)).all()
+    return session.exec(select(AdSearch).where(AdSearch.owner_id == current_user.user_id)).all()
 
 
 @router.get("/{adsearch_id}", response_model=AdSearchRead)
@@ -36,7 +36,7 @@ def get_adsearch(
     adsearch = session.exec(
         select(AdSearch).where(
             AdSearch.id == adsearch_id,
-            AdSearch.owner_id == current_user.tenant_id,
+            AdSearch.owner_id == current_user.user_id,
         )
     ).first()
 
@@ -72,7 +72,7 @@ def create_adsearch(
         name = title_from_page
 
     adsearch = AdSearch.model_validate(
-        {**data.model_dump(), "name": name, "owner_id": current_user.tenant_id}
+        {**data.model_dump(), "name": name, "owner_id": current_user.user_id}
     )
 
     session.add(adsearch)
@@ -97,7 +97,7 @@ def update_adsearch(
     adsearch = session.exec(
         select(AdSearch).where(
             AdSearch.id == adsearch_id,
-            AdSearch.owner_id == current_user.tenant_id,
+            AdSearch.owner_id == current_user.user_id,
         )
     ).first()
 
@@ -153,7 +153,7 @@ def delete_adsearch(
     adsearch = session.exec(
         select(AdSearch).where(
             AdSearch.id == adsearch_id,
-            AdSearch.owner_id == current_user.tenant_id,
+            AdSearch.owner_id == current_user.user_id,
         )
     ).first()
 

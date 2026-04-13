@@ -112,7 +112,7 @@ def get_me(
 ):
     service = SettingsService(session)
     settings = service.hydrate_display_name_from_identity(
-        current_user.tenant_id,
+        current_user.user_id,
         identity_display_name(current_user),
     )
     avatar_url = current_user.user_metadata.get("avatar_url")
@@ -123,7 +123,7 @@ def get_me(
         else (settings.display_name or id_name)
     )
     return UserProfileRead(
-        id=current_user.tenant_id,
+        id=current_user.user_id,
         email=current_user.email,
         display_name=profile_name,
         avatar_url=str(avatar_url) if avatar_url else None,
@@ -139,7 +139,7 @@ def patch_me(
 ):
     service = SettingsService(session)
     settings = service.hydrate_display_name_from_identity(
-        current_user.tenant_id,
+        current_user.user_id,
         identity_display_name(current_user),
     )
     settings.display_name = data.display_name
@@ -155,7 +155,7 @@ def patch_me(
         else (settings.display_name or id_name)
     )
     return UserProfileRead(
-        id=current_user.tenant_id,
+        id=current_user.user_id,
         email=current_user.email,
         display_name=profile_name,
         avatar_url=str(avatar_url) if avatar_url else None,
@@ -170,7 +170,7 @@ def get_my_settings(
 ):
     service = SettingsService(session)
     return service.hydrate_display_name_from_identity(
-        current_user.tenant_id,
+        current_user.user_id,
         identity_display_name(current_user),
     )
 
@@ -183,7 +183,7 @@ def patch_my_settings(
 ):
     service = SettingsService(session)
     try:
-        return service.update_user_settings(current_user.tenant_id, data)
+        return service.update_user_settings(current_user.user_id, data)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -246,16 +246,16 @@ def delete_me(
             detail="E-Mail stimmt nicht mit dem Konto ueberein.",
         )
     # Schutz fuer den primaeren Admin.
-    if current_user.role == "admin" and config.primary_admin_user_id == current_user.tenant_id:
+    if current_user.role == "admin" and config.primary_admin_user_id == current_user.user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Primary admin account cannot be deleted",
         )
 
-    user_settings = session.get(UserSettings, current_user.tenant_id)
+    user_settings = session.get(UserSettings, current_user.user_id)
     if not user_settings:
         user_settings = UserSettings(
-            user_id=current_user.tenant_id,
+            user_id=current_user.user_id,
             display_name=identity_display_name(current_user),
         )
         session.add(user_settings)
@@ -263,7 +263,7 @@ def delete_me(
         session.refresh(user_settings)
 
     ad_searches = session.exec(
-        select(AdSearch).where(AdSearch.owner_id == current_user.tenant_id)
+        select(AdSearch).where(AdSearch.owner_id == current_user.user_id)
     ).all()
     for ad_search in ad_searches:
         session.delete(ad_search)
@@ -272,13 +272,13 @@ def delete_me(
     session.commit()
 
     try:
-        _delete_auth_user(current_user.tenant_id)
+        _delete_auth_user(current_user.user_id)
     except HTTPException:
         # Falls Auth-Delete fehlschlaegt, markieren und Retry erlauben.
-        pending = session.get(UserSettings, current_user.tenant_id)
+        pending = session.get(UserSettings, current_user.user_id)
         if pending is None:
             pending = UserSettings(
-                user_id=current_user.tenant_id,
+                user_id=current_user.user_id,
                 display_name=identity_display_name(current_user),
                 deletion_pending=True,
             )

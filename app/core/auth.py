@@ -44,8 +44,8 @@ class CurrentUser:
     access_token: str
 
     @property
-    def tenant_id(self) -> str:
-        """Mandanten-ID fuer Postgres/RLS: immer `sub` aus dem Access-Token, sonst User-API-`id`."""
+    def user_id(self) -> str:
+        """User-ID fuer Postgres/RLS: immer `sub` aus dem Access-Token, sonst User-API-`id`."""
         sub = _jwt_sub_from_access_token(self.access_token)
         return sub if sub else self.id
 

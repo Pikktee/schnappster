@@ -47,7 +47,7 @@ def get_user_db_session(current_user: CurrentUser = Depends(get_current_user)): 
         # JWT-`sub` fuer RLS; kein set_config('role') (entspricht SET ROLE, oft fehlerhaft).
         claims = json.dumps(
             {
-                "sub": current_user.tenant_id,
+                "sub": current_user.user_id,
                 "role": "authenticated",
                 "app_metadata": current_user.app_metadata,
             },

@@ -287,11 +287,11 @@ def test_update_setting_invalid_rating(client):
     assert response.status_code == 422
 
 
-# --- Auth / Mandanten-ID ---
+# --- Auth / User-ID ---
 
 
-def test_current_user_tenant_id_uses_jwt_sub():
-    """tenant_id entspricht dem JWT-`sub`, damit Postgres-RLS und App-Queries uebereinstimmen."""
+def test_current_user_user_id_uses_jwt_sub():
+    """user_id entspricht dem JWT-`sub`, damit Postgres-RLS und App-Queries uebereinstimmen."""
     import base64
     import json
 
@@ -308,10 +308,10 @@ def test_current_user_tenant_id_uses_jwt_sub():
         identities=[],
         access_token=token,
     )
-    assert user.tenant_id == "00000000-0000-0000-0000-000000000099"
+    assert user.user_id == "00000000-0000-0000-0000-000000000099"
 
 
-def test_current_user_tenant_id_falls_back_to_api_id():
+def test_current_user_user_id_falls_back_to_api_id():
     from app.core.auth import CurrentUser
 
     user = CurrentUser(
@@ -322,7 +322,7 @@ def test_current_user_tenant_id_falls_back_to_api_id():
         identities=[],
         access_token="not-a-jwt",
     )
-    assert user.tenant_id == "00000000-0000-0000-0000-000000000001"
+    assert user.user_id == "00000000-0000-0000-0000-000000000001"
 
 
 def test_identity_display_name_reads_google_identity_data():
