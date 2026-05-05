@@ -3,9 +3,11 @@
 from app.services.deal_analysis import (
     ComparisonCandidate,
     ComparisonJudgement,
+    MarketEstimate,
     ProductExtraction,
     build_market_estimate,
     fallback_comparison_judgements,
+    fallback_final_result,
     fallback_product_extraction,
     should_use_strong_model,
 )
@@ -59,6 +61,40 @@ def test_should_use_strong_model_only_for_likely_deals():
 
     assert should_use_strong_model(estimate, 18, 75, 760)
     assert not should_use_strong_model(estimate, 30, 500, 760)
+
+
+def test_fallback_final_result_keeps_evidence_when_models_fail():
+    """If every model call fails the deterministic score still uses the market estimate."""
+    market = MarketEstimate(
+        estimated_market_price=100,
+        market_price_confidence=0.6,
+        price_delta_percent=24.0,
+        comparison_count=3,
+        comparison_summary="Median aus 3 belastbaren Vergleichen: 100 EUR.",
+    )
+
+    result = fallback_final_result(market)
+
+    assert result.estimated_market_price == 100
+    assert result.price_delta_percent == 24.0
+    assert result.score > 5.0
+    assert "Fallback" in result.reasoning
+
+
+def test_fallback_final_result_handles_missing_market_estimate():
+    """No market evidence yields a neutral mid-score with a clear reason."""
+    market = MarketEstimate(
+        estimated_market_price=None,
+        market_price_confidence=0.0,
+        price_delta_percent=None,
+        comparison_count=0,
+        comparison_summary="Keine belastbaren Vergleichsangebote.",
+    )
+
+    result = fallback_final_result(market)
+
+    assert result.score == 5.0
+    assert result.estimated_market_price is None
 
 
 def test_fallback_product_extraction_limits_query_size():

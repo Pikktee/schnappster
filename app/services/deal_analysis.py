@@ -174,6 +174,31 @@ def fallback_product_extraction(title: str) -> ProductExtraction:
     )
 
 
+def fallback_final_result(market: MarketEstimate) -> FinalDealResult:
+    """Deterministic last-resort score when every LLM call in the pipeline fails."""
+    delta = market.price_delta_percent
+    if delta is None:
+        score = 5.0
+        summary = "Bewertung ohne KI-Antwort: kein belastbarer Marktwert."
+    else:
+        score = max(0.0, min(10.0, 5.0 + delta / 8.0))
+        summary = (
+            f"Bewertung ohne KI-Antwort: Preis liegt {delta:.0f}% unter geschätztem Marktwert."
+        )
+    return FinalDealResult(
+        score=round(score, 1),
+        summary=summary,
+        reasoning=(
+            "Automatischer Fallback nach KI-Fehler. Score basiert allein auf dem "
+            "deterministischen Marktwert-Vergleich, nicht auf einer Modell-Antwort."
+        ),
+        estimated_market_price=market.estimated_market_price,
+        market_price_confidence=market.market_price_confidence,
+        price_delta_percent=market.price_delta_percent,
+        comparison_summary=market.comparison_summary,
+    )
+
+
 def fallback_comparison_judgements(
     candidates: list[ComparisonCandidate],
 ) -> list[ComparisonJudgement]:

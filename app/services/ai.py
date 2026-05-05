@@ -4,6 +4,7 @@ Optional Telegram-Benachrichtigungen.
 """
 
 import base64
+import contextlib
 import json
 import logging
 from collections.abc import Sequence
@@ -31,6 +32,7 @@ from app.services.deal_analysis import (
     build_market_estimate,
     build_product_prompt,
     fallback_comparison_judgements,
+    fallback_final_result,
     fallback_product_extraction,
     should_use_strong_model,
 )
@@ -266,12 +268,23 @@ class AIService:
         model: str,
         use_strong: bool,
     ) -> FinalDealResult:
-        """Final JSON score, optionally with images for the expensive candidate pass."""
+        """Final JSON score, optionally with images for the expensive candidate pass.
+
+        Falls back to a deterministic score from the market estimate if every model call
+        (cheap, then main via `_complete_json`) fails. The error is recorded in
+        `ErrorLog` so the user sees it without the queue stalling.
+        """
         prompt = build_final_prompt(context, product, market, judgements)
         images = self._download_images(ad) if use_strong and app_config.ai_include_images else []
-        content = self._complete_json(prompt, model, images=images, max_tokens=1000)
-        final = FinalDealResult.model_validate(self._parse_json_content(content))
-        return self._fill_final_defaults(final, market)
+        try:
+            content = self._complete_json(prompt, model, images=images, max_tokens=1000)
+            final = FinalDealResult.model_validate(self._parse_json_content(content))
+            return self._fill_final_defaults(final, market)
+        except Exception as exc:  # noqa: BLE001 — keep queue moving on API failure
+            logger.error("Final scoring failed for ad %s: %s", ad.id, exc)
+            with contextlib.suppress(Exception):
+                self._log_analysis_error(ad, "Final scoring fallback", str(exc))
+            return fallback_final_result(market)
 
     def _fill_final_defaults(
         self, final: FinalDealResult, market: MarketEstimate
