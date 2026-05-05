@@ -97,6 +97,50 @@ def test_fallback_final_result_handles_missing_market_estimate():
     assert result.estimated_market_price is None
 
 
+def test_product_extraction_accepts_qualitative_deal_potential():
+    """Cheap models often answer 'mittel'/'hoch' instead of a 0..1 float."""
+    extraction = ProductExtraction.model_validate(
+        {
+            "product_key": "panasonic gh6",
+            "is_specific_product": True,
+            "deal_potential": "Mittel bis hoch",
+        }
+    )
+    assert 0.6 <= extraction.deal_potential <= 0.7
+
+
+def test_product_extraction_clamps_numeric_deal_potential_above_one():
+    """A model returning '7' (out of 10) is normalised into the [0,1] range."""
+    extraction = ProductExtraction.model_validate(
+        {"product_key": "x", "deal_potential": "7"}
+    )
+    assert extraction.deal_potential == 0.7
+
+
+def test_comparison_judgement_accepts_freeform_relation():
+    """The cheap model often replies with descriptive German instead of the enum."""
+    judgement = ComparisonJudgement.model_validate(
+        {
+            "candidate_index": 0,
+            "comparable": False,
+            "relation": "Zubehör/CF-Karte statt Kamera+Objektiv",
+        }
+    )
+    assert judgement.relation == "accessory"
+
+
+def test_comparison_judgement_unknown_for_unmatched_relation():
+    """Unrecognised relation phrases fall back to 'unknown' instead of crashing."""
+    judgement = ComparisonJudgement.model_validate(
+        {
+            "candidate_index": 1,
+            "comparable": True,
+            "relation": "irgendwas ganz anderes",
+        }
+    )
+    assert judgement.relation == "unknown"
+
+
 def test_fallback_product_extraction_limits_query_size():
     """Fallback extraction stays cheap and bounded."""
     product = fallback_product_extraction("Apple MacBook Pro 14 M1 Pro 16GB 512GB Space Grau")

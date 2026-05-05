@@ -7,9 +7,10 @@ deterministic scoring/evidence math around them.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from statistics import median
-from typing import Literal
+from typing import Any, Literal, get_args
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -23,6 +24,53 @@ SPECIFIC_PRODUCT_CONFIDENCE_BONUS = 0.12
 MAX_MARKET_CONFIDENCE = 0.9
 
 
+_DEAL_POTENTIAL_KEYWORDS: tuple[tuple[str, float], ...] = (
+    ("sehr hoch", 0.9),
+    ("very high", 0.9),
+    ("hoch", 0.8),
+    ("high", 0.8),
+    ("mittel bis hoch", 0.65),
+    ("medium-high", 0.65),
+    ("mittel", 0.5),
+    ("medium", 0.5),
+    ("niedrig", 0.2),
+    ("low", 0.2),
+    ("sehr niedrig", 0.1),
+    ("very low", 0.1),
+    ("kein", 0.0),
+    ("none", 0.0),
+)
+
+
+def _coerce_unit_float(value: Any) -> float:
+    """Best-effort conversion of model output to a 0..1 float.
+
+    The nano model frequently returns German qualitative levels (e.g. ``mittel``,
+    ``hoch``) or even narrative strings. Accept these instead of crashing the
+    cheap stage and falling back to a useless deterministic extraction.
+    """
+    if isinstance(value, bool):
+        return 1.0 if value else 0.0
+    if isinstance(value, int | float):
+        return max(0.0, min(1.0, float(value)))
+    if not isinstance(value, str):
+        return 0.0
+
+    text = value.strip().lower()
+    for keyword, score in sorted(
+        _DEAL_POTENTIAL_KEYWORDS, key=lambda pair: -len(pair[0])
+    ):
+        if keyword in text:
+            return score
+    match = re.search(r"-?\d+(?:[.,]\d+)?", text)
+    if match:
+        number = float(match.group().replace(",", "."))
+        if number > 1:
+            number = min(1.0, number / 10.0)
+        return max(0.0, min(1.0, number))
+    return 0.0
+
+
 class ProductExtraction(BaseModel):
     """Structured understanding of the target ad."""
 
@@ -32,6 +80,12 @@ class ProductExtraction(BaseModel):
     is_specific_product: bool = False
     deal_potential: float = Field(default=0.0, ge=0, le=1)
     uncertainty: str | None = None
+
+    @field_validator("deal_potential", mode="before")
+    @classmethod
+    def coerce_deal_potential(cls, value: Any) -> float:
+        """Allow qualitative words ('mittel', 'hoch') from cheap models."""
+        return _coerce_unit_float(value)
 
     @field_validator("search_queries")
     @classmethod
@@ -53,6 +107,44 @@ class ComparisonCandidate(BaseModel):
 
 ComparisonRelation = Literal["same", "better", "worse", "bundle", "accessory", "unknown"]
 
+_RELATION_KEYWORDS: tuple[tuple[str, ComparisonRelation], ...] = (
+    ("zubehör", "accessory"),
+    ("zubehor", "accessory"),
+    ("accessory", "accessory"),
+    ("speicherkarte", "accessory"),
+    ("akku", "accessory"),
+    ("kabel", "accessory"),
+    ("bundle", "bundle"),
+    ("paket", "bundle"),
+    ("kombi", "bundle"),
+    ("set", "bundle"),
+    ("besser", "better"),
+    ("better", "better"),
+    ("höherwertig", "better"),
+    ("hoeherwertig", "better"),
+    ("schlechter", "worse"),
+    ("worse", "worse"),
+    ("defekt", "worse"),
+    ("kaputt", "worse"),
+    ("alt", "worse"),
+    ("identisch", "same"),
+    ("gleich", "same"),
+    ("same", "same"),
+)
+
+
+def _coerce_relation(value: Any) -> ComparisonRelation:
+    """Map free-form relation text to one of the allowed Literal values."""
+    valid: tuple[ComparisonRelation, ...] = get_args(ComparisonRelation)
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in valid:
+            return text  # type: ignore[return-value]
+        for keyword, relation in _RELATION_KEYWORDS:
+            if keyword in text:
+                return relation
+    return "unknown"
+
 
 class ComparisonJudgement(BaseModel):
     """LLM judgement of how usable one comparison candidate is."""
@@ -62,6 +154,12 @@ class ComparisonJudgement(BaseModel):
     relation: ComparisonRelation = "unknown"
     adjusted_price: float | None = Field(default=None, ge=0)
     reason: str = ""
+
+    @field_validator("relation", mode="before")
+    @classmethod
+    def coerce_relation(cls, value: Any) -> ComparisonRelation:
+        """Map free-form German answers from cheap models to the allowed enum."""
+        return _coerce_relation(value)
 
     @field_validator("reason")
     @classmethod
@@ -219,9 +317,15 @@ def build_product_prompt(target: dict[str, object]) -> str:
     """Prompt for the low-cost product analyst."""
     return (
         "Analysiere diese Kleinanzeigen-Anzeige als Product Analyst. "
-        "Extrahiere, was verglichen werden muss, um den Marktwert zu bestimmen. "
-        "Antworte ausschliesslich als JSON mit den Feldern product_key, category, "
-        "search_queries, is_specific_product, deal_potential, uncertainty.\n\n"
+        "Extrahiere, was verglichen werden muss, um den Marktwert zu bestimmen.\n\n"
+        "Antworte AUSSCHLIESSLICH als JSON-Objekt mit exakt diesen Feldern und Typen:\n"
+        '  - product_key: string (kurzer Identifier, z. B. "rode podmic")\n'
+        "  - category: string oder null\n"
+        "  - search_queries: Array aus bis zu 5 Strings\n"
+        "  - is_specific_product: boolean\n"
+        "  - deal_potential: NUMBER zwischen 0.0 und 1.0 "
+        "(z. B. 0.8; KEINE Worte wie 'hoch'/'mittel'/'niedrig')\n"
+        "  - uncertainty: string oder null\n\n"
         f"Anzeige:\n{target}"
     )
 
@@ -235,9 +339,14 @@ def build_comparison_prompt(
     return (
         "Bewerte Vergleichsangebote fuer eine Kleinanzeigen-Schaetzung. "
         "Markiere nur echte Vergleichbarkeit als comparable=true. Zubehör, Defekte, "
-        "andere Varianten oder Bundles muessen entsprechend abgewertet werden. "
-        "Antworte ausschliesslich als JSON-Array mit candidate_index, comparable, "
-        "relation, adjusted_price, reason.\n\n"
+        "andere Varianten oder Bundles muessen entsprechend abgewertet werden.\n\n"
+        "Antworte AUSSCHLIESSLICH als JSON-Array. Ein Element pro Kandidat mit:\n"
+        "  - candidate_index: integer (Index des Kandidaten in der Liste, ab 0)\n"
+        "  - comparable: boolean\n"
+        '  - relation: GENAU EINER dieser Werte: "same", "better", "worse", '
+        '"bundle", "accessory", "unknown" (KEINE Freitext-Beschreibung!)\n'
+        "  - adjusted_price: number oder null (in EUR)\n"
+        "  - reason: string (kurz, max. ein Satz)\n\n"
         f"Zielanzeige:\n{target}\n\n"
         f"Produktverstaendnis:\n{product.model_dump()}\n\n"
         f"Vergleichskandidaten:\n{[candidate.model_dump() for candidate in candidates]}"
