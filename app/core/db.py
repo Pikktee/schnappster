@@ -10,6 +10,8 @@ from app.core.auth import CurrentUser, get_current_user
 from app.core.config import config
 
 _connect_args: dict[str, object] = {"connect_timeout": config.db_connect_timeout}
+if config.db_statement_timeout_ms > 0:
+    _connect_args["options"] = f"-c statement_timeout={config.db_statement_timeout_ms}"
 db_engine = create_engine(
     config.database_url,
     echo=False,
@@ -27,6 +29,7 @@ def init_db() -> None:
     SQLModel.metadata.create_all(db_engine)
     with Session(db_engine) as session:
         _drop_obsolete_user_settings_columns_postgres(session)
+        _ensure_query_indexes_postgres(session)
         session.commit()
 
 
@@ -38,6 +41,26 @@ def _drop_obsolete_user_settings_columns_postgres(session: Session) -> None:
     """Entfernt Legacy-Spalten, die nicht mehr im SQLModel stehen (NOT NULL blockierte INSERTs)."""
     for column_name in _OBSOLETE_USER_SETTINGS_COLUMNS:
         session.execute(text(f"ALTER TABLE user_settings DROP COLUMN IF EXISTS {column_name}"))
+
+
+def _ensure_query_indexes_postgres(session: Session) -> None:
+    """Legt Indexe für die häufigsten Dashboard-Queries auch in bestehenden DBs an."""
+    statements = (
+        """
+        CREATE INDEX IF NOT EXISTS idx_ads_owner_analyzed_seen
+        ON ads(owner_id, is_analyzed, first_seen_at DESC, id DESC)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_ads_owner_search_analyzed_seen
+        ON ads(owner_id, adsearch_id, is_analyzed, first_seen_at DESC, id DESC)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_ads_owner_analyzed_score_seen
+        ON ads(owner_id, is_analyzed, bargain_score DESC, first_seen_at DESC, id DESC)
+        """,
+    )
+    for statement in statements:
+        session.execute(text(statement))
 
 
 def get_db_session():

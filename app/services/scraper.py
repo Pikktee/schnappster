@@ -2,6 +2,7 @@
 
 import logging
 import traceback
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from sqlmodel import Session, col, select
@@ -22,6 +23,21 @@ from app.services.settings import SettingsService
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True, slots=True)
+class AdSearchSnapshot:
+    """Detached search data so scraping does not hold a DB connection while doing HTTP."""
+
+    id: int
+    owner_id: str
+    name: str
+    url: str
+    min_price: float | None
+    max_price: float | None
+    blacklist_keywords: str | None
+    last_scraped_at: datetime | None
+    scrape_interval_minutes: int
+
+
 class ScraperService:
     """Scraping orchestrieren: fällige Suchen, Seiten holen, filtern, in der DB speichern."""
 
@@ -31,9 +47,14 @@ class ScraperService:
 
     def scrape_due_searches(self) -> int:
         """Scrape für alle aktiven, fälligen Suchaufträge; Zahl neu gespeicherter Anzeigen."""
-        searches = self.session.exec(
-            select(AdSearch).where(col(AdSearch.is_active).is_(True))
-        ).all()
+        searches = [
+            _snapshot_adsearch(search)
+            for search in self.session.exec(
+                select(AdSearch).where(col(AdSearch.is_active).is_(True))
+            ).all()
+            if search.id is not None
+        ]
+        self._release_session_connection()
         logger.info(f"Found {len(searches)} active AdSearches")
 
         total_new = 0
@@ -65,34 +86,34 @@ class ScraperService:
             next_scrape = next_scrape.replace(tzinfo=UTC)
         return now >= next_scrape
 
-    def scrape_adsearch(self, adsearch: AdSearch) -> ScrapeRun:
+    def scrape_adsearch(self, adsearch: AdSearch | AdSearchSnapshot) -> ScrapeRun:
         """Scrapt alle neuen Anzeigen für einen Suchauftrag; gibt den Lauf zurück."""
-        assert adsearch.id is not None, "AdSearch muss eine ID haben, um gescrapt zu werden"
+        search = _snapshot_adsearch(adsearch)
+        self._release_session_connection()
         started_at = datetime.now(UTC)
         ads_found_result = 0
         ads_filtered_result = 0
         ads_new_result = 0
 
         try:
-            previews = self._collect_previews(adsearch.url)
-            new_previews = self._filter_known(previews, adsearch.id)
+            previews = self._collect_previews(search.url)
+            new_previews = self._filter_known(previews, search.id)
+            self._release_session_connection()
 
-            logger.info(
-                f"AdSearch '{adsearch.name}': {len(previews)} found, {len(new_previews)} new"
-            )
+            logger.info(f"AdSearch '{search.name}': {len(previews)} found, {len(new_previews)} new")
 
             details = self._fetch_details(new_previews)
-            filtered = self._filter_ads(details, adsearch)
-            ads = self._save_ads(filtered, adsearch.id, adsearch.owner_id)
+            filtered = self._filter_ads(details, search)
+            ads = self._save_ads(filtered, search.id, search.owner_id)
 
             ads_found_result = len(previews)
             ads_filtered_result = len(details) - len(filtered)
             ads_new_result = len(ads)
 
         except Exception as e:
-            logger.error(f"Scrape failed for '{adsearch.name}': {e}")
+            logger.error(f"Scrape failed for '{search.name}': {e}")
             self._log_error(
-                adsearch.id,
+                search.id,
                 "ScrapeError",
                 str(e),
                 traceback.format_exc(),
@@ -100,20 +121,43 @@ class ScraperService:
             raise
 
         finally:
-            finished_at = datetime.now(UTC)
-            scrape_run = ScrapeRun(
-                adsearch_id=adsearch.id,
-                started_at=started_at,
-                finished_at=finished_at,
-                ads_found=ads_found_result,
-                ads_filtered=ads_filtered_result,
-                ads_new=ads_new_result,
+            scrape_run = self._save_scrape_run(
+                search.id,
+                started_at,
+                ads_found_result,
+                ads_filtered_result,
+                ads_new_result,
             )
-            self.session.add(scrape_run)
-            adsearch.last_scraped_at = finished_at
-            self.session.commit()
 
         return scrape_run
+
+    def _save_scrape_run(
+        self,
+        adsearch_id: int,
+        started_at: datetime,
+        ads_found: int,
+        ads_filtered: int,
+        ads_new: int,
+    ) -> ScrapeRun:
+        """Speichert Run-Metriken und aktualisiert den Suchauftrag in einer kurzen Transaktion."""
+        finished_at = datetime.now(UTC)
+        scrape_run = ScrapeRun(
+            adsearch_id=adsearch_id,
+            started_at=started_at,
+            finished_at=finished_at,
+            ads_found=ads_found,
+            ads_filtered=ads_filtered,
+            ads_new=ads_new,
+        )
+        self.session.add(scrape_run)
+        if adsearch := self.session.get(AdSearch, adsearch_id):
+            adsearch.last_scraped_at = finished_at
+        self.session.commit()
+        return scrape_run
+
+    def _release_session_connection(self) -> None:
+        """Beendet reine Read-Transaktionen vor langen externen Netzwerkaufrufen."""
+        self.session.rollback()
 
     def _log_error(
         self,
@@ -134,7 +178,7 @@ class ScraperService:
         self.session.commit()
 
     def _filter_ads(
-        self, details: list[ScrapedAdDetail], adsearch: AdSearch
+        self, details: list[ScrapedAdDetail], adsearch: AdSearchSnapshot
     ) -> list[ScrapedAdDetail]:
         """Filtert Details nach Suchauftrag und globalen Einstellungen (Preis, Blacklist, …)."""
         settings = SettingsService(self.session)
@@ -157,7 +201,7 @@ class ScraperService:
     @staticmethod
     def _get_filter_reason(
         detail: ScrapedAdDetail,
-        adsearch: AdSearch,
+        adsearch: AdSearch | AdSearchSnapshot,
         exclude_commercial: bool,
         min_rating: int,
     ) -> str | None:
@@ -293,3 +337,22 @@ class ScraperService:
 
         self.session.commit()
         return ads
+
+
+def _snapshot_adsearch(adsearch: AdSearch | AdSearchSnapshot) -> AdSearchSnapshot:
+    """Kopiert nur die Werte, die der Scraper braucht; keine lazy DB-Verbindung danach."""
+    if isinstance(adsearch, AdSearchSnapshot):
+        return adsearch
+    if adsearch.id is None:
+        raise ValueError("AdSearch muss eine ID haben, um gescrapt zu werden")
+    return AdSearchSnapshot(
+        id=adsearch.id,
+        owner_id=adsearch.owner_id,
+        name=adsearch.name,
+        url=adsearch.url,
+        min_price=adsearch.min_price,
+        max_price=adsearch.max_price,
+        blacklist_keywords=adsearch.blacklist_keywords,
+        last_scraped_at=adsearch.last_scraped_at,
+        scrape_interval_minutes=adsearch.scrape_interval_minutes,
+    )

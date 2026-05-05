@@ -58,7 +58,7 @@ def _verify_email_password(email: str, password: str) -> None:
         "apikey": config.supabase_publishable_key,
         "Content-Type": "application/json",
     }
-    with httpx.Client(timeout=10.0) as client:
+    with httpx.Client(timeout=config.supabase_auth_timeout) as client:
         response = client.post(
             url,
             headers=headers,
@@ -78,7 +78,7 @@ def _delete_auth_user(user_id: str) -> None:
         "apikey": secret_key,
         "Authorization": f"Bearer {secret_key}",
     }
-    with httpx.Client(timeout=10.0) as client:
+    with httpx.Client(timeout=config.supabase_auth_timeout) as client:
         response = client.delete(url, headers=headers)
     if response.status_code not in {200, 204, 404}:
         raise HTTPException(
@@ -211,7 +211,7 @@ def change_password(
     _validate_password_strength(new_pw)
     _verify_email_password(current_user.email, payload.old_password)
     url = f"{config.supabase_url.rstrip('/')}/auth/v1/user"
-    with httpx.Client(timeout=10.0) as client:
+    with httpx.Client(timeout=config.supabase_auth_timeout) as client:
         response = client.put(
             url,
             headers=_supabase_headers(current_user.access_token),

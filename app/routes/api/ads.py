@@ -1,6 +1,6 @@
 """API-Routen für Anzeigen."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import col, func, select
 
 from app.core.auth import CurrentUser, get_current_user
@@ -19,24 +19,24 @@ def list_ads(
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
     adsearch_id: int | None = None,
     is_analyzed: bool | None = None,
-    min_score: int | None = None,
+    min_score: int | None = Query(default=None, ge=0, le=10),
     sort: str = "date",
-    limit: int = 24,
-    offset: int = 0,
+    limit: int = Query(default=24, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
 ):
     """Gibt paginierte Anzeigen mit optionalen Filtern
     (adsearch_id, is_analyzed, min_score) und Sortierung zurück.
     """
-    query = select(Ad).where(Ad.owner_id == current_user.user_id)
+    filters = [Ad.owner_id == current_user.user_id]
 
     if adsearch_id is not None:
-        query = query.where(Ad.adsearch_id == adsearch_id)
+        filters.append(Ad.adsearch_id == adsearch_id)
     if is_analyzed is not None:
-        query = query.where(Ad.is_analyzed == is_analyzed)
+        filters.append(Ad.is_analyzed == is_analyzed)
     if min_score is not None and min_score > 0:
-        query = query.where(col(Ad.bargain_score) >= min_score)
+        filters.append(col(Ad.bargain_score) >= min_score)
 
-    total = session.exec(select(func.count()).select_from(query.subquery())).one()
+    total = session.exec(select(func.count(Ad.id)).where(*filters)).one()
 
     order = {
         "date": col(Ad.first_seen_at).desc(),
@@ -44,8 +44,13 @@ def list_ads(
         "price-desc": col(Ad.price).desc(),
         "score-desc": col(Ad.bargain_score).desc(),
     }
-    query = query.order_by(order.get(sort, col(Ad.first_seen_at).desc()))
-    query = query.offset(offset).limit(min(limit, 100))
+    query = (
+        select(Ad)
+        .where(*filters)
+        .order_by(order.get(sort, col(Ad.first_seen_at).desc()), col(Ad.id).desc())
+        .offset(offset)
+        .limit(limit)
+    )
 
     items = session.exec(query).all()
     return {"items": [AdRead.model_validate(ad) for ad in items], "total": total}
@@ -58,9 +63,7 @@ def get_ad(
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     """Gibt eine Anzeige anhand der ID zurück; 404 wenn nicht gefunden."""
-    ad = session.exec(
-        select(Ad).where(Ad.id == ad_id, Ad.owner_id == current_user.user_id)
-    ).first()
+    ad = session.exec(select(Ad).where(Ad.id == ad_id, Ad.owner_id == current_user.user_id)).first()
 
     if not ad:
         raise HTTPException(status_code=404, detail="Ad not found")

@@ -93,3 +93,9 @@ CREATE TABLE IF NOT EXISTS ai_analysis_logs (
 CREATE INDEX IF NOT EXISTS idx_ad_searches_owner_id ON ad_searches(owner_id);
 CREATE INDEX IF NOT EXISTS idx_ads_owner_id ON ads(owner_id);
 CREATE INDEX IF NOT EXISTS idx_ads_adsearch_id ON ads(adsearch_id);
+CREATE INDEX IF NOT EXISTS idx_ads_owner_analyzed_seen
+    ON ads(owner_id, is_analyzed, first_seen_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_ads_owner_search_analyzed_seen
+    ON ads(owner_id, adsearch_id, is_analyzed, first_seen_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_ads_owner_analyzed_score_seen
+    ON ads(owner_id, is_analyzed, bargain_score DESC, first_seen_at DESC, id DESC);

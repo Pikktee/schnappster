@@ -28,10 +28,15 @@ class Config(BaseSettings):
     openai_model: str = "google/gemini-2.0-flash-001"
     openai_base_url: str = "https://openrouter.ai/api/v1"
     telegram_bot_token: str = ""
-    db_pool_size: int = 10
-    db_max_overflow: int = 20
+    db_pool_size: int = 5
+    db_max_overflow: int = 5
     db_pool_timeout: int = 10
     db_connect_timeout: int = 5
+    db_statement_timeout_ms: int = 30_000
+    supabase_auth_timeout: float = 5.0
+    supabase_auth_cache_ttl: float = 60.0
+    scrape_request_timeout: float = 20.0
+    ai_request_timeout: float = 45.0
 
     # Pydantic-Einstellungen
     model_config = {

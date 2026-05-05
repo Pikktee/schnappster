@@ -43,6 +43,7 @@ class AIService:
         self.client = OpenAI(
             base_url=app_config.openai_base_url,
             api_key=app_config.openai_api_key,
+            timeout=app_config.ai_request_timeout,
         )
 
     def analyze_unprocessed(self, limit: int = 10) -> int:
@@ -58,13 +59,21 @@ class AIService:
             logger.info("No unprocessed ads found")
             return 0
 
+        for ad in ads:
+            self.session.expunge(ad)
+        self._release_session_connection()
         return self._analyze_ads(ads)
+
+    def _release_session_connection(self) -> None:
+        """Beendet Read-Transaktionen vor Bilddownload, OpenAI oder Telegram."""
+        self.session.rollback()
 
     def _analyze_ads(self, ads: Sequence[Ad]) -> int:
         """Anzeigen nacheinander; Fehler loggen und weitermachen; Zahl der Erfolge."""
         analyzed = 0
         for ad in ads:
             prompt_text_for_error = self._build_prompt_text_for_log(ad)
+            self._release_session_connection()
             try:
                 self._analyze_ad(ad, prompt_text_for_error)
                 analyzed += 1
@@ -139,6 +148,7 @@ class AIService:
         adsearch = self.session.get(AdSearch, ad.adsearch_id)
         context = self._build_user_context(ad, adsearch)
         user_content = render_user_prompt(context)
+        self._release_session_connection()
         images = self._download_images(ad)
 
         messages = self._build_messages(user_content, images)
@@ -157,6 +167,13 @@ class AIService:
         ad.ai_summary = result["summary"]
         ad.ai_reasoning = result["reasoning"]
         ad.is_analyzed = True
+        db_ad = self.session.get(Ad, ad.id)
+        if not db_ad:
+            raise ValueError(f"Ad {ad.id} not found while saving analysis result")
+        db_ad.bargain_score = result["score"]
+        db_ad.ai_summary = result["summary"]
+        db_ad.ai_reasoning = result["reasoning"]
+        db_ad.is_analyzed = True
         self.session.commit()
 
         if ad.id is not None and ad.adsearch_id is not None:
@@ -181,12 +198,16 @@ class AIService:
         """Versendet Telegram-Benachrichtigungen gemaess UserSettings."""
         settings_service = SettingsService(self.session)
         user_settings = settings_service.get_user_settings(ad.owner_id)
-        if score < user_settings.notify_min_score:
+        notify_min_score = user_settings.notify_min_score
+        notify_telegram = user_settings.notify_telegram
+        telegram_chat_id = user_settings.telegram_chat_id
+        self._release_session_connection()
+        if score < notify_min_score:
             return
-        if user_settings.notify_telegram and user_settings.telegram_chat_id:
+        if notify_telegram and telegram_chat_id:
             tg = TelegramService(
                 bot_token=app_config.telegram_bot_token,
-                chat_id=user_settings.telegram_chat_id,
+                chat_id=telegram_chat_id,
             )
             tg.send_bargain_notification(ad)
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import binascii
 import json
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -55,6 +56,9 @@ class CurrentUser:
         return str(self.app_metadata.get("role", "user"))
 
 
+_AUTH_CACHE: dict[str, tuple[float, CurrentUser]] = {}
+
+
 def _extract_bearer_token(authorization: str | None) -> str:
     if not authorization:
         raise HTTPException(
@@ -78,17 +82,44 @@ def _require_supabase_auth_config() -> None:
         )
 
 
+def _get_cached_user(access_token: str) -> CurrentUser | None:
+    ttl = config.supabase_auth_cache_ttl
+    if ttl <= 0:
+        return None
+
+    cached = _AUTH_CACHE.get(access_token)
+    if not cached:
+        return None
+
+    expires_at, user = cached
+    if expires_at <= time.monotonic():
+        _AUTH_CACHE.pop(access_token, None)
+        return None
+    return user
+
+
+def _cache_user(access_token: str, user: CurrentUser) -> None:
+    ttl = config.supabase_auth_cache_ttl
+    if ttl <= 0:
+        return
+
+    _AUTH_CACHE[access_token] = (time.monotonic() + ttl, user)
+
+
 async def get_current_user(authorization: str | None = Header(default=None)) -> CurrentUser:
     """Validiert Bearer-Token ueber Supabase und liefert User-Claims."""
     _require_supabase_auth_config()
     access_token = _extract_bearer_token(authorization)
+    if cached_user := _get_cached_user(access_token):
+        return cached_user
+
     url = f"{config.supabase_url.rstrip('/')}/auth/v1/user"
     headers = {
         "apikey": config.supabase_publishable_key,
         "Authorization": f"Bearer {access_token}",
     }
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=config.supabase_auth_timeout) as client:
             response = await client.get(url, headers=headers)
     except httpx.HTTPError as exc:
         raise HTTPException(
@@ -107,7 +138,7 @@ async def get_current_user(authorization: str | None = Header(default=None)) -> 
     identities: list[dict[str, Any]] = (
         raw_identities if isinstance(raw_identities, list) else []
     )
-    return CurrentUser(
+    user = CurrentUser(
         id=str(data.get("id", "")),
         email=data.get("email"),
         app_metadata=data.get("app_metadata") or {},
@@ -115,6 +146,8 @@ async def get_current_user(authorization: str | None = Header(default=None)) -> 
         identities=identities,
         access_token=access_token,
     )
+    _cache_user(access_token, user)
+    return user
 
 
 def require_admin(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:  # noqa: B008
@@ -161,4 +194,3 @@ def identity_display_name(user: CurrentUser) -> str:
             if n:
                 return n
     return ""
-

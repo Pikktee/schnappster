@@ -9,6 +9,8 @@ import random
 
 from curl_cffi.requests import AsyncSession as CffiAsyncSession
 
+from app.core.config import config
+
 
 def _int_env(name: str, default: int) -> int:
     val = os.environ.get(name)
@@ -36,6 +38,7 @@ MAX_CONCURRENT = _int_env("SCRAPE_MAX_CONCURRENT", 6)
 # Min./max. Pause zwischen Anfragen in Sekunden (env: SCRAPE_DELAY_MIN, SCRAPE_DELAY_MAX)
 DELAY_MIN = _float_env("SCRAPE_DELAY_MIN", 0.25)
 DELAY_MAX = _float_env("SCRAPE_DELAY_MAX", 1.0)
+REQUEST_TIMEOUT = config.scrape_request_timeout
 
 
 # ---------------------------------------------------------------------------
@@ -79,7 +82,7 @@ async def _fetch_pages(urls: list[str]) -> list[str]:
         async def fetch_one(index: int, url: str) -> None:
             async with semaphore:
                 try:
-                    response = await session.get(url)
+                    response = await session.get(url, timeout=REQUEST_TIMEOUT)
                     results[index] = response.text
                 except Exception:
                     results[index] = ""
@@ -98,7 +101,7 @@ async def _fetch_page_with_status(url: str) -> tuple[int, str]:
     """Lädt eine URL; gibt (status_code, body) zurück; (0, '') bei Verbindungsfehler."""
     async with CffiAsyncSession(impersonate="chrome") as session:
         try:
-            response = await session.get(url)
+            response = await session.get(url, timeout=REQUEST_TIMEOUT)
             return response.status_code, response.text
         except Exception:
             return 0, ""
@@ -114,7 +117,7 @@ async def _fetch_binary(urls: list[str]) -> list[bytes]:
         async def fetch_one(index: int, url: str) -> None:
             async with semaphore:
                 try:
-                    response = await session.get(url)
+                    response = await session.get(url, timeout=REQUEST_TIMEOUT)
                     results[index] = response.content
                 except Exception:
                     results[index] = b""
