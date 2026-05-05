@@ -409,7 +409,29 @@ class AIService:
         images: list[dict] | None = None,
         max_tokens: int = 1000,
     ) -> str | None:
-        """Calls an OpenAI-compatible model and expects JSON-only text."""
+        """Calls an OpenAI-compatible model and expects JSON-only text.
+
+        If the chosen model fails (e.g. misconfigured cheap model), retries once with the
+        configured main model so a broken cheap-model env var cannot stall the queue.
+        """
+        try:
+            return self._chat_json(prompt, model, images, max_tokens)
+        except Exception as exc:
+            if model == self.model:
+                raise
+            logger.warning(
+                "Model %s failed (%s); falling back to main model %s", model, exc, self.model
+            )
+            return self._chat_json(prompt, self.model, images, max_tokens)
+
+    def _chat_json(
+        self,
+        prompt: str,
+        model: str,
+        images: list[dict] | None,
+        max_tokens: int,
+    ) -> str | None:
+        """Single chat completion call, no fallback."""
         content: str | list[dict]
         if images:
             multimodal_content: list[dict] = [{"type": "text", "text": prompt}]

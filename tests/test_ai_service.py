@@ -146,6 +146,41 @@ def test_build_comparison_candidates_respects_config_limit(session, sample_adsea
     assert candidates[0].source == "same_search"
 
 
+def test_complete_json_falls_back_to_main_when_cheap_model_fails():
+    """A broken cheap model must not stall the analyzer queue."""
+    ai_service = AIService.__new__(AIService)
+    ai_service.model = "main-model"
+    ai_service.cheap_model = "broken-cheap-model"
+
+    calls: list[str] = []
+
+    def fake_chat_json(prompt, model, images, max_tokens):
+        calls.append(model)
+        if model == "broken-cheap-model":
+            raise RuntimeError("model not found")
+        return '{"ok": true}'
+
+    ai_service._chat_json = fake_chat_json  # type: ignore[method-assign]
+    result = ai_service._complete_json("prompt", "broken-cheap-model")
+
+    assert result == '{"ok": true}'
+    assert calls == ["broken-cheap-model", "main-model"]
+
+
+def test_complete_json_propagates_main_model_failure():
+    """If the main model itself fails the error must surface for the ErrorLog."""
+    ai_service = AIService.__new__(AIService)
+    ai_service.model = "main-model"
+    ai_service.cheap_model = "main-model"
+
+    def fake_chat_json(prompt, model, images, max_tokens):
+        raise RuntimeError("upstream down")
+
+    ai_service._chat_json = fake_chat_json  # type: ignore[method-assign]
+    with pytest.raises(RuntimeError, match="upstream down"):
+        ai_service._complete_json("prompt", "main-model")
+
+
 def test_apply_result_to_ad_persists_evidence(sample_ads):
     """Persisted ad fields keep the simple score plus explainable evidence."""
     ai_service = AIService.__new__(AIService)

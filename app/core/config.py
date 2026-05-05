@@ -25,8 +25,8 @@ class Config(BaseSettings):
     cors_allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     cors_allowed_origin_regex: str = ""
     openai_api_key: str = ""
-    openai_model: str = "openai/gpt-5.4-mini"
-    openai_cheap_model: str = "openai/gpt-5.4-nano"
+    openai_model: str = "google/gemini-2.0-flash-001"
+    openai_cheap_model: str = ""
     openai_base_url: str = "https://openrouter.ai/api/v1"
     telegram_bot_token: str = ""
     db_pool_size: int = 5
