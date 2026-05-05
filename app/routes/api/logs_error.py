@@ -1,6 +1,7 @@
 """API-Routen für Fehlerlogs."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import delete
 from sqlmodel import col, select
 
 from app.core.auth import CurrentUser, require_admin
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/errorlogs", tags=["ErrorLogs"])
 def list_errorlogs(
     session: UserDbSession,
     adsearch_id: int | None = None,
-    limit: int = 100,
+    limit: int = Query(default=100, ge=1, le=500),
     _: CurrentUser = Depends(require_admin),  # noqa: B008
 ):
     """Gibt Fehlerlogs zurück, optional nach adsearch_id gefiltert, neueste zuerst."""
@@ -35,6 +36,5 @@ def clear_errorlogs(
     _: CurrentUser = Depends(require_admin),  # noqa: B008
 ):
     """Löscht alle Fehlerlogs."""
-    for log in session.exec(select(ErrorLog)).all():
-        session.delete(log)
+    session.execute(delete(ErrorLog))
     session.commit()

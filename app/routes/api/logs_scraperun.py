@@ -1,6 +1,7 @@
 """API-Routen für Scrape-Läufe."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import delete
 from sqlmodel import col, select
 
 from app.core.auth import CurrentUser, get_current_user, require_admin
@@ -19,7 +20,7 @@ def list_scraperuns(
     session: UserDbSession,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
     adsearch_id: int | None = None,
-    limit: int = 50,
+    limit: int = Query(default=50, ge=1, le=500),
 ):
     """Gibt Scrape-Läufe zurück, optional nach adsearch_id gefiltert, nach started_at absteigend.
 
@@ -49,6 +50,5 @@ def clear_scraperuns(
     _: CurrentUser = Depends(require_admin),  # noqa: B008
 ):
     """Löscht alle Scrape-Läufe."""
-    for run in session.exec(select(ScrapeRun)).all():
-        session.delete(run)
+    session.execute(delete(ScrapeRun))
     session.commit()

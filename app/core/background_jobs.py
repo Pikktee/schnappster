@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from apscheduler.schedulers.background import (  # pyright: ignore[reportMissingImports]
     BackgroundScheduler,
 )
-from sqlalchemy import func
+from sqlalchemy import delete, func
 from sqlmodel import Session, select
 
 from app.core.db import db_engine
@@ -175,16 +175,14 @@ class BackgroundJobs:
                 return
 
             cutoff = datetime.now(UTC) - timedelta(days=days)
-            old_ads = session.exec(select(Ad).where(Ad.first_seen_at < cutoff)).all()
-
-            if not old_ads:
+            result = session.execute(delete(Ad).where(Ad.first_seen_at < cutoff))
+            deleted = result.rowcount or 0
+            if deleted <= 0:
                 logger.debug(f"Cleanup: no ads older than {days} days")
                 return
 
-            for ad in old_ads:
-                session.delete(ad)
             session.commit()
-            logger.info(f"Cleanup: deleted {len(old_ads)} ad(s) older than {days} days")
+            logger.info(f"Cleanup: deleted {deleted} ad(s) older than {days} days")
 
 
 # Modul-Level-Instanz → de facto Singleton

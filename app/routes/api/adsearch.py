@@ -1,11 +1,12 @@
 """API-Routen für Suchaufträge (Ad Searches)."""
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import delete
 from sqlmodel import select
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.background_jobs import BackgroundJobs, get_background_jobs
-from app.core.db import UserDbSession
+from app.core.db import UserDbSession, set_user_db_claims
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearchUpdate
 from app.models.logs_aianalysis import AIAnalysisLog
@@ -58,7 +59,9 @@ def create_adsearch(
     URL wird per Abruf validiert, Name bei leerem Input aus dem Seitentitel uebernommen.
     """
     name = data.name.strip()
+    session.rollback()
     title_from_page = _validate_search_url_reachable(data.url)
+    set_user_db_claims(session, current_user)
 
     if not name:
         if not title_from_page:
@@ -105,9 +108,11 @@ def update_adsearch(
         raise HTTPException(status_code=404, detail="AdSearch not found")
 
     update_data = data.model_dump(exclude_unset=True)
+    current_url = adsearch.url
 
     # Bei geänderter URL Erreichbarkeit prüfen (und ggf. Seitentitel für leeren Namen nutzen).
     if "url" in update_data:
+        session.rollback()
         _validate_search_url_reachable(update_data["url"])
 
     # Wenn der Client den Namen leert, nutzen wir den Seitentitel der aktuellen URL.
@@ -117,7 +122,8 @@ def update_adsearch(
         and isinstance(update_data["name"], str)
         and not update_data["name"].strip()
     ):
-        title_from_page = _validate_search_url_reachable(adsearch.url)
+        session.rollback()
+        title_from_page = _validate_search_url_reachable(current_url)
 
     if (
         "name" in update_data
@@ -133,6 +139,16 @@ def update_adsearch(
                 ),
             )
         update_data["name"] = title_from_page
+
+    set_user_db_claims(session, current_user)
+    adsearch = session.exec(
+        select(AdSearch).where(
+            AdSearch.id == adsearch_id,
+            AdSearch.owner_id == current_user.user_id,
+        )
+    ).first()
+    if not adsearch:
+        raise HTTPException(status_code=404, detail="AdSearch not found")
 
     for key, value in update_data.items():
         setattr(adsearch, key, value)
@@ -160,25 +176,16 @@ def delete_adsearch(
     if not adsearch:
         raise HTTPException(status_code=404, detail="AdSearch not found")
 
-    # Zugehörige Scrape-Läufe löschen
-    for run in session.exec(select(ScrapeRun).where(ScrapeRun.adsearch_id == adsearch_id)).all():
-        session.delete(run)
-
-    # Zugehörige KI-Analyse-Logs löschen
-    for log in session.exec(
-        select(AIAnalysisLog).where(AIAnalysisLog.adsearch_id == adsearch_id)
-    ).all():
-        session.delete(log)
-
-    # Zugehörige Anzeigen löschen
-    for ad in session.exec(select(Ad).where(Ad.adsearch_id == adsearch_id)).all():
-        session.delete(ad)
-
-    # Zugehörige Fehlerlogs löschen
-    for log in session.exec(select(ErrorLog).where(ErrorLog.adsearch_id == adsearch_id)).all():
-        session.delete(log)
-
-    session.delete(adsearch)
+    session.execute(delete(AIAnalysisLog).where(AIAnalysisLog.adsearch_id == adsearch_id))
+    session.execute(delete(ErrorLog).where(ErrorLog.adsearch_id == adsearch_id))
+    session.execute(delete(ScrapeRun).where(ScrapeRun.adsearch_id == adsearch_id))
+    session.execute(delete(Ad).where(Ad.adsearch_id == adsearch_id))
+    session.execute(
+        delete(AdSearch).where(
+            AdSearch.id == adsearch_id,
+            AdSearch.owner_id == current_user.user_id,
+        )
+    )
     session.commit()
 
 
@@ -207,4 +214,3 @@ def _validate_search_url_reachable(url: str) -> str | None:
             detail=f"Die Seite konnte nicht abgerufen werden (HTTP {status}). Bitte URL prüfen.",
         )
     return parse_search_title(html)
-

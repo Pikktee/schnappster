@@ -6,7 +6,8 @@ import re
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import SQLModel, select
+from sqlalchemy import delete
+from sqlmodel import Session, SQLModel, select
 
 from app.core.auth import CurrentUser, get_current_user, identity_display_name
 from app.core.config import config
@@ -252,23 +253,7 @@ def delete_me(
             detail="Primary admin account cannot be deleted",
         )
 
-    user_settings = session.get(UserSettings, current_user.user_id)
-    if not user_settings:
-        user_settings = UserSettings(
-            user_id=current_user.user_id,
-            display_name=identity_display_name(current_user),
-        )
-        session.add(user_settings)
-        session.commit()
-        session.refresh(user_settings)
-
-    ad_searches = session.exec(
-        select(AdSearch).where(AdSearch.owner_id == current_user.user_id)
-    ).all()
-    for ad_search in ad_searches:
-        session.delete(ad_search)
-    if user_settings:
-        session.delete(user_settings)
+    _delete_user_app_data(session, current_user.user_id)
     session.commit()
 
     try:
@@ -287,3 +272,22 @@ def delete_me(
         session.add(pending)
         session.commit()
         raise
+
+
+def _delete_user_app_data(session: Session, user_id: str) -> None:
+    """Entfernt alle App-Daten eines Users per SQL-Bulk-Delete statt ORM-Zeilenloops."""
+    from app.models.ad import Ad
+    from app.models.logs_aianalysis import AIAnalysisLog
+    from app.models.logs_error import ErrorLog
+    from app.models.logs_scraperun import ScrapeRun
+
+    user_search_ids = select(AdSearch.id).where(AdSearch.owner_id == user_id)
+    user_ad_ids = select(Ad.id).where(Ad.owner_id == user_id)
+
+    session.execute(delete(AIAnalysisLog).where(AIAnalysisLog.adsearch_id.in_(user_search_ids)))
+    session.execute(delete(AIAnalysisLog).where(AIAnalysisLog.ad_id.in_(user_ad_ids)))
+    session.execute(delete(ErrorLog).where(ErrorLog.adsearch_id.in_(user_search_ids)))
+    session.execute(delete(ScrapeRun).where(ScrapeRun.adsearch_id.in_(user_search_ids)))
+    session.execute(delete(Ad).where(Ad.owner_id == user_id))
+    session.execute(delete(AdSearch).where(AdSearch.owner_id == user_id))
+    session.execute(delete(UserSettings).where(UserSettings.user_id == user_id))

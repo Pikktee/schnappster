@@ -47,6 +47,43 @@ def _ensure_query_indexes_postgres(session: Session) -> None:
     """Legt Indexe für die häufigsten Dashboard-Queries auch in bestehenden DBs an."""
     statements = (
         """
+        CREATE INDEX IF NOT EXISTS idx_ads_first_seen_at
+        ON ads(first_seen_at)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_ads_adsearch_price
+        ON ads(adsearch_id, price)
+        WHERE price IS NOT NULL
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_scrape_runs_adsearch_id
+        ON scrape_runs(adsearch_id)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_scrape_runs_started_at
+        ON scrape_runs(started_at DESC)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_error_logs_adsearch_id
+        ON error_logs(adsearch_id)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_error_logs_created_at
+        ON error_logs(created_at DESC)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_ai_analysis_logs_adsearch_id
+        ON ai_analysis_logs(adsearch_id)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_ai_analysis_logs_ad_id
+        ON ai_analysis_logs(ad_id)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_ai_analysis_logs_created_at
+        ON ai_analysis_logs(created_at DESC)
+        """,
+        """
         CREATE INDEX IF NOT EXISTS idx_ads_owner_analyzed_seen
         ON ads(owner_id, is_analyzed, first_seen_at DESC, id DESC)
         """,
@@ -69,24 +106,43 @@ def get_db_session():
         yield session
 
 
+def set_user_db_claims(session: Session, current_user: CurrentUser) -> None:
+    """Setzt JWT-Claims für die aktuelle DB-Verbindung.
+
+    Session-weite Claims ueberstehen Commit/Rollback innerhalb einer Route; die Dependency
+    setzt sie vor Rueckgabe der Pool-Verbindung wieder auf ein leeres JSON-Objekt.
+    """
+    claims = json.dumps(
+        {
+            "sub": current_user.user_id,
+            "role": "authenticated",
+            "app_metadata": current_user.app_metadata,
+        },
+        default=str,
+        allow_nan=False,
+    )
+    session.execute(
+        text("SELECT set_config('request.jwt.claims', :claims, false)"),
+        {"claims": claims},
+    )
+
+
+def clear_user_db_claims(session: Session) -> None:
+    """Entfernt User-Claims, bevor eine Verbindung in den Pool zurückgeht."""
+    session.execute(text("SELECT set_config('request.jwt.claims', '{}', false)"))
+    session.commit()
+
+
 def get_user_db_session(current_user: CurrentUser = Depends(get_current_user)):  # noqa: B008
     """DB-Session im User-Kontext (JWT-Claims fuer Postgres-Sessions / RLS)."""
     with Session(db_engine) as session:
         # JWT-`sub` fuer RLS; kein set_config('role') (entspricht SET ROLE, oft fehlerhaft).
-        claims = json.dumps(
-            {
-                "sub": current_user.user_id,
-                "role": "authenticated",
-                "app_metadata": current_user.app_metadata,
-            },
-            default=str,
-            allow_nan=False,
-        )
-        session.execute(
-            text("SELECT set_config('request.jwt.claims', :claims, true)"),
-            {"claims": claims},
-        )
-        yield session
+        set_user_db_claims(session, current_user)
+        try:
+            yield session
+        finally:
+            session.rollback()
+            clear_user_db_claims(session)
 
 
 # Abhängigkeit für FastAPI

@@ -364,17 +364,15 @@ class AIService:
             .where(Ad.adsearch_id == ad.adsearch_id)
             .where(Ad.id != ad.id)
             .where(Ad.price.is_not(None))  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+            .order_by(Ad.price)
+            .limit(MAX_COMPARISON_ADS)
         ).all()
 
         if not other_ads:
             return None
 
-        # Nach Preis sortieren für stabile Reihenfolge; begrenzen für kürzere Prompts
-        sorted_ads = sorted(other_ads, key=lambda a: a.price or 0)
-        limited = sorted_ads[:MAX_COMPARISON_ADS]
-
         entries = []
-        for a in limited:
+        for a in other_ads:
             title = (a.title or "").strip()
             if len(title) > COMPARISON_TITLE_MAX_LEN:
                 title = title[: COMPARISON_TITLE_MAX_LEN - 1] + "…"

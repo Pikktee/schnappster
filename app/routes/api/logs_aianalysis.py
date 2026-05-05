@@ -1,6 +1,7 @@
 """API-Routen für KI-Analyse-Logs."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import delete
 from sqlmodel import col, select
 
 from app.core.auth import CurrentUser, require_admin
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/aianalysislogs", tags=["AIAnalysisLogs"])
 def list_aianalysislogs(
     session: UserDbSession,
     adsearch_id: int | None = None,
-    limit: int = 100,
+    limit: int = Query(default=100, ge=1, le=500),
     _: CurrentUser = Depends(require_admin),  # noqa: B008
 ):
     """Gibt KI-Analyse-Logs zurück (nur erfolgreiche Analysen), neueste zuerst."""
@@ -35,6 +36,5 @@ def clear_aianalysislogs(
     _: CurrentUser = Depends(require_admin),  # noqa: B008
 ):
     """Löscht alle KI-Analyse-Logs."""
-    for log in session.exec(select(AIAnalysisLog)).all():
-        session.delete(log)
+    session.execute(delete(AIAnalysisLog))
     session.commit()

@@ -93,6 +93,17 @@ CREATE TABLE IF NOT EXISTS ai_analysis_logs (
 CREATE INDEX IF NOT EXISTS idx_ad_searches_owner_id ON ad_searches(owner_id);
 CREATE INDEX IF NOT EXISTS idx_ads_owner_id ON ads(owner_id);
 CREATE INDEX IF NOT EXISTS idx_ads_adsearch_id ON ads(adsearch_id);
+CREATE INDEX IF NOT EXISTS idx_ads_first_seen_at ON ads(first_seen_at);
+CREATE INDEX IF NOT EXISTS idx_ads_adsearch_price
+    ON ads(adsearch_id, price)
+    WHERE price IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_scrape_runs_adsearch_id ON scrape_runs(adsearch_id);
+CREATE INDEX IF NOT EXISTS idx_scrape_runs_started_at ON scrape_runs(started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_error_logs_adsearch_id ON error_logs(adsearch_id);
+CREATE INDEX IF NOT EXISTS idx_error_logs_created_at ON error_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_analysis_logs_adsearch_id ON ai_analysis_logs(adsearch_id);
+CREATE INDEX IF NOT EXISTS idx_ai_analysis_logs_ad_id ON ai_analysis_logs(ad_id);
+CREATE INDEX IF NOT EXISTS idx_ai_analysis_logs_created_at ON ai_analysis_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ads_owner_analyzed_seen
     ON ads(owner_id, is_analyzed, first_seen_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_ads_owner_search_analyzed_seen
