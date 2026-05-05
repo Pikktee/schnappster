@@ -38,6 +38,11 @@ export interface Ad {
   bargain_score: number | null
   ai_summary: string | null
   ai_reasoning: string | null
+  estimated_market_price: number | null
+  market_price_confidence: number | null
+  price_delta_percent: number | null
+  comparison_count: number | null
+  comparison_summary: string | null
   is_analyzed: boolean
   first_seen_at: string
 }
@@ -71,6 +76,11 @@ export interface AIAnalysisLog {
   score: number
   ai_summary: string | null
   ai_reasoning: string | null
+  estimated_market_price: number | null
+  market_price_confidence: number | null
+  price_delta_percent: number | null
+  comparison_count: number | null
+  comparison_summary: string | null
 }
 
 export interface PaginatedAds {

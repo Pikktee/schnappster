@@ -29,6 +29,7 @@ def init_db() -> None:
     SQLModel.metadata.create_all(db_engine)
     with Session(db_engine) as session:
         _drop_obsolete_user_settings_columns_postgres(session)
+        _ensure_ai_deal_columns_postgres(session)
         _ensure_query_indexes_postgres(session)
         session.commit()
 
@@ -41,6 +42,26 @@ def _drop_obsolete_user_settings_columns_postgres(session: Session) -> None:
     """Entfernt Legacy-Spalten, die nicht mehr im SQLModel stehen (NOT NULL blockierte INSERTs)."""
     for column_name in _OBSOLETE_USER_SETTINGS_COLUMNS:
         session.execute(text(f"ALTER TABLE user_settings DROP COLUMN IF EXISTS {column_name}"))
+
+
+_AI_DEAL_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("estimated_market_price", "DOUBLE PRECISION"),
+    ("market_price_confidence", "DOUBLE PRECISION"),
+    ("price_delta_percent", "DOUBLE PRECISION"),
+    ("comparison_count", "INTEGER"),
+    ("comparison_summary", "TEXT"),
+    ("deal_evidence", "JSONB"),
+)
+
+
+def _ensure_ai_deal_columns_postgres(session: Session) -> None:
+    """Adds evidence-based analysis columns to existing databases."""
+    for table_name in ("ads", "ai_analysis_logs"):
+        for column_name, column_type in _AI_DEAL_COLUMNS:
+            statement = (
+                f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column_name} {column_type}"
+            )
+            session.execute(text(statement))
 
 
 def _ensure_query_indexes_postgres(session: Session) -> None:

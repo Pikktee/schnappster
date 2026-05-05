@@ -19,6 +19,21 @@ from app.models.logs_aianalysis import AIAnalysisLog
 from app.models.logs_error import ErrorLog
 from app.prompts import render_system_prompt, render_user_prompt
 from app.scraper.httpclient import fetch_binary
+from app.services.deal_analysis import (
+    ComparisonCandidate,
+    ComparisonJudgement,
+    DealAnalysisResult,
+    FinalDealResult,
+    MarketEstimate,
+    ProductExtraction,
+    build_comparison_prompt,
+    build_final_prompt,
+    build_market_estimate,
+    build_product_prompt,
+    fallback_comparison_judgements,
+    fallback_product_extraction,
+    should_use_strong_model,
+)
 from app.services.settings import SettingsService
 from app.services.telegram import TelegramService
 
@@ -40,6 +55,7 @@ class AIService:
             )
 
         self.model = app_config.openai_model
+        self.cheap_model = app_config.openai_cheap_model or app_config.openai_model
         self.client = OpenAI(
             base_url=app_config.openai_base_url,
             api_key=app_config.openai_api_key,
@@ -147,33 +163,17 @@ class AIService:
         """KI-Analyse für eine Anzeige; Score/Zusammenfassung/Begründung; Telegram ab Score 8."""
         adsearch = self.session.get(AdSearch, ad.adsearch_id)
         context = self._build_user_context(ad, adsearch)
-        user_content = render_user_prompt(context)
-        self._release_session_connection()
-        images = self._download_images(ad)
+        result = self._run_deal_pipeline(ad, context)
 
-        messages = self._build_messages(user_content, images)
-
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,  # pyright: ignore[reportArgumentType]
-            max_completion_tokens=1000,
-            temperature=0.3,
-        )
-
-        content = response.choices[0].message.content
-        result = self._parse_response(content)
-
-        ad.bargain_score = result["score"]
-        ad.ai_summary = result["summary"]
-        ad.ai_reasoning = result["reasoning"]
+        final = result.final
+        ad.bargain_score = final.score
+        ad.ai_summary = final.summary
+        ad.ai_reasoning = final.reasoning
         ad.is_analyzed = True
         db_ad = self.session.get(Ad, ad.id)
         if not db_ad:
             raise ValueError(f"Ad {ad.id} not found while saving analysis result")
-        db_ad.bargain_score = result["score"]
-        db_ad.ai_summary = result["summary"]
-        db_ad.ai_reasoning = result["reasoning"]
-        db_ad.is_analyzed = True
+        self._apply_result_to_ad(db_ad, result)
         self.session.commit()
 
         if ad.id is not None and ad.adsearch_id is not None:
@@ -183,16 +183,128 @@ class AIService:
                     adsearch_id=ad.adsearch_id,
                     prompt_text=prompt_text_for_log,
                     ad_title=ad.title,
-                    score=result["score"],
-                    ai_summary=result["summary"],
-                    ai_reasoning=result["reasoning"],
+                    score=final.score,
+                    ai_summary=final.summary,
+                    ai_reasoning=final.reasoning,
+                    estimated_market_price=final.estimated_market_price,
+                    market_price_confidence=final.market_price_confidence,
+                    price_delta_percent=final.price_delta_percent,
+                    comparison_count=result.market.comparison_count,
+                    comparison_summary=final.comparison_summary,
+                    deal_evidence=result.evidence_json(),
                 )
             )
             self.session.commit()
 
-        logger.info(f"Analyzed ad {ad.id} '{ad.title}': score={result['score']}")
+        logger.info("Analyzed ad %s '%s': score=%s", ad.id, ad.title, final.score)
 
-        self._notify_if_enabled(ad, result["score"])
+        self._notify_if_enabled(ad, final.score)
+
+    def _run_deal_pipeline(self, ad: Ad, context: dict) -> DealAnalysisResult:
+        """Runs cheap extraction, comparison judging and final scoring."""
+        self._release_session_connection()
+        product = self._extract_product(ad, context)
+        candidates = self._build_comparison_candidates(ad)
+        self._release_session_connection()
+        judgements = self._judge_comparisons(context, product, candidates)
+        market = build_market_estimate(ad.price, product, candidates, judgements)
+        use_strong = should_use_strong_model(
+            market,
+            app_config.ai_strong_model_min_delta_percent,
+            app_config.ai_strong_model_min_savings_eur,
+            ad.price,
+        )
+        model = self.model if use_strong else self.cheap_model
+        final = self._score_deal(ad, context, product, market, judgements, model, use_strong)
+        return DealAnalysisResult(
+            final=final,
+            product=product,
+            comparisons=candidates,
+            judgements=judgements,
+            market=market,
+            model_used=model,
+            used_strong_model=use_strong,
+        )
+
+    def _extract_product(self, ad: Ad, context: dict) -> ProductExtraction:
+        """Low-cost product extraction with deterministic fallback."""
+        try:
+            prompt = build_product_prompt(context)
+            content = self._complete_json(prompt, self.cheap_model, max_tokens=500)
+            return ProductExtraction.model_validate(self._parse_json_content(content))
+        except Exception as exc:  # noqa: BLE001 — fallback keeps the queue moving.
+            logger.warning("Product extraction fallback for ad %s: %s", ad.id, exc)
+            return fallback_product_extraction(ad.title)
+
+    def _judge_comparisons(
+        self,
+        context: dict,
+        product: ProductExtraction,
+        candidates: list[ComparisonCandidate],
+    ) -> list[ComparisonJudgement]:
+        """Cheap comparison relevance judgement, bounded by candidate count."""
+        if not candidates:
+            return []
+        try:
+            prompt = build_comparison_prompt(context, product, candidates)
+            content = self._complete_json(prompt, self.cheap_model, max_tokens=1200)
+            payload = self._parse_json_content(content)
+            if not isinstance(payload, list):
+                raise TypeError("Comparison judgement response must be a JSON array")
+            return [ComparisonJudgement.model_validate(item) for item in payload]
+        except Exception as exc:  # noqa: BLE001 — weak same-search evidence is still useful.
+            logger.warning("Comparison judgement fallback: %s", exc)
+            return fallback_comparison_judgements(candidates)
+
+    def _score_deal(
+        self,
+        ad: Ad,
+        context: dict,
+        product: ProductExtraction,
+        market: MarketEstimate,
+        judgements: list[ComparisonJudgement],
+        model: str,
+        use_strong: bool,
+    ) -> FinalDealResult:
+        """Final JSON score, optionally with images for the expensive candidate pass."""
+        prompt = build_final_prompt(context, product, market, judgements)
+        images = self._download_images(ad) if use_strong and app_config.ai_include_images else []
+        content = self._complete_json(prompt, model, images=images, max_tokens=1000)
+        final = FinalDealResult.model_validate(self._parse_json_content(content))
+        return self._fill_final_defaults(final, market)
+
+    def _fill_final_defaults(
+        self, final: FinalDealResult, market: MarketEstimate
+    ) -> FinalDealResult:
+        """Ensure DB columns are filled even if a model omits optional evidence fields."""
+        return final.model_copy(
+            update={
+                "estimated_market_price": final.estimated_market_price
+                if final.estimated_market_price is not None
+                else market.estimated_market_price,
+                "market_price_confidence": final.market_price_confidence
+                if final.market_price_confidence
+                else market.market_price_confidence,
+                "price_delta_percent": final.price_delta_percent
+                if final.price_delta_percent is not None
+                else market.price_delta_percent,
+                "comparison_summary": final.comparison_summary or market.comparison_summary,
+            }
+        )
+
+    def _apply_result_to_ad(self, ad: Ad, result: DealAnalysisResult) -> None:
+        """Persist final score and explainable evidence on the ad row."""
+        final = result.final
+        ad.bargain_score = final.score
+        ad.ai_summary = final.summary
+        ad.ai_reasoning = final.reasoning
+        ad.estimated_market_price = final.estimated_market_price
+        ad.market_price_confidence = final.market_price_confidence
+        ad.price_delta_percent = final.price_delta_percent
+        ad.comparison_count = result.market.comparison_count
+        ad.comparison_summary = final.comparison_summary
+        ad.deal_evidence = result.evidence_json()
+        ad.is_analyzed = True
 
     def _notify_if_enabled(self, ad: Ad, score: float) -> None:
         """Versendet Telegram-Benachrichtigungen gemaess UserSettings."""
@@ -290,6 +402,33 @@ class AIService:
             {"role": "user", "content": content},
         ]
 
+    def _complete_json(
+        self,
+        prompt: str,
+        model: str,
+        images: list[dict] | None = None,
+        max_tokens: int = 1000,
+    ) -> str | None:
+        """Calls an OpenAI-compatible model and expects JSON-only text."""
+        content: str | list[dict]
+        if images:
+            multimodal_content: list[dict] = [{"type": "text", "text": prompt}]
+            multimodal_content.extend(images)
+            content = multimodal_content
+        else:
+            content = prompt
+
+        response = self.client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "Antworte ausschliesslich mit validem JSON."},
+                {"role": "user", "content": content},
+            ],  # pyright: ignore[reportArgumentType]
+            max_completion_tokens=max_tokens,
+            temperature=0.1,
+        )
+        return response.choices[0].message.content
+
     @staticmethod
     def _sanitize_json_control_chars(s: str) -> str:
         """Ersetzt rohe Steuerzeichen (z. B. Zeilenumbruch) in JSON-Strings durch \\n/\\r/\\t,
@@ -333,19 +472,9 @@ class AIService:
     @staticmethod
     def _parse_response(content: str | None) -> dict:
         """JSON aus der Modellantwort → score, summary, reasoning; wirft bei Ungültigkeit."""
-        if not content:
-            raise ValueError("Leere Antwort von der KI")
-
-        text = content.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-            text = text.rsplit("```", 1)[0]
-
-        # Einige APIs (z. B. Dashscope) liefern JSON mit echten Zeilenumbrüchen in Strings;
-        # json.loads erlaubt nur escaped \n. Vor dem Parsen innerhalb von Strings escapen.
-        text = AIService._sanitize_json_control_chars(text)
-
-        result = json.loads(text)
+        result = AIService._parse_json_content(content)
+        if not isinstance(result, dict):
+            raise TypeError("KI-Antwort muss ein JSON-Objekt sein")
 
         score = float(result["score"])
         if not 0 <= score <= 10:
@@ -356,6 +485,20 @@ class AIService:
             "summary": str(result["summary"]),
             "reasoning": str(result["reasoning"]),
         }
+
+    @staticmethod
+    def _parse_json_content(content: str | None) -> object:
+        """Parse JSON content from plain text or Markdown fenced model output."""
+        if not content:
+            raise ValueError("Leere Antwort von der KI")
+
+        text = content.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+            text = text.rsplit("```", 1)[0]
+
+        text = AIService._sanitize_json_control_chars(text)
+        return json.loads(text)
 
     def _build_price_context(self, ad: Ad) -> dict | None:
         """Vergleichsdaten aus anderen Anzeigen derselben Suche (Titel, Zustand) oder None."""
@@ -397,3 +540,33 @@ class AIService:
             "average": int(round(avg_price)),
             "median": int(round(median_price)),
         }
+
+    def _build_comparison_candidates(self, ad: Ad) -> list[ComparisonCandidate]:
+        """Build bounded same-search comparison candidates for the evidence pipeline."""
+        other_ads = self.session.exec(
+            select(Ad)
+            .where(Ad.adsearch_id == ad.adsearch_id)
+            .where(Ad.id != ad.id)
+            .where(Ad.price.is_not(None))  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+            .order_by(Ad.price)
+            .limit(app_config.ai_max_comparison_candidates)
+        ).all()
+
+        return [
+            ComparisonCandidate(
+                id=other_ad.id,
+                title=self._short_title(other_ad.title),
+                price=float(other_ad.price or 0),
+                condition=(other_ad.condition or "").strip() or None,
+            )
+            for other_ad in other_ads
+            if other_ad.price and other_ad.price > 0
+        ]
+
+    @staticmethod
+    def _short_title(title: str) -> str:
+        """Shortens comparison titles for prompts and evidence."""
+        text = (title or "").strip()
+        if len(text) <= COMPARISON_TITLE_MAX_LEN:
+            return text
+        return text[: COMPARISON_TITLE_MAX_LEN - 1] + "…"

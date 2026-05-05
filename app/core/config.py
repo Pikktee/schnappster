@@ -25,7 +25,8 @@ class Config(BaseSettings):
     cors_allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     cors_allowed_origin_regex: str = ""
     openai_api_key: str = ""
-    openai_model: str = "google/gemini-2.0-flash-001"
+    openai_model: str = "openai/gpt-5.4-mini"
+    openai_cheap_model: str = "openai/gpt-5.4-nano"
     openai_base_url: str = "https://openrouter.ai/api/v1"
     telegram_bot_token: str = ""
     db_pool_size: int = 5
@@ -37,6 +38,10 @@ class Config(BaseSettings):
     supabase_auth_cache_ttl: float = 60.0
     scrape_request_timeout: float = 20.0
     ai_request_timeout: float = 45.0
+    ai_max_comparison_candidates: int = Field(default=12, ge=0, le=30)
+    ai_strong_model_min_delta_percent: float = Field(default=18.0, ge=0, le=100)
+    ai_strong_model_min_savings_eur: float = Field(default=75.0, ge=0)
+    ai_include_images: bool = False
 
     # Pydantic-Einstellungen
     model_config = {

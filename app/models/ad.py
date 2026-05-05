@@ -4,6 +4,8 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from pydantic import computed_field
+from sqlalchemy import Column
+from sqlalchemy.types import JSON
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:  # Linter-Fehler vermeiden
@@ -42,6 +44,12 @@ class Ad(SQLModel, table=True):
     bargain_score: float | None = Field(default=None, ge=0, le=10)
     ai_summary: str | None = None
     ai_reasoning: str | None = None
+    estimated_market_price: float | None = None
+    market_price_confidence: float | None = Field(default=None, ge=0, le=1)
+    price_delta_percent: float | None = None
+    comparison_count: int | None = None
+    comparison_summary: str | None = None
+    deal_evidence: dict[str, object] | None = Field(default=None, sa_column=Column(JSON))
     is_analyzed: bool = False
     first_seen_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -78,6 +86,12 @@ class AdRead(SQLModel):
     bargain_score: float | None
     ai_summary: str | None
     ai_reasoning: str | None
+    estimated_market_price: float | None
+    market_price_confidence: float | None
+    price_delta_percent: float | None
+    comparison_count: int | None
+    comparison_summary: str | None
+    deal_evidence: dict[str, object] | None = Field(default=None, exclude=True)
     is_analyzed: bool
     first_seen_at: datetime
 

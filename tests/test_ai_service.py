@@ -8,6 +8,14 @@ import pytest
 from app.models.ad import Ad
 from app.prompts import render_user_prompt
 from app.services.ai import AIService
+from app.services.deal_analysis import (
+    ComparisonCandidate,
+    ComparisonJudgement,
+    DealAnalysisResult,
+    FinalDealResult,
+    MarketEstimate,
+    ProductExtraction,
+)
 
 # --- Response parsen ---
 
@@ -123,6 +131,61 @@ def test_build_price_context_no_other_ads(session, sample_adsearch):
 
     context = ai_service._build_price_context(ad)
     assert context is None
+
+
+def test_build_comparison_candidates_respects_config_limit(session, sample_adsearch, sample_ads):
+    """Evidence pipeline uses a bounded same-search candidate list."""
+    ai_service = AIService.__new__(AIService)
+    ai_service.session = session
+
+    with patch("app.services.ai.app_config.ai_max_comparison_candidates", 1):
+        candidates = ai_service._build_comparison_candidates(sample_ads[0])
+
+    assert len(candidates) == 1
+    assert candidates[0].price == 15.0
+    assert candidates[0].source == "same_search"
+
+
+def test_apply_result_to_ad_persists_evidence(sample_ads):
+    """Persisted ad fields keep the simple score plus explainable evidence."""
+    ai_service = AIService.__new__(AIService)
+    ad = sample_ads[1]
+    product = ProductExtraction(product_key="rode podmic", is_specific_product=True)
+    comparisons = [ComparisonCandidate(title="Rode PodMic", price=90)]
+    judgements = [ComparisonJudgement(candidate_index=0, comparable=True, adjusted_price=90)]
+    market = MarketEstimate(
+        estimated_market_price=90,
+        market_price_confidence=0.55,
+        price_delta_percent=11.1,
+        comparison_count=1,
+        comparison_summary="Median aus 1 belastbaren Vergleichen: 90 EUR.",
+    )
+    final = FinalDealResult(
+        score=6.5,
+        summary="Etwas unter Marktwert.",
+        reasoning="Der Preis liegt leicht unter einem belastbaren Vergleich.",
+        estimated_market_price=90,
+        market_price_confidence=0.55,
+        price_delta_percent=11.1,
+        comparison_summary=market.comparison_summary,
+    )
+    result = DealAnalysisResult(
+        final=final,
+        product=product,
+        comparisons=comparisons,
+        judgements=judgements,
+        market=market,
+        model_used="cheap-model",
+        used_strong_model=False,
+    )
+
+    ai_service._apply_result_to_ad(ad, result)
+
+    assert ad.bargain_score == 6.5
+    assert ad.estimated_market_price == 90
+    assert ad.market_price_confidence == 0.55
+    assert ad.deal_evidence is not None
+    assert ad.deal_evidence["model_used"] == "cheap-model"
 
 
 # --- Nutzerkontext und gerenderter Text ---

@@ -24,6 +24,7 @@ data/*
 !.vscode/settings.json
 .idea
 .claude
+.codex
 .kilocode
 .kilocodemodes
 .DS_Store

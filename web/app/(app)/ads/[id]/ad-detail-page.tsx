@@ -498,6 +498,43 @@ export function AdDetailPage() {
                         <p className="text-sm text-foreground leading-relaxed">{ad.ai_summary}</p>
                       </div>
                     )}
+                    {(ad.estimated_market_price !== null ||
+                      ad.price_delta_percent !== null ||
+                      ad.market_price_confidence !== null) && (
+                      <div className="grid grid-cols-3 gap-3 border-y py-3">
+                        <div>
+                          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                            Marktwert
+                          </span>
+                          <p className="mt-1 text-sm font-semibold text-foreground">
+                            {ad.estimated_market_price !== null ? formatPrice(ad.estimated_market_price) : "–"}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                            Ersparnis
+                          </span>
+                          <p className="mt-1 text-sm font-semibold text-foreground">
+                            {ad.price_delta_percent !== null ? `${Math.round(ad.price_delta_percent)}%` : "–"}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                            Sicherheit
+                          </span>
+                          <p className="mt-1 text-sm font-semibold text-foreground">
+                            {ad.market_price_confidence !== null
+                              ? `${Math.round(ad.market_price_confidence * 100)}%`
+                              : "–"}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {ad.comparison_summary && (
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        {ad.comparison_summary}
+                      </p>
+                    )}
                     {ad.ai_reasoning && (
                       <div className="space-y-1.5">
                         <button
