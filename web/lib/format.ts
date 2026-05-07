@@ -84,15 +84,27 @@ export function formatScrapeInterval(minutes: number): string {
   return minutes === 1 ? "alle 1 Minute" : `alle ${minutes} Minuten`
 }
 
+export function formatSearchPriceRange(search: {
+  min_price: number | null
+  max_price: number | null
+}): string {
+  if (search.min_price === null && search.max_price === null) return "Alle Preise"
+  if (search.min_price !== null && search.max_price !== null) {
+    return `${formatPrice(search.min_price)} bis ${formatPrice(search.max_price)}`
+  }
+  if (search.min_price !== null) return `ab ${formatPrice(search.min_price)}`
+  return `bis ${formatPrice(search.max_price)}`
+}
+
 export function truncateUrl(url: string, maxLength = 50): string {
   try {
     const parsed = new URL(url)
     const display = parsed.hostname + parsed.pathname
     if (display.length > maxLength) {
-      return display.slice(0, maxLength) + "..."
+      return display.slice(0, maxLength) + "…"
     }
     return display
   } catch {
-    return url.length > maxLength ? url.slice(0, maxLength) + "..." : url
+    return url.length > maxLength ? url.slice(0, maxLength) + "…" : url
   }
 }

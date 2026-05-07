@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, type ReactNode } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import {
   ArrowLeft,
@@ -9,13 +9,14 @@ import {
   Loader2,
   MapPin,
   Clock,
+  ExternalLink as ExternalLinkIcon,
   Tag,
   Euro,
   Star,
   Image as ImageIcon,
+  type LucideIcon,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -45,17 +46,46 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { SearchForm } from "@/components/search-form"
+import { SearchStatusBadge } from "@/components/search-status-badge"
 import { ScoreBadge } from "@/components/score-badge"
 import { ExternalLink } from "@/components/external-link"
 import { EmptyState } from "@/components/empty-state"
 import { fetchSearch, fetchAds, updateSearch, deleteSearch } from "@/lib/api"
 import type { Ad, AdSearch } from "@/lib/types"
-import { formatPrice, formatScrapeInterval, timeAgo, truncateUrl } from "@/lib/format"
+import {
+  formatPrice,
+  formatScrapeInterval,
+  formatSearchPriceRange,
+  timeAgo,
+  truncateUrl,
+} from "@/lib/format"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ContentReveal } from "@/components/content-reveal"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
+import { cn } from "@/lib/utils"
 import { usePageHead } from "../../page-head-context"
+
+interface SearchDetailFieldProps {
+  icon: LucideIcon
+  label: string
+  children: ReactNode
+  className?: string
+}
+
+function SearchDetailField({ icon: Icon, label, children, className }: SearchDetailFieldProps) {
+  return (
+    <div className={cn("rounded-xl border border-border/70 bg-muted/30 p-4", className)}>
+      <div className="mb-2 flex items-center gap-2">
+        <Icon className="size-3.5 text-muted-foreground" aria-hidden />
+        <span className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+          {label}
+        </span>
+      </div>
+      <div className="min-w-0 text-sm font-medium leading-relaxed text-foreground">{children}</div>
+    </div>
+  )
+}
 
 export function SearchDetailPage() {
   const router = useRouter()
@@ -112,18 +142,7 @@ export function SearchDetailPage() {
   useEffect(() => {
     if (search) {
       setTitle(search.name)
-      setTitleSuffix(
-        <Badge
-          variant="secondary"
-          className={
-            search.is_active
-              ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-              : "bg-muted text-muted-foreground"
-          }
-        >
-          {search.is_active ? "Aktiv" : "Inaktiv"}
-        </Badge>
-      )
+      setTitleSuffix(<SearchStatusBadge isActive={search.is_active} />)
     }
     return () => setTitleSuffix(null)
   }, [search, setTitle, setTitleSuffix])
@@ -199,10 +218,10 @@ export function SearchDetailPage() {
               checked={search.is_active}
               onCheckedChange={handleToggleActive}
               disabled={isToggling}
-              className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-600"
+              className="data-[state=checked]:border-primary data-[state=checked]:bg-primary"
             />
             <Label htmlFor="active-toggle" className="text-sm cursor-pointer">
-              {search.is_active ? "Aktiv" : "Inaktiv"}
+              {search.is_active ? "Läuft" : "Pausiert"}
             </Label>
           </div>
           <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)} className="cursor-pointer">
@@ -238,88 +257,57 @@ export function SearchDetailPage() {
         </div>
       </div>
 
-      <Card>
-        <CardContent className="pt-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* URL - Full width */}
-            <div className="md:col-span-2 lg:col-span-3">
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">URL</span>
-              </div>
-              <div className="p-3 rounded-lg bg-muted/50 border">
-                <ExternalLink href={search.url} className="text-sm break-all">{truncateUrl(search.url, 80)}</ExternalLink>
-              </div>
-            </div>
+      <Card className="border-border/80 bg-card/95 py-0 shadow-sm">
+        <CardContent className="p-4 sm:p-5">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <SearchDetailField icon={ExternalLinkIcon} label="URL" className="md:col-span-2 lg:col-span-3">
+              <ExternalLink href={search.url} className="break-all text-sm">
+                {truncateUrl(search.url, 96)}
+              </ExternalLink>
+            </SearchDetailField>
 
-            {/* Interval */}
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Clock className="size-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Intervall</span>
-              </div>
-              <p className="text-foreground font-medium">{formatScrapeInterval(search.scrape_interval_minutes)}</p>
-            </div>
+            <SearchDetailField icon={Clock} label="Intervall">
+              {formatScrapeInterval(search.scrape_interval_minutes)}
+            </SearchDetailField>
 
-            {/* Price Range */}
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Euro className="size-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Preisbereich</span>
-              </div>
-              <p className="text-foreground font-medium">
-                {search.min_price !== null || search.max_price !== null
-                  ? `${search.min_price ?? 0} – ${search.max_price ?? "unbegrenzt"} €`
-                  : "Nicht eingeschränkt"}
-              </p>
-            </div>
+            <SearchDetailField icon={Euro} label="Preisbereich">
+              {formatSearchPriceRange(search)}
+            </SearchDetailField>
 
-            {/* Ausschluss-Keywords */}
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Tag className="size-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ausschluss-Keywords</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
+            <SearchDetailField icon={Tag} label="Ausschluss">
+              <div className="flex flex-wrap gap-1.5">
                 {search.blacklist_keywords ? (
-                  search.blacklist_keywords.split(",").map((kw, i) => (
-                    <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-xs font-medium">
+                  search.blacklist_keywords.split(",").map((kw, index) => (
+                    <span
+                      key={`${kw.trim()}-${index}`}
+                      className="inline-flex items-center rounded-full border border-border/70 bg-card px-2 py-0.5 text-xs font-medium"
+                    >
                       {kw.trim()}
                     </span>
                   ))
                 ) : (
-                  <span className="text-muted-foreground">Keine</span>
+                  <span className="text-muted-foreground">Keine Keywords</span>
                 )}
               </div>
-            </div>
+            </SearchDetailField>
 
-            {/* Prompt Addition - Full width */}
             {search.prompt_addition && (
-              <div className="md:col-span-2 lg:col-span-3">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Star className="size-3.5 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Zusätzliche Anweisungen</span>
-                </div>
-                <p className="p-3 rounded-lg bg-muted/50 border text-sm leading-relaxed">{search.prompt_addition}</p>
-              </div>
+              <SearchDetailField
+                icon={Star}
+                label="AI-Anweisungen"
+                className="md:col-span-2 lg:col-span-3"
+              >
+                <p className="text-sm leading-relaxed">{search.prompt_addition}</p>
+              </SearchDetailField>
             )}
 
-            {/* Exclude Images */}
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <ImageIcon className="size-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Bilder</span>
-              </div>
-              <p className="text-foreground font-medium">{search.is_exclude_images ? "Ausgeschlossen" : "Eingeschlossen"}</p>
-            </div>
+            <SearchDetailField icon={ImageIcon} label="Bilder">
+              {search.is_exclude_images ? "Ausgeschlossen" : "Eingeschlossen"}
+            </SearchDetailField>
 
-            {/* Last Scrape */}
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Clock className="size-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Letzte Suche</span>
-              </div>
-              <p className="text-foreground font-medium">{timeAgo(search.last_scraped_at)}</p>
-            </div>
+            <SearchDetailField icon={Clock} label="Letzte Suche">
+              {timeAgo(search.last_scraped_at)}
+            </SearchDetailField>
           </div>
         </CardContent>
       </Card>

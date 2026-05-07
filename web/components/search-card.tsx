@@ -2,9 +2,18 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Trash2, Loader2, Power, ExternalLink, Clock } from "lucide-react"
+import {
+  Clock,
+  Euro,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { SearchStatusBadge } from "@/components/search-status-badge"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,8 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import type { AdSearch } from "@/lib/types"
-import { timeAgo, truncateUrl, formatScrapeInterval } from "@/lib/format"
-import { cn } from "@/lib/utils"
+import { formatScrapeInterval, formatSearchPriceRange, timeAgo, truncateUrl } from "@/lib/format"
 
 interface SearchCardProps {
   search: AdSearch
@@ -25,57 +33,58 @@ interface SearchCardProps {
   isDeleting?: boolean
 }
 
+interface SearchMetaItemProps {
+  icon: LucideIcon
+  label: string
+  value: string
+}
+
+function SearchMetaItem({ icon: Icon, label, value }: SearchMetaItemProps) {
+  return (
+    <span className="flex min-w-0 items-center gap-2 rounded-lg bg-muted/45 px-2.5 py-2">
+      <Icon className="size-3.5 shrink-0 text-muted-foreground/75" aria-hidden />
+      <span className="min-w-0">
+        <span className="block text-[0.68rem] font-medium uppercase tracking-[0.1em] text-muted-foreground/70">
+          {label}
+        </span>
+        <span className="block truncate text-xs font-medium text-foreground">{value}</span>
+      </span>
+    </span>
+  )
+}
+
 export function SearchCard({ search, onDelete, isDeleting }: SearchCardProps) {
   const [open, setOpen] = useState(false)
-  const statusLabel = search.is_active ? "Aktiv" : "Pausiert"
 
   return (
-    <Link
-      href={`/searches/${search.id}`}
-      className="block min-w-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      aria-label={`Details für ${search.name}`}
-    >
-      <Card className="group relative h-full min-h-[148px] cursor-pointer overflow-hidden border border-border/80 bg-card py-0 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
-        <CardContent className="flex h-full flex-col p-4 sm:p-5">
-          <div className="flex min-h-0 flex-1 items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-              <div className="flex min-w-0 items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <h3
-                    className="line-clamp-2 text-base font-semibold leading-snug text-foreground"
-                    title={search.name}
-                  >
-                    {search.name}
-                  </h3>
-                  <p
-                    className="mt-1 flex min-w-0 items-center gap-1.5 truncate text-xs text-muted-foreground"
-                    title={search.url}
-                  >
-                    <ExternalLink className="size-3 shrink-0 opacity-50" aria-hidden />
-                    <span className="truncate">{truncateUrl(search.url, 42)}</span>
-                  </p>
-                </div>
-              </div>
+    <Card className="group relative h-full min-h-[196px] overflow-hidden border-border/80 bg-card/95 py-0 shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
+      <Link
+        href={`/searches/${search.id}`}
+        className="absolute inset-0 z-10 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        aria-label={`Details für ${search.name}`}
+        prefetch={false}
+      />
 
-              <span
-                className={cn(
-                  "inline-flex w-fit items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium",
-                  search.is_active
-                    ? "border-primary/25 bg-primary/10 text-accent-foreground"
-                    : "border-border bg-muted/70 text-muted-foreground"
-                )}
-              >
-                <span
-                  className={cn(
-                    "size-1.5 rounded-full",
-                    search.is_active ? "bg-primary" : "bg-muted-foreground/50"
-                  )}
-                  aria-hidden
-                />
-                {statusLabel}
-              </span>
-            </div>
+      <CardContent className="pointer-events-none relative z-20 flex h-full flex-col p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <SearchStatusBadge isActive={search.is_active} className="mb-3" />
+            <h3
+              className="line-clamp-2 text-pretty text-base font-semibold leading-snug text-foreground"
+              title={search.name}
+            >
+              {search.name}
+            </h3>
+            <p
+              className="mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-xs text-muted-foreground"
+              title={search.url}
+            >
+              <ExternalLink className="size-3 shrink-0 opacity-55" aria-hidden />
+              <span className="truncate">{truncateUrl(search.url, 46)}</span>
+            </p>
+          </div>
 
+          <div className="pointer-events-auto shrink-0">
             <AlertDialog open={open} onOpenChange={setOpen}>
               <Button
                 variant="ghost"
@@ -86,7 +95,7 @@ export function SearchCard({ search, onDelete, isDeleting }: SearchCardProps) {
                   setOpen(true)
                 }}
                 disabled={isDeleting}
-                className="size-8 shrink-0 cursor-pointer rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:size-9"
+                className="size-8 cursor-pointer rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:size-9"
                 aria-label="Suchauftrag löschen"
               >
                 {isDeleting ? (
@@ -111,7 +120,7 @@ export function SearchCard({ search, onDelete, isDeleting }: SearchCardProps) {
                       onDelete(search.id)
                       setOpen(false)
                     }}
-                    className="bg-destructive text-white hover:bg-destructive/90 cursor-pointer"
+                    className="cursor-pointer bg-destructive text-white hover:bg-destructive/90"
                   >
                     Löschen
                   </AlertDialogAction>
@@ -119,21 +128,20 @@ export function SearchCard({ search, onDelete, isDeleting }: SearchCardProps) {
               </AlertDialogContent>
             </AlertDialog>
           </div>
+        </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border/70 pt-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <Power className="size-3 shrink-0 opacity-70" aria-hidden />
-              <span>{formatScrapeInterval(search.scrape_interval_minutes)}</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Clock className="size-3 shrink-0 opacity-70" aria-hidden />
-              <span className="whitespace-nowrap">
-                {timeAgo(search.last_scraped_at)}
-              </span>
-            </span>
+        <div className="mt-auto grid grid-cols-1 gap-2 border-t border-border/70 pt-4 min-[380px]:grid-cols-2">
+          <SearchMetaItem
+            icon={RefreshCw}
+            label="Intervall"
+            value={formatScrapeInterval(search.scrape_interval_minutes)}
+          />
+          <SearchMetaItem icon={Clock} label="Zuletzt" value={timeAgo(search.last_scraped_at)} />
+          <div className="min-[380px]:col-span-2">
+            <SearchMetaItem icon={Euro} label="Preisrahmen" value={formatSearchPriceRange(search)} />
           </div>
-        </CardContent>
-      </Card>
-    </Link>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

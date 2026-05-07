@@ -109,10 +109,10 @@ export default function SearchesPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5">
-          <Skeleton className="h-[140px] rounded-xl" />
-          <Skeleton className="h-[140px] rounded-xl" />
-          <Skeleton className="h-[140px] rounded-xl" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
+          <Skeleton className="h-[196px] rounded-xl" />
+          <Skeleton className="h-[196px] rounded-xl" />
+          <Skeleton className="h-[196px] rounded-xl" />
         </div>
       </div>
     )
@@ -139,7 +139,7 @@ export default function SearchesPage() {
           icon={<SearchX className="size-12 text-muted-foreground/50" />}
         />
       ) : (
-        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5 list-none p-0 m-0">
+        <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
           {searches.map((search) => (
             <li key={search.id} className="min-w-0">
               <SearchCard
