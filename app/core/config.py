@@ -42,7 +42,6 @@ class Config(BaseSettings):
     ai_max_comparison_candidates: int = Field(default=12, ge=0, le=30)
     ai_strong_model_min_delta_percent: float = Field(default=18.0, ge=0, le=100)
     ai_strong_model_min_savings_eur: float = Field(default=75.0, ge=0)
-    ai_include_images: bool = False
 
     # Pydantic-Einstellungen
     model_config = {

@@ -1,14 +1,16 @@
 """Tests für den KI-Analyse-Service."""
 
 import json
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.ad import Ad
+from app.models.adsearch import AdSearch
 from app.prompts import render_user_prompt
-from app.services.ai import AIService
+from app.services.ai import REQUEST_IMAGES_TOOL_NAME, AIService
 from app.services.deal_analysis import (
     ComparisonCandidate,
     ComparisonJudgement,
@@ -182,6 +184,110 @@ def test_complete_json_propagates_main_model_failure():
         ai_service._complete_json("prompt", "main-model")
 
 
+def test_complete_final_json_returns_text_response_when_images_not_requested():
+    """Final scoring stays text-only when the model does not request product images."""
+    ai_service = AIService.__new__(AIService)
+    ai_service.client = SimpleNamespace(
+        chat=SimpleNamespace(
+            completions=SimpleNamespace(
+                create=lambda **kwargs: SimpleNamespace(
+                    choices=[
+                        SimpleNamespace(
+                            message=SimpleNamespace(
+                                content='{"score": 6, "summary": "Ok", "reasoning": "Text reicht"}',
+                                tool_calls=None,
+                            )
+                        )
+                    ]
+                )
+            )
+        )
+    )
+    ad = Ad(
+        owner_id="owner",
+        external_id="1",
+        title="Ad",
+        url="https://example.com/1",
+        image_urls="https://img.example/1.jpg,https://img.example/2.jpg",
+    )
+
+    result = ai_service._complete_final_json("prompt", "model", ad, max_tokens=1000)
+
+    assert result == '{"score": 6, "summary": "Ok", "reasoning": "Text reicht"}'
+
+
+def test_complete_final_json_sends_all_images_after_tool_request():
+    """When the model requests images, all optimized ad images go to the second call."""
+    ai_service = AIService.__new__(AIService)
+    ai_service.client = SimpleNamespace(
+        chat=SimpleNamespace(
+            completions=SimpleNamespace(
+                create=lambda **kwargs: SimpleNamespace(
+                    choices=[
+                        SimpleNamespace(
+                            message=SimpleNamespace(
+                                content=None,
+                                tool_calls=[
+                                    SimpleNamespace(
+                                        function=SimpleNamespace(name=REQUEST_IMAGES_TOOL_NAME)
+                                    )
+                                ],
+                            )
+                        )
+                    ]
+                )
+            )
+        )
+    )
+    ad = Ad(
+        owner_id="owner",
+        external_id="1",
+        title="Ad",
+        url="https://example.com/1",
+        image_urls="https://img.example/1.jpg,https://img.example/2.jpg",
+    )
+    images = [
+        {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,one"}},
+        {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,two"}},
+    ]
+    calls: list[list[dict] | None] = []
+
+    ai_service._download_images = lambda requested_ad: images  # type: ignore[method-assign]
+
+    def fake_complete_json(prompt, model, images=None, max_tokens=1000):
+        calls.append(images)
+        return '{"score": 8, "summary": "Bilder helfen", "reasoning": "Zustand sichtbar"}'
+
+    ai_service._complete_json = fake_complete_json  # type: ignore[method-assign]
+
+    result = ai_service._complete_final_json("prompt", "model", ad, max_tokens=1000)
+
+    assert result == '{"score": 8, "summary": "Bilder helfen", "reasoning": "Zustand sichtbar"}'
+    assert calls == [images]
+
+
+def test_download_images_uses_all_unique_image_urls():
+    """Image download no longer caps the request to the first image."""
+    ai_service = AIService.__new__(AIService)
+    ad = Ad(
+        owner_id="owner",
+        external_id="1",
+        title="Ad",
+        url="https://example.com/1",
+        image_urls=(
+            " https://img.example/1.jpg,https://img.example/2.jpg,https://img.example/1.jpg "
+        ),
+    )
+    jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 100
+
+    with patch("app.services.ai.fetch_binary", return_value=[jpeg, jpeg]) as fetch:
+        images = ai_service._download_images(ad)
+
+    fetch.assert_called_once_with(["https://img.example/1.jpg", "https://img.example/2.jpg"])
+    assert len(images) == 2
+    assert all(image["image_url"]["url"].startswith("data:image/jpeg;base64,") for image in images)
+
+
 def test_analyze_ads_continues_when_rollback_connection_is_closed():
     """A dead DB connection in the error handler must not abort the whole batch."""
 
@@ -308,6 +414,40 @@ def test_build_user_context_without_prompt_addition(session, sample_adsearch, sa
     assert context.get("user_instructions") is None
     text = render_user_prompt(context)
     assert "[Zusätzliche Bewertungshinweise]" not in text
+
+
+def test_build_user_context_marks_gift_category_search(session):
+    """Schenken-Suchaufträge bekommen einen eigenen Analysemodus und Preistext."""
+    gift_search = AdSearch(
+        owner_id="00000000-0000-0000-0000-000000000001",
+        name="Zu verschenken",
+        url="https://www.kleinanzeigen.de/s-zu-verschenken-tauschen/60325/c272l4305r5",
+    )
+    session.add(gift_search)
+    session.commit()
+    session.refresh(gift_search)
+
+    ad = Ad(
+        owner_id="00000000-0000-0000-0000-000000000001",
+        external_id="gift-1",
+        title="Massivholz Tisch",
+        url="https://www.kleinanzeigen.de/s-anzeige/tisch/1-192-1",
+        price=None,
+        adsearch_id=gift_search.id,
+    )
+    session.add(ad)
+    session.commit()
+    session.refresh(ad)
+
+    ai_service = AIService.__new__(AIService)
+    ai_service.session = session
+    context = ai_service._build_user_context(ad, gift_search)
+    text = render_user_prompt(context)
+
+    assert context["analysis_mode"] == "gift_category"
+    assert context["is_gift_category_search"] is True
+    assert context["price_display"] == "Zu verschenken"
+    assert "Schenken-Kategorie" in text
 
 
 # --- Analyse mit gemockter API ---

@@ -8,8 +8,10 @@ import contextlib
 import json
 import logging
 from collections.abc import Sequence
+from io import BytesIO
 
 from openai import BadRequestError, OpenAI  # pyright: ignore[reportMissingImports]
+from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
@@ -35,7 +37,10 @@ from app.services.deal_analysis import (
     fallback_comparison_judgements,
     fallback_final_result,
     fallback_product_extraction,
+    is_gift_category_context,
+    is_gift_category_search_url,
     should_use_strong_model,
+    should_use_strong_model_for_gift_search,
 )
 from app.services.settings import SettingsService
 from app.services.telegram import TelegramService
@@ -44,6 +49,31 @@ logger = logging.getLogger(__name__)
 
 MAX_COMPARISON_ADS = 30
 COMPARISON_TITLE_MAX_LEN = 80
+IMAGE_MAX_EDGE_PX = 1024
+IMAGE_JPEG_QUALITY = 82
+REQUEST_IMAGES_TOOL_NAME = "request_product_images"
+REQUEST_IMAGES_TOOL = {
+    "type": "function",
+    "function": {
+        "name": REQUEST_IMAGES_TOOL_NAME,
+        "description": (
+            "Fordere die Produktbilder nur an, wenn der Text allein fuer eine faire "
+            "Bewertung nicht reicht, z. B. wegen Zustand, Modellvariante, Bundle, "
+            "Schaeden, Echtheit oder Vollstaendigkeit."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string",
+                    "description": "Kurzer Grund, warum die Bilder fuer die Bewertung noetig sind.",
+                }
+            },
+            "required": ["reason"],
+            "additionalProperties": False,
+        },
+    },
+}
 
 
 class AIService:
@@ -112,9 +142,7 @@ class AIService:
 
             except Exception as e:
                 err_str = str(e)
-                self._handle_analysis_error(
-                    ad, "Analysis failed", err_str, prompt_text_for_error
-                )
+                self._handle_analysis_error(ad, "Analysis failed", err_str, prompt_text_for_error)
 
         return analyzed
 
@@ -215,14 +243,15 @@ class AIService:
         self._release_session_connection()
         judgements = self._judge_comparisons(context, product, candidates)
         market = build_market_estimate(ad.price, product, candidates, judgements)
+        is_gift_category = is_gift_category_context(context)
         use_strong = should_use_strong_model(
             market,
             app_config.ai_strong_model_min_delta_percent,
             app_config.ai_strong_model_min_savings_eur,
             ad.price,
-        )
+        ) or should_use_strong_model_for_gift_search(product, is_gift_category)
         model = self.model if use_strong else self.cheap_model
-        final = self._score_deal(ad, context, product, market, judgements, model, use_strong)
+        final = self._score_deal(ad, context, product, market, judgements, model)
         return DealAnalysisResult(
             final=final,
             product=product,
@@ -271,25 +300,23 @@ class AIService:
         market: MarketEstimate,
         judgements: list[ComparisonJudgement],
         model: str,
-        use_strong: bool,
     ) -> FinalDealResult:
-        """Final JSON score, optionally with images for the expensive candidate pass.
+        """Final JSON score, with model-requested images only when useful.
 
         Falls back to a deterministic score from the market estimate if every model call
         (cheap, then main via `_complete_json`) fails. The error is recorded in
         `ErrorLog` so the user sees it without the queue stalling.
         """
         prompt = build_final_prompt(context, product, market, judgements)
-        images = self._download_images(ad) if use_strong and app_config.ai_include_images else []
         try:
-            content = self._complete_json(prompt, model, images=images, max_tokens=1000)
+            content = self._complete_final_json(prompt, model, ad, max_tokens=1000)
             final = FinalDealResult.model_validate(self._parse_json_content(content))
             return self._fill_final_defaults(final, market)
         except Exception as exc:  # noqa: BLE001 — keep queue moving on API failure
             logger.error("Final scoring failed for ad %s: %s", ad.id, exc)
             with contextlib.suppress(Exception):
                 self._log_analysis_error(ad, "Final scoring fallback", str(exc))
-            return fallback_final_result(market)
+            return fallback_final_result(market, is_gift_category_context(context))
 
     def _fill_final_defaults(
         self, final: FinalDealResult, market: MarketEstimate
@@ -343,7 +370,13 @@ class AIService:
 
     def _build_user_context(self, ad: Ad, adsearch: AdSearch | None) -> dict:
         """Erstellt das Kontext-Dict für die Nutzer-Nachricht (nur Werte, keine String-Labels)."""
-        price_display = f"{ad.price:.0f}€" if ad.price else "VB"
+        is_gift_search = is_gift_category_search_url(adsearch.url if adsearch else None)
+        if ad.price is not None:
+            price_display = f"{ad.price:.0f}€"
+        elif is_gift_search:
+            price_display = "Zu verschenken"
+        else:
+            price_display = "VB"
         location = ""
         if ad.postal_code or ad.city:
             location = f"{ad.postal_code or ''} {ad.city or ''}".strip()
@@ -368,24 +401,104 @@ class AIService:
             "seller_active_since": ad.seller_active_since or None,
             "comparison": comparison,
             "user_instructions": user_instructions,
+            "search_url": adsearch.url if adsearch else None,
+            "analysis_mode": "gift_category" if is_gift_search else "priced_market",
+            "is_gift_category_search": is_gift_search,
         }
 
-    def _download_images(self, ad: Ad, max_images: int = 1) -> list[dict]:
-        """Lädt bis zu ``max_images`` Bilder; Liste von ``image_url``-Dicts (Base64-Data-URLs)."""
+    def _complete_final_json(
+        self,
+        prompt: str,
+        model: str,
+        ad: Ad,
+        max_tokens: int,
+    ) -> str | None:
+        """Final scoring call; lets the model request images only when needed."""
+        image_urls = self._image_urls(ad)
+        if not image_urls:
+            return self._complete_json(prompt, model, max_tokens=max_tokens)
+
+        try:
+            response = self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "Antworte ausschliesslich mit validem JSON."},
+                    {
+                        "role": "user",
+                        "content": self._final_prompt_with_image_tool_hint(prompt, len(image_urls)),
+                    },
+                ],  # pyright: ignore[reportArgumentType]
+                tools=[REQUEST_IMAGES_TOOL],  # pyright: ignore[reportArgumentType]
+                tool_choice="auto",
+                max_completion_tokens=max_tokens,
+                temperature=0.1,
+            )
+        except Exception as exc:
+            logger.warning("Image-decision tool call failed; falling back to text-only: %s", exc)
+            return self._complete_json(prompt, model, max_tokens=max_tokens)
+
+        message = response.choices[0].message
+        if not self._message_requests_images(message):
+            return message.content
+
+        logger.info("Model requested product images for ad %s", ad.id)
+        images = self._download_images(ad)
+        if not images:
+            return self._complete_json(prompt, model, max_tokens=max_tokens)
+
+        image_prompt = (
+            f"{prompt}\n\n"
+            f"Du hast die Produktbilder angefordert. Es sind {len(images)} optimierte "
+            "Produktbilder beigefuegt. Nutze sie nur fuer sichtbare Evidenz und antworte "
+            "weiterhin ausschliesslich mit validem JSON."
+        )
+        return self._complete_json(image_prompt, model, images=images, max_tokens=max_tokens)
+
+    @staticmethod
+    def _final_prompt_with_image_tool_hint(prompt: str, image_count: int) -> str:
+        """Add a short decision hint without sending images yet."""
+        return (
+            f"{prompt}\n\n"
+            f"Zu dieser Anzeige sind {image_count} Produktbilder vorhanden. "
+            f"Wenn der Text allein fuer score/summary/reasoning genuegt, antworte direkt "
+            f"mit JSON. Wenn sichtbare Details fuer die Bewertung relevant sein koennten, "
+            f"rufe das Tool {REQUEST_IMAGES_TOOL_NAME} auf."
+        )
+
+    @staticmethod
+    def _message_requests_images(message: object) -> bool:
+        """Detect whether the model chose the product-image tool."""
+        tool_calls = getattr(message, "tool_calls", None) or []
+        return any(
+            getattr(getattr(tool_call, "function", None), "name", None) == REQUEST_IMAGES_TOOL_NAME
+            for tool_call in tool_calls
+        )
+
+    @staticmethod
+    def _image_urls(ad: Ad) -> list[str]:
+        """Return all non-empty image URLs once, preserving scraper order."""
+        if not ad.image_urls:
+            return []
+        urls = [url.strip() for url in ad.image_urls.split(",") if url.strip()]
+        return list(dict.fromkeys(urls))
+
+    def _download_images(self, ad: Ad) -> list[dict]:
+        """Lädt alle Bilder; Liste von ``image_url``-Dicts mit optimierten Base64-Data-URLs."""
         if not ad.image_urls:
             return []
 
-        urls = ad.image_urls.split(",")[:max_images]
+        urls = self._image_urls(ad)
         image_data = fetch_binary(urls)
 
         images = []
         for _, data in zip(urls, image_data, strict=True):
             if data:
-                media_type = self._detect_image_type(data)
+                optimized = self._optimize_image(data)
+                media_type = self._detect_image_type(optimized)
                 if not media_type:
                     continue
 
-                encoded = base64.b64encode(data).decode("utf-8")
+                encoded = base64.b64encode(optimized).decode("utf-8")
                 images.append(
                     {
                         "type": "image_url",
@@ -396,6 +509,33 @@ class AIService:
                 )
 
         return images
+
+    @staticmethod
+    def _optimize_image(data: bytes) -> bytes:
+        """Downscale and compress images before sending them to the model."""
+        try:
+            with Image.open(BytesIO(data)) as image:
+                image = ImageOps.exif_transpose(image)
+                image.thumbnail((IMAGE_MAX_EDGE_PX, IMAGE_MAX_EDGE_PX), Image.Resampling.LANCZOS)
+                if image.mode in {"RGBA", "LA"}:
+                    background = Image.new("RGB", image.size, "white")
+                    alpha = image.getchannel("A")
+                    background.paste(image.convert("RGBA"), mask=alpha)
+                    image = background
+                elif image.mode != "RGB":
+                    image = image.convert("RGB")
+
+                output = BytesIO()
+                image.save(
+                    output,
+                    format="JPEG",
+                    quality=IMAGE_JPEG_QUALITY,
+                    optimize=True,
+                    progressive=True,
+                )
+                return output.getvalue()
+        except (OSError, UnidentifiedImageError):
+            return data
 
     @staticmethod
     def _detect_image_type(data: bytes) -> str | None:

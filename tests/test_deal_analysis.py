@@ -9,7 +9,9 @@ from app.services.deal_analysis import (
     fallback_comparison_judgements,
     fallback_final_result,
     fallback_product_extraction,
+    is_gift_category_search_url,
     should_use_strong_model,
+    should_use_strong_model_for_gift_search,
 )
 
 
@@ -63,6 +65,29 @@ def test_should_use_strong_model_only_for_likely_deals():
     assert not should_use_strong_model(estimate, 30, 500, 760)
 
 
+def test_should_use_strong_model_for_promising_gift_search_items():
+    """Promising free items get the stronger model because condition and value matter."""
+    high_value = ProductExtraction(product_key="designer chair", deal_potential=0.8)
+    low_value = ProductExtraction(product_key="misc boxes", deal_potential=0.2)
+
+    assert should_use_strong_model_for_gift_search(high_value, True)
+    assert not should_use_strong_model_for_gift_search(low_value, True)
+    assert not should_use_strong_model_for_gift_search(high_value, False)
+
+
+def test_is_gift_category_search_url_detects_kleinanzeigen_gift_paths():
+    """Zu-verschenken search URLs are detected by their category path."""
+    assert is_gift_category_search_url(
+        "https://www.kleinanzeigen.de/s-zu-verschenken/kroepeliner-tor-vorstadt/c192l182"
+    )
+    assert is_gift_category_search_url(
+        "https://www.kleinanzeigen.de/s-zu-verschenken-tauschen/60325/c272l4305r5"
+    )
+    assert not is_gift_category_search_url(
+        "https://www.kleinanzeigen.de/s-audio-hifi/60325/podmic/k0c172l4305r250"
+    )
+
+
 def test_fallback_final_result_keeps_evidence_when_models_fail():
     """If every model call fails the deterministic score still uses the market estimate."""
     market = MarketEstimate(
@@ -97,6 +122,22 @@ def test_fallback_final_result_handles_missing_market_estimate():
     assert result.estimated_market_price is None
 
 
+def test_fallback_final_result_is_conservative_for_gift_category():
+    """Without a model answer free-category ads must not become false bargains."""
+    market = MarketEstimate(
+        estimated_market_price=None,
+        market_price_confidence=0.0,
+        price_delta_percent=None,
+        comparison_count=0,
+        comparison_summary="Keine belastbaren Vergleichsangebote.",
+    )
+
+    result = fallback_final_result(market, is_gift_category=True)
+
+    assert result.score == 2.0
+    assert "Schenken" in result.summary
+
+
 def test_product_extraction_accepts_qualitative_deal_potential():
     """Cheap models often answer 'mittel'/'hoch' instead of a 0..1 float."""
     extraction = ProductExtraction.model_validate(
@@ -111,9 +152,7 @@ def test_product_extraction_accepts_qualitative_deal_potential():
 
 def test_product_extraction_clamps_numeric_deal_potential_above_one():
     """A model returning '7' (out of 10) is normalised into the [0,1] range."""
-    extraction = ProductExtraction.model_validate(
-        {"product_key": "x", "deal_potential": "7"}
-    )
+    extraction = ProductExtraction.model_validate({"product_key": "x", "deal_potential": "7"})
     assert extraction.deal_potential == 0.7
 
 

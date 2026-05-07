@@ -19,6 +19,7 @@ from app.scraper.parser import (
     parse_next_page_urls,
     parse_search_results,
 )
+from app.services.deal_analysis import is_gift_category_search_url
 from app.services.settings import SettingsService
 
 logger = logging.getLogger(__name__)
@@ -219,12 +220,14 @@ class ScraperService:
             return "VB-Anzeige (Preis Verhandlungsbasis) ohne angegebenen Preis"
 
         # Zu-verschenken-Kategorie: Anzeigen aus "Verschenken & Tauschen" immer behalten,
-        # auch ohne numerischen Preis.
+        # auch ohne numerischen Preis. Die Suchauftrag-URL zählt als Fallback, falls die
+        # Detailseite die Kategorie-Metadaten nicht mehr sauber liefert.
         is_giveaway_category = any(
             name and name.lower().startswith("zu_verschenken")
             for name in (detail.category_l1, detail.category_l2)
         )
-        if detail.price is None and is_giveaway_category:
+        is_giveaway_search = is_gift_category_search_url(adsearch.url)
+        if detail.price is None and (is_giveaway_category or is_giveaway_search):
             pass  # nicht filtern
         elif detail.price is None:
             return "Kein Preis angegeben (weder Betrag noch 'Zu verschenken'-Kategorie)"

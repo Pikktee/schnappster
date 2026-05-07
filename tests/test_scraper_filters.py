@@ -84,6 +84,34 @@ def test_get_filter_reason_keeps_zu_verschenken_ads():
     assert reason is None
 
 
+def test_get_filter_reason_keeps_ads_from_gift_search_url_without_detail_category():
+    """Schenken-Suchaufträge behalten kostenlose Anzeigen auch bei fehlenden Detail-Metadaten."""
+    detail = ScrapedAdDetail(
+        external_id="2",
+        title="Massivholz Tisch",
+        url="https://www.kleinanzeigen.de/s-anzeige/test/2-2-2",
+        price=None,
+        price_raw=None,
+        price_type=None,
+        category_l1=None,
+        category_l2=None,
+    )
+    adsearch = AdSearch(
+        owner_id="00000000-0000-0000-0000-000000000001",
+        name="Zu verschenken",
+        url="https://www.kleinanzeigen.de/s-zu-verschenken-tauschen/60325/c272l4305r5",
+    )
+
+    reason = ScraperService._get_filter_reason(
+        detail=detail,
+        adsearch=adsearch,
+        exclude_commercial=False,
+        min_rating=0,
+    )
+
+    assert reason is None
+
+
 def test_get_filter_reason_excludes_ads_without_price_and_not_zu_verschenken():
     """Anzeigen ohne Preis und ohne Zu-verschenken-Kategorie werden gefiltert."""
     detail = ScrapedAdDetail(

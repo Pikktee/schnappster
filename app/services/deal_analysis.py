@@ -22,6 +22,12 @@ BASE_CONFIDENCE = 0.35
 CONFIDENCE_PER_COMPARISON = 0.08
 SPECIFIC_PRODUCT_CONFIDENCE_BONUS = 0.12
 MAX_MARKET_CONFIDENCE = 0.9
+GIFT_STRONG_MODEL_MIN_DEAL_POTENTIAL = 0.65
+
+_GIFT_SEARCH_PATH_MARKERS = (
+    "/s-zu-verschenken",
+    "/s-zu-verschenken-tauschen",
+)
 
 
 _DEAL_POTENTIAL_KEYWORDS: tuple[tuple[str, float], ...] = (
@@ -57,9 +63,7 @@ def _coerce_unit_float(value: Any) -> float:
         return 0.0
 
     text = value.strip().lower()
-    for keyword, score in sorted(
-        _DEAL_POTENTIAL_KEYWORDS, key=lambda pair: -len(pair[0])
-    ):
+    for keyword, score in sorted(_DEAL_POTENTIAL_KEYWORDS, key=lambda pair: -len(pair[0])):
         if keyword in text:
             return score
     match = re.search(r"-?\d+(?:[.,]\d+)?", text)
@@ -215,6 +219,21 @@ class DealAnalysisResult:
         }
 
 
+def is_gift_category_search_url(url: str | None) -> bool:
+    """Return true for Kleinanzeigen search URLs in the Zu-verschenken category."""
+    if not url:
+        return False
+    normalized = url.strip().lower()
+    return any(marker in normalized for marker in _GIFT_SEARCH_PATH_MARKERS)
+
+
+def is_gift_category_context(target: dict[str, object]) -> bool:
+    """Context-level check used by prompt builders and deterministic fallbacks."""
+    return bool(target.get("is_gift_category_search")) or is_gift_category_search_url(
+        str(target.get("search_url") or "")
+    )
+
+
 def build_market_estimate(
     ad_price: float | None,
     product: ProductExtraction,
@@ -259,6 +278,14 @@ def should_use_strong_model(
     return delta >= min_delta_percent or savings >= min_savings_eur
 
 
+def should_use_strong_model_for_gift_search(
+    product: ProductExtraction,
+    is_gift_category: bool,
+) -> bool:
+    """Use image-capable analysis for promising free items where condition matters."""
+    return is_gift_category and product.deal_potential >= GIFT_STRONG_MODEL_MIN_DEAL_POTENTIAL
+
+
 def fallback_product_extraction(title: str) -> ProductExtraction:
     """Conservative fallback when the cheap product extraction call fails."""
     query = " ".join(title.split()[:6])
@@ -272,8 +299,28 @@ def fallback_product_extraction(title: str) -> ProductExtraction:
     )
 
 
-def fallback_final_result(market: MarketEstimate) -> FinalDealResult:
+def fallback_final_result(
+    market: MarketEstimate,
+    is_gift_category: bool = False,
+) -> FinalDealResult:
     """Deterministic last-resort score when every LLM call in the pipeline fails."""
+    if is_gift_category:
+        return FinalDealResult(
+            score=2.0,
+            summary=(
+                "Bewertung ohne KI-Antwort: Schenken-Anzeige ohne gesicherten Wiederverkaufswert."
+            ),
+            reasoning=(
+                "Automatischer Fallback nach KI-Fehler. Im Schenken-Modus werden nur "
+                "klar wertvolle, gut verwertbare Gegenstände als Schnäppchen markiert; "
+                "ohne Modellbewertung bleibt der Score bewusst niedrig."
+            ),
+            estimated_market_price=market.estimated_market_price,
+            market_price_confidence=market.market_price_confidence,
+            price_delta_percent=market.price_delta_percent,
+            comparison_summary=market.comparison_summary,
+        )
+
     delta = market.price_delta_percent
     if delta is None:
         score = 5.0
@@ -315,9 +362,11 @@ def fallback_comparison_judgements(
 
 def build_product_prompt(target: dict[str, object]) -> str:
     """Prompt for the low-cost product analyst."""
+    gift_rules = _gift_product_rules() if is_gift_category_context(target) else ""
     return (
         "Analysiere diese Kleinanzeigen-Anzeige als Product Analyst. "
         "Extrahiere, was verglichen werden muss, um den Marktwert zu bestimmen.\n\n"
+        f"{gift_rules}"
         "Antworte AUSSCHLIESSLICH als JSON-Objekt mit exakt diesen Feldern und Typen:\n"
         '  - product_key: string (kurzer Identifier, z. B. "rode podmic")\n'
         "  - category: string oder null\n"
@@ -360,11 +409,20 @@ def build_final_prompt(
     judgements: list[ComparisonJudgement],
 ) -> str:
     """Prompt for the final compact deal score."""
+    is_gift_category = is_gift_category_context(target)
+    scoring_focus = (
+        "Im Schenken-Modus ist nicht der Rabatt entscheidend, sondern der realistische "
+        "Wiederverkaufswert nach Abholung, Transport, Zustand und Aufwand. "
+        if is_gift_category
+        else "Der Marktpreis ist der wichtigste Faktor. "
+    )
+    gift_rules = _gift_final_rules() if is_gift_category else ""
     return (
         "Erzeuge den finalen Schnappchen-Score fuer diese Kleinanzeigen-Anzeige. "
-        "Der Marktpreis ist der wichtigste Faktor. Sei konservativ: 5 ist normal, "
+        f"{scoring_focus}Sei konservativ: 5 ist normal, "
         "7 ist ein gutes Angebot, 8-9 ein seltenes echtes Schnappchen, 10 fast nie. "
         "Nutze Unsicherheit und Vergleichbarkeit, um den Score zu senken. "
+        f"{gift_rules}"
         "Antworte ausschliesslich im JSON-Format mit score, summary, reasoning, "
         "estimated_market_price, market_price_confidence, price_delta_percent, "
         "comparison_summary.\n\n"
@@ -372,6 +430,30 @@ def build_final_prompt(
         f"Produktverstaendnis:\n{product.model_dump()}\n\n"
         f"Marktwertschaetzung:\n{market.model_dump()}\n\n"
         f"Vergleichsurteile:\n{[judgement.model_dump() for judgement in judgements]}"
+    )
+
+
+def _gift_product_rules() -> str:
+    return (
+        "Sonderfall Schenken-Kategorie: deal_potential beschreibt hier nicht den Rabatt, "
+        "sondern das realistische Wiederverkaufspotenzial nach Abholung und Aufwand. "
+        "Bewerte Alltagskram, Deko, alte Moebel ohne erkennbare Marke, defekte oder "
+        "hygienisch riskante Gegenstaende niedrig. Setze hohes Potenzial nur bei klar "
+        "wertvollen, marktfähigen Gegenstaenden mit plausibel hoher Nachfrage.\n\n"
+    )
+
+
+def _gift_final_rules() -> str:
+    return (
+        "Sonderfall Schenken-Kategorie: Der Angebotspreis ist effektiv 0 EUR. "
+        "Vergib Score 7+ nur, wenn der Gegenstand wahrscheinlich einen hohen "
+        "Wiederverkaufswert hat und mit vertretbarem Aufwand verwertet werden kann. "
+        "Score 8+ braucht klaren Wert, erkennbare Nachfrage und geringe Zweifel an Zustand "
+        "oder Vollstaendigkeit. Sperrige Gegenstaende (Moebel, Haushaltsgeraete, grosse "
+        "Sportgeraete) duerfen nur hoch bewertet werden, wenn der Suchauftrag/Standort auf "
+        "sehr nahe Abholung hindeutet oder der Wiederverkaufswert den Transportaufwand klar "
+        "rechtfertigt. Bei unklarem Standort, unklarem Zustand oder typischem Sperrmuell "
+        "Score deutlich senken.\n\n"
     )
 
 

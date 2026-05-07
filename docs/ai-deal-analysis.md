@@ -37,12 +37,12 @@ OPENAI_MODEL=openai/gpt-5.4-mini
 AI_MAX_COMPARISON_CANDIDATES=12
 AI_STRONG_MODEL_MIN_DELTA_PERCENT=18
 AI_STRONG_MODEL_MIN_SAVINGS_EUR=75
-AI_INCLUDE_IMAGES=false
 ```
 
-Images are disabled by default because vision tokens are usually not needed for price
-estimation. Turn them on only when image quality or product variant recognition becomes a
-major bottleneck.
+Images are not controlled by an env flag. The final scoring model first gets a text-only
+prompt and may call the `request_product_images` tool when visible product details are
+needed. Only then Schnappster downloads all available ad images, optimizes them, and runs a
+second multimodal final scoring call.
 
 ## Model Recommendation
 

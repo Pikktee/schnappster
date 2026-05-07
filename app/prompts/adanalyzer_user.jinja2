@@ -1,6 +1,13 @@
 Titel: {{ title }}
 Preis: {{ price_display }}
 
+{% if is_gift_category_search %}
+    Suchauftrag-Modus: Schenken-Kategorie (Zu verschenken)
+    Bewertungsregeln:
+    - Nur wertvolle Gegenstände mit hohem Wiederverkaufswert als Schnäppchen markieren.
+    - Bei sperrigen Gegenständen ist ein hoher Score nur angemessen, wenn die Abholung sehr nah ist oder der Wiederverkaufswert den Aufwand klar rechtfertigt.
+{% endif %}
+
 {% if description %}
     Beschreibung: {{ description }}
 {% endif %}
