@@ -27,7 +27,10 @@ def list_errorlogs(
     if adsearch_id is not None:
         query = query.where(ErrorLog.adsearch_id == adsearch_id)
 
-    return session.exec(query).all()
+    logs = session.exec(query).all()
+    result = [ErrorLogRead.model_validate(log) for log in logs]
+    session.rollback()
+    return result
 
 
 @router.delete("/", status_code=204)

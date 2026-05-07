@@ -27,7 +27,10 @@ def list_aianalysislogs(
     if adsearch_id is not None:
         query = query.where(AIAnalysisLog.adsearch_id == adsearch_id)
 
-    return session.exec(query).all()
+    logs = session.exec(query).all()
+    result = [AIAnalysisLogRead.model_validate(log) for log in logs]
+    session.rollback()
+    return result
 
 
 @router.delete("/", status_code=204)

@@ -11,6 +11,7 @@ from collections.abc import Sequence
 
 from openai import BadRequestError, OpenAI  # pyright: ignore[reportMissingImports]
 from sqlalchemy import desc
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
 from app.core import config as app_config
@@ -84,7 +85,12 @@ class AIService:
 
     def _release_session_connection(self) -> None:
         """Beendet Read-Transaktionen vor Bilddownload, OpenAI oder Telegram."""
-        self.session.rollback()
+        try:
+            self.session.rollback()
+        except SQLAlchemyError:
+            self.session.invalidate()
+        finally:
+            self.session.close()
 
     def _analyze_ads(self, ads: Sequence[Ad]) -> int:
         """Anzeigen nacheinander; Fehler loggen und weitermachen; Zahl der Erfolge."""
@@ -97,45 +103,44 @@ class AIService:
                 analyzed += 1
 
             except BadRequestError as e:
-                self.session.rollback()
                 error_msg = (
                     e.body.get("error", {}).get("message", str(e))
                     if isinstance(e.body, dict)
                     else str(e)
                 )
-                # Kurze, einzeilige Meldung für Konsole (vermeidet Rich-Rendering-Probleme)
-                logger.error(
-                    "API error for ad %s '%s': %s",
-                    ad.id,
-                    ad.title[:50] + "..." if len(ad.title) > 50 else ad.title,
-                    error_msg[:200] + "..." if len(error_msg) > 200 else error_msg,
-                )
-                try:  # noqa: SIM105
-                    self._log_analysis_error(
-                        ad, "API error", error_msg, prompt_text=prompt_text_for_error
-                    )
-                except Exception:
-                    pass  # Fehlerlog bestmöglich
-                # mit nächster Anzeige weitermachen
+                self._handle_analysis_error(ad, "API error", error_msg, prompt_text_for_error)
 
             except Exception as e:
-                self.session.rollback()
                 err_str = str(e)
-                logger.error(
-                    "Failed to analyze ad %s '%s': %s",
-                    ad.id,
-                    ad.title[:50] + "..." if len(ad.title) > 50 else ad.title,
-                    err_str[:200] + "..." if len(err_str) > 200 else err_str,
+                self._handle_analysis_error(
+                    ad, "Analysis failed", err_str, prompt_text_for_error
                 )
-                try:  # noqa: SIM105
-                    self._log_analysis_error(
-                        ad, "Analysis failed", err_str, prompt_text=prompt_text_for_error
-                    )
-                except Exception:
-                    pass  # Fehlerlog bestmöglich
-                # mit nächster Anzeige weitermachen
 
         return analyzed
+
+    def _handle_analysis_error(
+        self, ad: Ad, error_type: str, message: str, prompt_text: str
+    ) -> None:
+        """Loggt Analysefehler, ohne dass kaputte DB-Verbindungen den Batch stoppen."""
+        self._release_session_connection()
+        logger.error(
+            "Failed to analyze ad %s '%s': %s",
+            ad.id,
+            self._short_log_title(ad.title),
+            self._short_log_message(message),
+        )
+        with contextlib.suppress(Exception):
+            self._log_analysis_error(ad, error_type, message, prompt_text=prompt_text)
+
+    @staticmethod
+    def _short_log_title(title: str) -> str:
+        """Kuerzt Titel fuer einzeilige Logs."""
+        return title[:50] + "..." if len(title) > 50 else title
+
+    @staticmethod
+    def _short_log_message(message: str) -> str:
+        """Kuerzt Fehlermeldungen fuer einzeilige Logs."""
+        return message[:200] + "..." if len(message) > 200 else message
 
     def _build_prompt_text_for_log(self, ad: Ad) -> str:
         """Erstellt den vollen Prompt-Text (ohne Bilder) für das ErrorLog."""

@@ -4,14 +4,23 @@ import json
 from typing import Annotated
 
 from fastapi import Depends
+from sqlalchemy import event
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, SQLModel, create_engine, text
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.config import config
 
 _connect_args: dict[str, object] = {"connect_timeout": config.db_connect_timeout}
+_postgres_options: list[str] = []
 if config.db_statement_timeout_ms > 0:
-    _connect_args["options"] = f"-c statement_timeout={config.db_statement_timeout_ms}"
+    _postgres_options.append(f"-c statement_timeout={config.db_statement_timeout_ms}")
+if config.db_idle_in_transaction_session_timeout_ms > 0:
+    _postgres_options.append(
+        f"-c idle_in_transaction_session_timeout={config.db_idle_in_transaction_session_timeout_ms}"
+    )
+if _postgres_options:
+    _connect_args["options"] = " ".join(_postgres_options)
 db_engine = create_engine(
     config.database_url,
     echo=False,
@@ -22,6 +31,19 @@ db_engine = create_engine(
     pool_pre_ping=True,
     pool_use_lifo=True,
 )
+
+
+@event.listens_for(db_engine, "connect")
+def _set_connection_timeouts(dbapi_connection, _connection_record) -> None:
+    """Apply Postgres timeouts on every newly opened DB connection."""
+    with dbapi_connection.cursor() as cursor:
+        if config.db_statement_timeout_ms > 0:
+            cursor.execute(f"SET statement_timeout = {config.db_statement_timeout_ms}")
+        if config.db_idle_in_transaction_session_timeout_ms > 0:
+            cursor.execute(
+                "SET idle_in_transaction_session_timeout = "
+                f"{config.db_idle_in_transaction_session_timeout_ms}"
+            )
 
 
 def init_db() -> None:
@@ -162,8 +184,11 @@ def get_user_db_session(current_user: CurrentUser = Depends(get_current_user)): 
         try:
             yield session
         finally:
-            session.rollback()
-            clear_user_db_claims(session)
+            try:
+                session.rollback()
+                clear_user_db_claims(session)
+            except SQLAlchemyError:
+                session.invalidate()
 
 
 # Abhängigkeit für FastAPI

@@ -5,6 +5,7 @@ import traceback
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, col, select
 
 from app.models.ad import Ad
@@ -157,7 +158,12 @@ class ScraperService:
 
     def _release_session_connection(self) -> None:
         """Beendet reine Read-Transaktionen vor langen externen Netzwerkaufrufen."""
-        self.session.rollback()
+        try:
+            self.session.rollback()
+        except SQLAlchemyError:
+            self.session.invalidate()
+        finally:
+            self.session.close()
 
     def _log_error(
         self,

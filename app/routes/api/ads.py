@@ -53,7 +53,9 @@ def list_ads(
     )
 
     items = session.exec(query).all()
-    return {"items": [AdRead.model_validate(ad) for ad in items], "total": total}
+    result = {"items": [AdRead.model_validate(ad) for ad in items], "total": total}
+    session.rollback()
+    return result
 
 
 @router.get("/{ad_id}", response_model=AdRead)
@@ -68,4 +70,6 @@ def get_ad(
     if not ad:
         raise HTTPException(status_code=404, detail="Ad not found")
 
-    return ad
+    result = AdRead.model_validate(ad)
+    session.rollback()
+    return result

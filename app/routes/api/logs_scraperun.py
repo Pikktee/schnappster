@@ -30,7 +30,10 @@ def list_scraperuns(
         query = select(ScrapeRun).order_by(col(ScrapeRun.started_at).desc()).limit(limit)
         if adsearch_id is not None:
             query = query.where(ScrapeRun.adsearch_id == adsearch_id)
-        return session.exec(query).all()
+        runs = session.exec(query).all()
+        result = [ScrapeRunRead.model_validate(run) for run in runs]
+        session.rollback()
+        return result
 
     query = (
         select(ScrapeRun)
@@ -41,7 +44,10 @@ def list_scraperuns(
     )
     if adsearch_id is not None:
         query = query.where(ScrapeRun.adsearch_id == adsearch_id)
-    return session.exec(query).all()
+    runs = session.exec(query).all()
+    result = [ScrapeRunRead.model_validate(run) for run in runs]
+    session.rollback()
+    return result
 
 
 @router.delete("/", status_code=204)

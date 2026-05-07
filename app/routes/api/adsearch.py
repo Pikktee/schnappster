@@ -24,7 +24,10 @@ router = APIRouter(prefix="/adsearches", tags=["AdSearches"])
 @router.get("/", response_model=list[AdSearchRead])
 def list_adsearches(session: UserDbSession, current_user: CurrentUser = Depends(get_current_user)):  # noqa: B008
     """Gibt alle Suchaufträge zurück."""
-    return session.exec(select(AdSearch).where(AdSearch.owner_id == current_user.user_id)).all()
+    searches = session.exec(select(AdSearch).where(AdSearch.owner_id == current_user.user_id)).all()
+    result = [AdSearchRead.model_validate(search) for search in searches]
+    session.rollback()
+    return result
 
 
 @router.get("/{adsearch_id}", response_model=AdSearchRead)
@@ -44,7 +47,9 @@ def get_adsearch(
     if not adsearch:
         raise HTTPException(status_code=404, detail="AdSearch not found")
 
-    return adsearch
+    result = AdSearchRead.model_validate(adsearch)
+    session.rollback()
+    return result
 
 
 @router.post("/", response_model=AdSearchRead, status_code=201)

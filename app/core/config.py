@@ -34,6 +34,7 @@ class Config(BaseSettings):
     db_pool_timeout: int = 10
     db_connect_timeout: int = 5
     db_statement_timeout_ms: int = 30_000
+    db_idle_in_transaction_session_timeout_ms: int = 60_000
     supabase_auth_timeout: float = 5.0
     supabase_auth_cache_ttl: float = 60.0
     scrape_request_timeout: float = 20.0

@@ -4,6 +4,7 @@ import json
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.ad import Ad
 from app.prompts import render_user_prompt
@@ -179,6 +180,48 @@ def test_complete_json_propagates_main_model_failure():
     ai_service._chat_json = fake_chat_json  # type: ignore[method-assign]
     with pytest.raises(RuntimeError, match="upstream down"):
         ai_service._complete_json("prompt", "main-model")
+
+
+def test_analyze_ads_continues_when_rollback_connection_is_closed():
+    """A dead DB connection in the error handler must not abort the whole batch."""
+
+    class BrokenRollbackSession:
+        def __init__(self) -> None:
+            self.invalidated = 0
+            self.closed = 0
+
+        def rollback(self) -> None:
+            raise SQLAlchemyError("connection already closed")
+
+        def invalidate(self) -> None:
+            self.invalidated += 1
+
+        def close(self) -> None:
+            self.closed += 1
+
+    ai_service = AIService.__new__(AIService)
+    ai_service.session = BrokenRollbackSession()
+
+    calls: list[int | None] = []
+
+    def fake_analyze_ad(ad: Ad, prompt_text: str) -> None:
+        calls.append(ad.id)
+        if ad.id == 1:
+            raise RuntimeError("boom")
+
+    ai_service._build_prompt_text_for_log = lambda ad: "prompt"  # type: ignore[method-assign]
+    ai_service._analyze_ad = fake_analyze_ad  # type: ignore[method-assign]
+    ai_service._log_analysis_error = lambda *args, **kwargs: None  # type: ignore[method-assign]
+
+    ads = [
+        Ad(owner_id="owner", id=1, external_id="1", title="Broken", url="https://example.com/1"),
+        Ad(owner_id="owner", id=2, external_id="2", title="Works", url="https://example.com/2"),
+    ]
+
+    assert ai_service._analyze_ads(ads) == 1
+    assert calls == [1, 2]
+    assert ai_service.session.invalidated >= 1
+    assert ai_service.session.closed >= 1
 
 
 def test_apply_result_to_ad_persists_evidence(sample_ads):
