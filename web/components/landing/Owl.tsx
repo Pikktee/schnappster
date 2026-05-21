@@ -20,6 +20,16 @@ export function Owl({ size = 120, className }: Props) {
 
   useEffect(() => {
     if (reduce) return
+
+    // Eyes react with a short latency, like a real reaction time: the pupils
+    // target where the cursor was REACTION_MS ago. When the cursor jumps, they
+    // hold their position briefly, then move to follow.
+    const REACTION_MS = 250
+    type Sample = { t: number; x: number; y: number }
+    const samples: Sample[] = [{ t: performance.now(), x: 0, y: 0 }]
+    const current = { x: 0, y: 0 }
+    let rafId = 0
+
     const onMove = (e: MouseEvent) => {
       const svg = svgRef.current
       if (!svg) return
@@ -29,18 +39,33 @@ export function Owl({ size = 120, className }: Props) {
       const dx = e.clientX - cx
       const dy = e.clientY - cy
       const dist = Math.hypot(dx, dy) || 1
-      // Eye white r = 20, pupil r = 9, highlight reaches ~3px further → safe max ≈ 6.5
-      const maxOffset = 6.5
+      // Pupil base offset ≈2.8px + radius 9 must stay within eye-white radius 20 → safe max ≈ 8
+      const maxOffset = 8
       const mag = Math.min(maxOffset, dist / 28)
-      const nx = (dx / dist) * mag
-      const ny = (dy / dist) * mag
-      if (leftPupil.current)
-        leftPupil.current.style.transform = `translate(${nx}px, ${ny}px)`
-      if (rightPupil.current)
-        rightPupil.current.style.transform = `translate(${nx}px, ${ny}px)`
+      samples.push({ t: performance.now(), x: (dx / dist) * mag, y: (dy / dist) * mag })
     }
+
+    const tick = () => {
+      const cutoff = performance.now() - REACTION_MS
+      // Advance to the most recent sample already older than the reaction delay.
+      while (samples.length > 1 && samples[1].t <= cutoff) samples.shift()
+      const delayed = samples[0]
+      // Quick, smooth catch-up once the reaction delay has elapsed.
+      const ease = 0.35
+      current.x += (delayed.x - current.x) * ease
+      current.y += (delayed.y - current.y) * ease
+      const transform = `translate(${current.x.toFixed(2)}px, ${current.y.toFixed(2)}px)`
+      if (leftPupil.current) leftPupil.current.style.transform = transform
+      if (rightPupil.current) rightPupil.current.style.transform = transform
+      rafId = requestAnimationFrame(tick)
+    }
+
     window.addEventListener("mousemove", onMove, { passive: true })
-    return () => window.removeEventListener("mousemove", onMove)
+    rafId = requestAnimationFrame(tick)
+    return () => {
+      window.removeEventListener("mousemove", onMove)
+      cancelAnimationFrame(rafId)
+    }
   }, [reduce])
 
   return (
@@ -80,7 +105,7 @@ export function Owl({ size = 120, className }: Props) {
           animation-fill-mode: both;
         }
 
-        .owl-pupil     { transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1); }
+        .owl-pupil     { will-change: transform; }
 
         @media (prefers-reduced-motion: reduce) {
           .owl-float, .owl-tag, .owl-tilt { animation: none !important; transition: none !important; }
