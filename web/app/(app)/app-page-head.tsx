@@ -26,10 +26,10 @@ export function AppPageHead() {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            {pathname === "/" || pathname === "" ? (
+            {pathname === "/dashboard" ? (
               <BreadcrumbPage>Start</BreadcrumbPage>
             ) : (
-              <BreadcrumbLink href="/">Start</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard">Start</BreadcrumbLink>
             )}
           </BreadcrumbItem>
           {pathSegments.length >= 1 && pathSegments[0] === "ads" && (

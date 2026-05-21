@@ -27,7 +27,7 @@ function AuthSessionRedirect() {
       router.replace(getSafeConnectReturnPath(searchParams.get("next")))
       return
     }
-    router.replace("/")
+    router.replace("/dashboard")
   }, [loading, session, router, pathname, searchParams])
 
   return null

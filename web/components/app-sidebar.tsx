@@ -43,7 +43,7 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/components/auth-provider"
 
 const navItems = [
-  { label: "Start", href: "/", icon: Home },
+  { label: "Start", href: "/dashboard", icon: Home },
   { label: "Suchaufträge", href: "/searches/", icon: Search },
   { label: "Angebote", href: "/ads/", icon: Tag },
   { label: "Logs", href: "/logs/", icon: List },
@@ -140,7 +140,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-4 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
-        <Link href="/" className="flex items-center cursor-pointer">
+        <Link href="/dashboard" className="flex items-center cursor-pointer">
           {/* eslint-disable-next-line @next/next/no-img-element -- static logo SVG */}
           <img
             src="/logo.svg"
