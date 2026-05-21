@@ -39,13 +39,13 @@ export function OwlMark({ size = 40, className }: OwlMarkProps) {
         strokeWidth="3"
         strokeLinecap="round"
       />
-      <path d="M130 125 L170 125 L180 140 L170 155 L130 155 Z" fill="#10B981" />
-      <circle cx="172" cy="140" r="3" fill="#FAFAF9" />
-      <text x="138" y="146" fill="#fff" fontSize="14" fontWeight="700" fontFamily="Lexend">
+      <path d="M138 120 L178 120 L188 135 L178 150 L138 150 Z" fill="#10B981" />
+      <circle cx="180" cy="135" r="3" fill="#FAFAF9" />
+      <text x="146" y="141" fill="#fff" fontSize="14" fontWeight="700" fontFamily="Lexend">
         €
       </text>
       <path
-        d="M152 138 L152 148 M148 144 L152 148 L156 144"
+        d="M160 133 L160 143 M156 139 L160 143 L164 139"
         stroke="#fff"
         strokeWidth="2"
         strokeLinecap="round"

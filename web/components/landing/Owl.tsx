@@ -84,11 +84,11 @@ export function Owl({ size = 120, className }: Props) {
           0%,100% { transform: rotate(-15deg); }
           50%     { transform: rotate(-12deg); }
         }
-        @keyframes owl-tag-swing {
-          0%   { transform: rotate(-15deg); }
-          30%  { transform: rotate(-26deg); }
-          65%  { transform: rotate(-8deg); }
-          100% { transform: rotate(-15deg); }
+        @keyframes owl-arm-swing {
+          0%   { transform: rotate(0deg); }
+          30%  { transform: rotate(-11deg); }
+          65%  { transform: rotate(4deg); }
+          100% { transform: rotate(0deg); }
         }
 
         .owl-root      { cursor: pointer; }
@@ -100,17 +100,20 @@ export function Owl({ size = 120, className }: Props) {
 
         .owl-tag       { animation: owl-tag-idle 4.5s ease-in-out infinite;
                           transform-box: fill-box; transform-origin: top left; }
-        .owl-root:hover .owl-tag {
-          animation: owl-tag-swing 900ms cubic-bezier(0.22, 1, 0.36, 1);
+
+        /* Hand + tag swing together as one arm on hover */
+        .owl-arm       { transform-box: fill-box; transform-origin: 31% 7%; }
+        .owl-root:hover .owl-arm {
+          animation: owl-arm-swing 900ms cubic-bezier(0.22, 1, 0.36, 1);
           animation-fill-mode: both;
         }
 
         .owl-pupil     { will-change: transform; }
 
         @media (prefers-reduced-motion: reduce) {
-          .owl-float, .owl-tag, .owl-tilt { animation: none !important; transition: none !important; }
+          .owl-float, .owl-tag, .owl-tilt, .owl-arm { animation: none !important; transition: none !important; }
           .owl-root:hover .owl-tilt { transform: none !important; }
-          .owl-root:hover .owl-tag  { animation: none !important; }
+          .owl-root:hover .owl-arm  { animation: none !important; transform: none !important; }
           .owl-pupil { transition: none !important; transform: none !important; }
         }
       `}</style>
@@ -122,9 +125,8 @@ export function Owl({ size = 120, className }: Props) {
             <ellipse cx="100" cy="120" rx="60" ry="65" fill="#F59E0B" />
             <ellipse cx="100" cy="130" rx="40" ry="45" fill="#FEF3C7" />
 
-            {/* Wings */}
+            {/* Wings (left only; right wing lives in the arm group with the tag) */}
             <path d="M50 110 Q35 140 55 165 Q70 150 65 115 Z" fill="#D97706" />
-            <path d="M150 110 Q165 140 145 165 Q130 150 135 115 Z" fill="#D97706" />
 
             {/* Head tufts */}
             <path d="M65 65 L55 40 L75 60 Z" fill="#D97706" />
@@ -151,12 +153,15 @@ export function Owl({ size = 120, className }: Props) {
             <path d="M85 180 L82 192 M90 180 L92 192 M95 180 L102 192" stroke="#D97706" strokeWidth="3" strokeLinecap="round" />
             <path d="M115 180 L118 192 M110 180 L108 192 M105 180 L98 192" stroke="#D97706" strokeWidth="3" strokeLinecap="round" />
 
-            {/* Price tag */}
-            <g className="owl-tag">
-              <path d="M130 125 L170 125 L180 140 L170 155 L130 155 Z" fill="#10B981" />
-              <circle cx="172" cy="140" r="3" fill="#FAFAF9" />
-              <text x="138" y="146" fill="#fff" fontSize="14" fontWeight="700" fontFamily="Lexend">€</text>
-              <path d="M152 138 L152 148 M148 144 L152 148 L156 144" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            {/* Right wing (hand) + price tag — swing together on hover */}
+            <g className="owl-arm">
+              <path d="M150 110 Q165 140 145 165 Q130 150 135 115 Z" fill="#D97706" />
+              <g className="owl-tag">
+                <path d="M138 120 L178 120 L188 135 L178 150 L138 150 Z" fill="#10B981" />
+                <circle cx="180" cy="135" r="3" fill="#FAFAF9" />
+                <text x="146" y="141" fill="#fff" fontSize="14" fontWeight="700" fontFamily="Lexend">€</text>
+                <path d="M160 133 L160 143 M156 139 L160 143 L164 139" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </g>
             </g>
           </g>
         </g>
