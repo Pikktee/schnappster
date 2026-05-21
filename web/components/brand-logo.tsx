@@ -58,7 +58,7 @@ export function OwlMark({ size = 40, className }: OwlMarkProps) {
 
 const wordmarkStyle: CSSProperties = {
   fontFamily: "'Fredoka', 'Baloo 2', 'Poppins', system-ui, sans-serif",
-  fontWeight: 500,
+  fontWeight: 400,
   lineHeight: 1,
   letterSpacing: "-0.015em",
   color: "#1C1917",
