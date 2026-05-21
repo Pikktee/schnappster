@@ -71,9 +71,9 @@ function Nav() {
           </span>
         </a>
         <nav className="hidden md:flex items-center gap-8 text-sm text-stone-600">
-          <NavLink href="#how">So funktioniert&apos;s</NavLink>
+          <NavLink href="#how">So geht&apos;s</NavLink>
           <NavLink href="#features">Funktionen</NavLink>
-          <NavLink href="#dashboard">Dashboard</NavLink>
+          <NavLink href="#dashboard">Cockpit</NavLink>
         </nav>
         <Link
           href="/register"
@@ -138,7 +138,7 @@ function Hero() {
                   href="#how"
                   className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-white border border-stone-200 hover:border-stone-300 text-stone-800 transition-colors"
                 >
-                  So funktioniert&apos;s
+                  So geht&apos;s
                 </a>
               </div>
             </Reveal>
@@ -210,7 +210,7 @@ function HowItWorks() {
       <div className="max-w-6xl mx-auto px-6">
         <div className="text-center mb-14">
           <Reveal>
-            <div className="text-sm text-amber-600 mb-3 tracking-wide uppercase">So funktioniert&apos;s</div>
+            <div className="text-sm text-amber-600 mb-3 tracking-wide uppercase">So geht&apos;s</div>
           </Reveal>
           <Reveal delay={0.05}>
             <h2 className="text-3xl md:text-5xl tracking-tight text-stone-900">
