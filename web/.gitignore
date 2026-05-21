@@ -10,3 +10,6 @@ out/
 .env*.local
 .DS_Store
 .vercel
+
+# TypeScript incremental build cache
+*.tsbuildinfo
