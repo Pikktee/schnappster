@@ -51,7 +51,7 @@ export function ParticleField() {
         const y = Math.random() * height
         const speed = 0.04 + Math.random() * 0.07
         const angle = Math.random() * Math.PI * 2
-        const isGreen = Math.random() < 0.15
+        const isGreen = Math.random() < 0.25
         particles.push({
           x,
           y,
