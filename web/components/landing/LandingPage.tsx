@@ -1,6 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
+import Link from "next/link"
 import { motion } from "motion/react"
 import {
   Gauge,
@@ -74,12 +75,12 @@ function Nav() {
           <NavLink href="#features">Funktionen</NavLink>
           <NavLink href="#dashboard">Dashboard</NavLink>
         </nav>
-        <a
-          href="#cta"
+        <Link
+          href="/register"
           className="px-4 py-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white text-sm transition-colors shadow-sm"
         >
           Loslegen
-        </a>
+        </Link>
       </div>
     </header>
   )
@@ -126,13 +127,13 @@ function Hero() {
             </Reveal>
             <Reveal delay={0.18}>
               <div className="flex flex-wrap items-center gap-3">
-                <a
-                  href="#cta"
+                <Link
+                  href="/register"
                   className="group inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-amber-500 hover:bg-amber-600 text-white shadow-[0_10px_30px_-10px_rgba(245,158,11,0.6)] transition-all hover:-translate-y-0.5"
                 >
                   Jetzt Schnäppchen jagen
                   <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
-                </a>
+                </Link>
                 <a
                   href="#how"
                   className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-white border border-stone-200 hover:border-stone-300 text-stone-800 transition-colors"
@@ -365,13 +366,13 @@ function FooterCTA() {
           </p>
         </Reveal>
         <Reveal delay={0.15}>
-          <a
-            href="#top"
+          <Link
+            href="/register"
             className="group inline-flex items-center gap-2 px-7 py-4 rounded-full bg-stone-900 hover:bg-stone-800 text-white shadow-[0_15px_40px_-15px_rgba(28,25,23,0.6)] transition-all hover:-translate-y-0.5"
           >
             Kostenlos Schnäppchen jagen
             <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
-          </a>
+          </Link>
         </Reveal>
         <Reveal delay={0.2}>
           <div className="mt-6 text-sm text-stone-500">
@@ -392,9 +393,8 @@ function Footer() {
           <span>© {new Date().getFullYear()} Schnappster. Mit Eulen-Flügeln gebaut.</span>
         </div>
         <div className="flex items-center gap-6">
-          <a href="#" className="hover:text-stone-900">Datenschutz</a>
-          <a href="#" className="hover:text-stone-900">Impressum</a>
-          <a href="#" className="hover:text-stone-900">Kontakt</a>
+          <Link href="/datenschutz" className="hover:text-stone-900">Datenschutz</Link>
+          <Link href="/impressum" className="hover:text-stone-900">Impressum</Link>
         </div>
       </div>
     </footer>
