@@ -134,7 +134,9 @@ export function AppSidebar() {
 
   async function handleLogout() {
     await supabase?.auth.signOut()
-    router.replace("/login")
+    // Hard navigation to the public landing page. Avoids the app layout's
+    // auth-gate effect racing us to /login once the session clears.
+    window.location.href = "/"
   }
 
   return (

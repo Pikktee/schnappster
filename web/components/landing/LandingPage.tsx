@@ -101,7 +101,7 @@ function Hero() {
         <div className="absolute inset-y-0 left-0 w-2/3 pointer-events-none bg-gradient-to-r from-[#FAFAF9] via-[#FAFAF9]/70 to-transparent" />
       </div>
 
-      <div className="relative z-10 max-w-6xl mx-auto px-6 pt-20 pb-28 md:pt-28 md:pb-36">
+      <div className="relative z-10 max-w-6xl mx-auto px-6 pt-14 pb-20 md:pt-20 md:pb-24">
         <div className="grid lg:grid-cols-12 gap-10 items-center">
           <div className="lg:col-span-7">
             <Reveal>
@@ -169,7 +169,7 @@ function Hero() {
 
 function ProblemSolution() {
   return (
-    <section className="py-20 md:py-28 border-y border-stone-200/70 bg-white/50">
+    <section className="py-14 md:py-20 border-y border-stone-200/70 bg-white/50">
       <div className="max-w-4xl mx-auto px-6 text-center">
         <Reveal>
           <h2 className="text-3xl md:text-5xl tracking-tight text-stone-900 mb-5">
@@ -206,9 +206,9 @@ function HowItWorks() {
     },
   ]
   return (
-    <section id="how" className="py-24 md:py-32">
+    <section id="how" className="py-16 md:py-20">
       <div className="max-w-6xl mx-auto px-6">
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <Reveal>
             <div className="text-sm text-amber-600 mb-3 tracking-wide uppercase">So funktioniert&apos;s</div>
           </Reveal>
@@ -260,9 +260,9 @@ function Features() {
     },
   ]
   return (
-    <section id="features" className="py-24 md:py-32 bg-gradient-to-b from-transparent to-amber-50/40">
+    <section id="features" className="py-16 md:py-20 bg-gradient-to-b from-transparent to-amber-50/40">
       <div className="max-w-6xl mx-auto px-6">
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <Reveal>
             <div className="text-sm text-amber-600 mb-3 tracking-wide uppercase">Funktionen</div>
           </Reveal>
@@ -311,9 +311,9 @@ function Features() {
 
 function DashboardSection() {
   return (
-    <section id="dashboard" className="py-24 md:py-32">
+    <section id="dashboard" className="py-16 md:py-20">
       <div className="max-w-6xl mx-auto px-6">
-        <div className="text-center mb-14">
+        <div className="text-center mb-10">
           <Reveal>
             <div className="text-sm text-amber-600 mb-3 tracking-wide uppercase">Dein Cockpit</div>
           </Reveal>
@@ -339,7 +339,7 @@ function DashboardSection() {
 
 function FooterCTA() {
   return (
-    <section id="cta" className="relative py-24 md:py-32 overflow-hidden">
+    <section id="cta" className="relative py-16 md:py-20 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-amber-100 via-amber-50 to-emerald-50" />
       <div className="absolute -top-20 left-1/4 w-96 h-96 rounded-full bg-amber-200/40 blur-3xl" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 rounded-full bg-emerald-200/30 blur-3xl" />
