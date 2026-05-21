@@ -29,18 +29,32 @@ export async function getSessionWithTimeout(
   timeoutMs: number = SESSION_TIMEOUT_MS,
 ): Promise<Session | null> {
   if (!supabase) return null
+  const client = supabase
 
   return new Promise<Session | null>((resolve) => {
     const timeoutId = window.setTimeout(() => {
       resolve(null)
     }, timeoutMs)
 
-    supabase.auth
+    // A stale/invalid refresh token in storage makes Supabase log
+    // "Invalid Refresh Token: Refresh Token Not Found". Purge it locally so the
+    // user is treated as logged out and the error doesn't recur on reload.
+    const purgeStaleSession = () => {
+      void client.auth.signOut({ scope: "local" }).catch(() => {})
+    }
+
+    client.auth
       .getSession()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          purgeStaleSession()
+          resolve(null)
+          return
+        }
         resolve(data.session ?? null)
       })
       .catch(() => {
+        purgeStaleSession()
         resolve(null)
       })
       .finally(() => {

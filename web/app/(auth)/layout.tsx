@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useEffect } from "react"
 import { useAuth } from "@/components/auth-provider"
+import { BrandLogo } from "@/components/brand-logo"
 import { getSafeConnectReturnPath } from "@/lib/connect-return-path"
 import { Spinner } from "@/components/ui/spinner"
 
@@ -51,14 +52,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </Suspense>
       <div className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center gap-6 px-4 py-10">
         <div className="flex flex-col items-center gap-3 text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element -- static logo SVG */}
-          <img
-            src="/logo.svg"
-            alt="Schnappster"
-            className="h-12 w-auto max-w-full object-contain"
-            width={200}
-            height={60}
-          />
+          <BrandLogo owlSize={48} textClassName="text-2xl" />
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">
               Deals finden. Bewerten lassen. Schnell reagieren.
@@ -68,7 +62,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {children}
         <p className="text-center text-xs text-muted-foreground">
           <Link href="/impressum" className="underline underline-offset-4 hover:text-foreground">
-            Impressum & Datenschutz
+            Impressum
+          </Link>
+          {" · "}
+          <Link href="/datenschutz" className="underline underline-offset-4 hover:text-foreground">
+            Datenschutz
           </Link>
         </p>
       </div>

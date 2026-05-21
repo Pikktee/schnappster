@@ -13,7 +13,7 @@ import {
   Settings,
   Tag,
 } from "lucide-react"
-import Image from "next/image"
+import { BrandLogo, OwlMark } from "@/components/brand-logo"
 import {
   Sidebar,
   SidebarContent,
@@ -141,21 +141,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-4 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
         <Link href="/dashboard" className="flex items-center cursor-pointer">
-          {/* eslint-disable-next-line @next/next/no-img-element -- static logo SVG */}
-          <img
-            src="/logo.svg"
-            alt="Schnappster"
-            className="h-12 w-auto max-w-full object-contain group-data-[collapsible=icon]:hidden"
-            width={200}
-            height={60}
-          />
-          <Image
-            src="/android-chrome-192x192.png"
-            alt="Schnappster"
-            className="hidden size-8 rounded-md group-data-[collapsible=icon]:block"
-            width={32}
-            height={32}
-          />
+          <BrandLogo owlSize={36} className="group-data-[collapsible=icon]:hidden" />
+          <OwlMark size={32} className="hidden group-data-[collapsible=icon]:block" />
         </Link>
       </SidebarHeader>
 
