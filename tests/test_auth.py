@@ -1,36 +1,69 @@
-"""Tests fuer Supabase-Auth-Dependency."""
+"""Tests fuer die eigene JWT-Auth (Token, Dependency, Freischaltung)."""
 
 import pytest
+from fastapi import HTTPException
 
 from app.core import auth
-from app.core.auth import get_current_user
+from app.core.security import hash_password, validate_password_strength, verify_password
+from app.models.user import User
 
 
-@pytest.mark.asyncio
-async def test_get_current_user_caches_supabase_lookup(monkeypatch, httpx_mock):
-    """Wiederholte API-Requests mit gleichem Token vermeiden erneute Supabase-Lookups."""
-    auth._AUTH_CACHE.clear()
-    monkeypatch.setattr(auth.config, "supabase_url", "https://test.supabase.co")
-    monkeypatch.setattr(auth.config, "supabase_publishable_key", "publishable")
-    monkeypatch.setattr(auth.config, "supabase_auth_cache_ttl", 60.0)
-    monkeypatch.setattr(auth.config, "supabase_auth_timeout", 1.0)
+def test_password_hash_roundtrip():
+    """Hash + Verify funktioniert, falsches Passwort schlaegt fehl."""
+    h = hash_password("Geheim12!")
+    assert verify_password("Geheim12!", h)
+    assert not verify_password("falsch", h)
 
-    httpx_mock.add_response(
-        url="https://test.supabase.co/auth/v1/user",
-        json={
-            "id": "user-1",
-            "email": "test@example.com",
-            "app_metadata": {"role": "user"},
-            "user_metadata": {},
-            "identities": [],
-        },
+
+def test_password_policy_rejects_weak():
+    """Schwaches Passwort wirft ValueError, starkes nicht."""
+    with pytest.raises(ValueError):
+        validate_password_strength("kurz")
+    validate_password_strength("Geheim12!")
+
+
+def test_access_token_roundtrip():
+    """Ein erzeugtes Token enthaelt sub/role und ist dekodierbar."""
+    user = User(id="abc", email="a@b.de", password_hash="x", role="admin", is_active=True)
+    token = auth.create_access_token(user)
+    payload = auth._decode_token(token)
+    assert payload["sub"] == "abc"
+    assert payload["role"] == "admin"
+
+
+def test_decode_invalid_token_raises_401():
+    with pytest.raises(HTTPException) as exc:
+        auth._decode_token("nicht.gueltig.token")
+    assert exc.value.status_code == 401
+
+
+def test_get_current_user_rejects_inactive(session):
+    """Inaktiver User wird trotz gueltigem Token mit 401 abgewiesen."""
+    user = User(
+        id="u1", email="u1@test.de", password_hash="x", role="user", is_active=False
     )
+    session.add(user)
+    session.commit()
+    token = auth.create_access_token(user)
+    with pytest.raises(HTTPException) as exc:
+        auth.get_current_user(authorization=f"Bearer {token}", session=session)
+    assert exc.value.status_code == 401
 
-    first_user = await get_current_user("Bearer same-token")
-    second_user = await get_current_user("Bearer same-token")
 
-    assert first_user is second_user
-    assert first_user.id == "user-1"
-    assert len(httpx_mock.get_requests()) == 1
+def test_get_current_user_accepts_active(session):
+    """Aktiver User wird korrekt aufgeloest."""
+    user = User(
+        id="u2", email="u2@test.de", password_hash="x", role="admin", is_active=True
+    )
+    session.add(user)
+    session.commit()
+    token = auth.create_access_token(user)
+    current = auth.get_current_user(authorization=f"Bearer {token}", session=session)
+    assert current.user_id == "u2"
+    assert current.role == "admin"
 
-    auth._AUTH_CACHE.clear()
+
+def test_missing_authorization_raises_401():
+    with pytest.raises(HTTPException) as exc:
+        auth._extract_bearer_token(None)
+    assert exc.value.status_code == 401

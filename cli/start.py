@@ -17,7 +17,7 @@ from pathlib import Path
 
 import uvicorn
 
-from app.core import config, get_app_root, setup_logging
+from app.core import get_app_root, setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -114,10 +114,6 @@ def start_frontend_dev(port: int) -> subprocess.Popen[bytes]:
         **os.environ,
         "NEXT_PUBLIC_API_URL": f"http://127.0.0.1:{port}",
     }
-    if config.supabase_url.strip():
-        frontend_env["NEXT_PUBLIC_SUPABASE_URL"] = config.supabase_url
-    if config.supabase_publishable_key.strip():
-        frontend_env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] = config.supabase_publishable_key
 
     proc = subprocess.Popen(
         ["npm", "run", "dev"],

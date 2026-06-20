@@ -1,5 +1,8 @@
 import type {
   Ad,
+  AdminUser,
+  AdminUserCreate,
+  AdminUserUpdate,
   AdSearch,
   AIAnalysisLog,
   AppSetting,
@@ -9,17 +12,16 @@ import type {
   UserProfile,
   UserSettings,
 } from "./types"
-import { getSessionWithTimeout, supabase } from "./supabase"
+import { clearToken, getToken } from "./auth"
 
 // Leer = gleicher Origin (nur sinnvoll bei Reverse-Proxy); lokal/Vercel: z. B. http://127.0.0.1:8000 bzw. https://api.example.com
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
 const API_TIMEOUT_MS = 15000
 
 export class ApiAuthError extends Error {}
-let accessTokenInFlight: Promise<string | null> | null = null
 
 /** FastAPI kann `detail` als String, Array von Validation-Error-Objekten oder Objekt liefern. */
-function formatFastApiDetail(detail: unknown): string {
+export function formatFastApiDetail(detail: unknown): string {
   if (detail == null) return ""
   if (typeof detail === "string") return detail
   if (Array.isArray(detail)) {
@@ -45,20 +47,8 @@ function formatFastApiDetail(detail: unknown): string {
   return String(detail)
 }
 
-async function getAccessToken(): Promise<string | null> {
-  if (!supabase) return null
-  if (!accessTokenInFlight) {
-    accessTokenInFlight = getSessionWithTimeout().then((session) => {
-      return session?.access_token ?? null
-    }).finally(() => {
-      accessTokenInFlight = null
-    })
-  }
-  return accessTokenInFlight
-}
-
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = await getAccessToken()
+  const token = getToken()
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
   const customHeaders = options?.headers ?? {}
   const fullUrl = `${BASE_URL}${path}`
@@ -101,7 +91,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     if (res.status === 401) {
-      await supabase?.auth.signOut()
+      clearToken()
       if (typeof window !== "undefined") {
         window.location.href = "/login"
       }
@@ -234,4 +224,24 @@ export const deleteMyAccount = (confirmEmail: string) =>
   apiFetch<void>("/users/me/", {
     method: "DELETE",
     body: JSON.stringify({ confirm_email: confirmEmail }),
+  })
+
+// Admin / Benutzerverwaltung (nur role=admin)
+export const fetchUsers = () => apiFetch<AdminUser[]>("/admin/users/")
+export const createUser = (data: AdminUserCreate) =>
+  apiFetch<AdminUser>("/admin/users/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+export const updateUser = (id: string, data: AdminUserUpdate) =>
+  apiFetch<AdminUser>(`/admin/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  })
+export const deleteUser = (id: string) =>
+  apiFetch<void>(`/admin/users/${id}`, { method: "DELETE" })
+export const resetUserPassword = (id: string, newPassword: string) =>
+  apiFetch<void>(`/admin/users/${id}/reset-password`, {
+    method: "POST",
+    body: JSON.stringify({ new_password: newPassword }),
   })

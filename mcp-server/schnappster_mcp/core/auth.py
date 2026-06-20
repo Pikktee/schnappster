@@ -1,40 +1,42 @@
-"""Supabase access-token verification (same idea as Schnappster FastAPI `get_current_user`)."""
+"""Token-Pruefung gegen die Schnappster-API (eigene JWT-Auth, kein Supabase mehr)."""
 
+import contextlib
+
+import httpx
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 
 from schnappster_mcp.core.config import Settings
 
 
-class SupabaseTokenVerifier(TokenVerifier):
-    """Validates Bearer tokens via `GET /auth/v1/user`."""
+class ApiTokenVerifier(TokenVerifier):
+    """Validiert Bearer-Tokens per ``GET /users/me/`` gegen die Schnappster-API."""
 
     def __init__(self, settings: Settings) -> None:
-        """Hält die geladenen Einstellungen (Supabase-URL, Publishable Key)."""
+        """Haelt die geladenen Einstellungen (API-Basis-URL)."""
         self._settings = settings
 
     async def verify_token(self, token: str) -> AccessToken | None:
-        """Prüft ``token`` per Supabase ``GET /auth/v1/user``.
+        """Prueft ``token`` per ``GET /users/me/``.
 
-        Rückgabe: ``AccessToken`` bei HTTP 200, sonst ``None``.
+        Rueckgabe: ``AccessToken`` bei HTTP 200, sonst ``None``.
         """
-        import httpx
-
-        headers = {
-            "apikey": self._settings.supabase_publishable_key,
-            "Authorization": f"Bearer {token}",
-        }
+        headers = {"Authorization": f"Bearer {token}"}
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(self._settings.supabase_user_url, headers=headers)
+                response = await client.get(self._settings.users_me_url, headers=headers)
         except httpx.HTTPError:
             return None
 
         if response.status_code != 200:
             return None
 
+        client_id = "schnappster-user"
+        with contextlib.suppress(ValueError):
+            client_id = str(response.json().get("id") or client_id)
+
         return AccessToken(
             token=token,
-            client_id="supabase",
+            client_id=client_id,
             scopes=[],
             expires_at=None,
             resource=None,

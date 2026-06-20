@@ -5,7 +5,7 @@ from sqlalchemy import delete
 from sqlmodel import col, select
 
 from app.core.auth import CurrentUser, get_current_user, require_admin
-from app.core.db import UserDbSession
+from app.core.db import SessionDep
 from app.models.adsearch import AdSearch
 from app.models.logs_scraperun import ScrapeRun, ScrapeRunRead
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/scraperuns", tags=["ScrapeRuns"])
 # --------------
 @router.get("/", response_model=list[ScrapeRunRead])
 def list_scraperuns(
-    session: UserDbSession,
+    session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
     adsearch_id: int | None = None,
     limit: int = Query(default=50, ge=1, le=500),
@@ -52,7 +52,7 @@ def list_scraperuns(
 
 @router.delete("/", status_code=204)
 def clear_scraperuns(
-    session: UserDbSession,
+    session: SessionDep,
     _: CurrentUser = Depends(require_admin),  # noqa: B008
 ):
     """Löscht alle Scrape-Läufe."""

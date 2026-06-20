@@ -6,7 +6,7 @@ from sqlmodel import select
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.background_jobs import BackgroundJobs, get_background_jobs
-from app.core.db import UserDbSession, set_user_db_claims
+from app.core.db import SessionDep
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearchUpdate
 from app.models.logs_aianalysis import AIAnalysisLog
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/adsearches", tags=["AdSearches"])
 # --- Routen ---
 # --------------
 @router.get("/", response_model=list[AdSearchRead])
-def list_adsearches(session: UserDbSession, current_user: CurrentUser = Depends(get_current_user)):  # noqa: B008
+def list_adsearches(session: SessionDep, current_user: CurrentUser = Depends(get_current_user)):  # noqa: B008
     """Gibt alle Suchaufträge zurück."""
     searches = session.exec(select(AdSearch).where(AdSearch.owner_id == current_user.user_id)).all()
     result = [AdSearchRead.model_validate(search) for search in searches]
@@ -33,7 +33,7 @@ def list_adsearches(session: UserDbSession, current_user: CurrentUser = Depends(
 @router.get("/{adsearch_id}", response_model=AdSearchRead)
 def get_adsearch(
     adsearch_id: int,
-    session: UserDbSession,
+    session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     """Gibt einen Suchauftrag anhand der ID zurück; 404 wenn nicht gefunden."""
@@ -55,7 +55,7 @@ def get_adsearch(
 @router.post("/", response_model=AdSearchRead, status_code=201)
 def create_adsearch(
     data: AdSearchCreate,
-    session: UserDbSession,
+    session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
     background_jobs: BackgroundJobs = Depends(get_background_jobs),  # noqa: B008
 ):
@@ -66,7 +66,6 @@ def create_adsearch(
     name = data.name.strip()
     session.rollback()
     title_from_page = _validate_search_url_reachable(data.url)
-    set_user_db_claims(session, current_user)
 
     if not name:
         if not title_from_page:
@@ -95,7 +94,7 @@ def create_adsearch(
 def update_adsearch(
     adsearch_id: int,
     data: AdSearchUpdate,
-    session: UserDbSession,
+    session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     """Aktualisiert einen bestehenden Suchauftrag.
@@ -145,7 +144,6 @@ def update_adsearch(
             )
         update_data["name"] = title_from_page
 
-    set_user_db_claims(session, current_user)
     adsearch = session.exec(
         select(AdSearch).where(
             AdSearch.id == adsearch_id,
@@ -167,7 +165,7 @@ def update_adsearch(
 @router.delete("/{adsearch_id}", status_code=204)
 def delete_adsearch(
     adsearch_id: int,
-    session: UserDbSession,
+    session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     """Löscht den Suchauftrag inklusive zugehöriger Anzeigen, Scrape-Läufe und Fehlerlogs."""

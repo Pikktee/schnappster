@@ -3,11 +3,12 @@
 import Link from "next/link"
 import { useState } from "react"
 import { toast } from "sonner"
+import { CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { supabase } from "@/lib/supabase"
+import { register } from "@/lib/auth"
 import { PasswordStrengthIndicator } from "@/components/password-strength-indicator"
 import { isPasswordValid } from "@/lib/password-validation"
 
@@ -15,6 +16,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [registered, setRegistered] = useState(false)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -22,19 +24,39 @@ export default function RegisterPage() {
       toast.error("Passwort erfuellt nicht alle Anforderungen.")
       return
     }
-    if (!supabase) {
-      toast.error("Registrierung ist derzeit nicht verfuegbar.")
-      return
-    }
     setLoading(true)
-    const redirectTo = `${window.location.origin}/reset-password`
-    const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } })
-    setLoading(false)
-    if (error) {
-      toast.error(error.message)
-      return
+    try {
+      await register(email, password)
+      setRegistered(true)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Registrierung fehlgeschlagen.")
+    } finally {
+      setLoading(false)
     }
-    toast.success("Registrierung erfolgreich. Bitte E-Mail bestaetigen.")
+  }
+
+  if (registered) {
+    return (
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle2 className="size-5 text-primary" />
+            Konto angelegt
+          </CardTitle>
+          <CardDescription>
+            Ein Administrator muss es noch freischalten. Du erhältst Zugang, sobald dein Konto
+            aktiviert wurde.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm">
+            <Link href="/login" className="underline underline-offset-4">
+              Zum Login
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -44,7 +66,7 @@ export default function RegisterPage() {
         <CardDescription>Erstelle ein Konto, um Schnappster zu nutzen.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form className="space-y-3" onSubmit={onSubmit}>
+        <form className="space-y-3" onSubmit={(e) => void onSubmit(e)}>
           <div className="space-y-2">
             <Label htmlFor="email">E-Mail</Label>
             <Input

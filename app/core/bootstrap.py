@@ -6,12 +6,14 @@ from importlib.metadata import version
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from sqlmodel import Session
 
-from app.core import init_db, setup_logging
+from app.core import config, db_engine, init_db, setup_logging
 from app.core.background_jobs import get_background_jobs
 from app.core.fastapi_app import SchnappsterFastAPI
 from app.core.middlewares import setup_cors, setup_no_store_api
 from app.routes import api_router
+from app.services.users import ensure_admin_from_env
 
 
 @asynccontextmanager
@@ -21,6 +23,10 @@ async def lifespan(app: SchnappsterFastAPI):
     """
     setup_logging()
     init_db()
+
+    with Session(db_engine) as session:
+        if ensure_admin_from_env(session, config.admin_email, config.admin_password):
+            logging.getLogger(__name__).info("Admin-Konto aus ADMIN_EMAIL angelegt.")
 
     jobs = get_background_jobs()
     jobs.start()

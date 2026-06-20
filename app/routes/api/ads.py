@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import col, func, select
 
 from app.core.auth import CurrentUser, get_current_user
-from app.core.db import UserDbSession
+from app.core.db import SessionDep
 from app.models.ad import Ad, AdRead
 
 router = APIRouter(prefix="/ads", tags=["Ads"])
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/ads", tags=["Ads"])
 # --------------
 @router.get("/")
 def list_ads(
-    session: UserDbSession,
+    session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
     adsearch_id: int | None = None,
     is_analyzed: bool | None = None,
@@ -61,7 +61,7 @@ def list_ads(
 @router.get("/{ad_id}", response_model=AdRead)
 def get_ad(
     ad_id: int,
-    session: UserDbSession,
+    session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     """Gibt eine Anzeige anhand der ID zurück; 404 wenn nicht gefunden."""

@@ -21,9 +21,11 @@ class AIAnalysisLog(SQLModel, table=True):
     __tablename__ = "ai_analysis_logs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
-    ad_id: int | None = Field(default=None, foreign_key="ads.id", ondelete="SET NULL")
-    adsearch_id: int | None = Field(default=None, foreign_key="ad_searches.id", ondelete="SET NULL")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    ad_id: int | None = Field(default=None, foreign_key="ads.id", ondelete="SET NULL", index=True)
+    adsearch_id: int | None = Field(
+        default=None, foreign_key="ad_searches.id", ondelete="SET NULL", index=True
+    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
     prompt_text: str = ""
     ad_title: str = ""
     score: float = Field(ge=0, le=10)

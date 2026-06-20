@@ -17,8 +17,10 @@ class ScrapeRun(SQLModel, table=True):
     __tablename__ = "scrape_runs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
-    adsearch_id: int | None = Field(default=None, foreign_key="ad_searches.id", ondelete="SET NULL")
-    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    adsearch_id: int | None = Field(
+        default=None, foreign_key="ad_searches.id", ondelete="SET NULL", index=True
+    )
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
     finished_at: datetime | None = None
     ads_found: int = 0
     # Anzahl der Anzeigen, die durch Filter (Preis, VB, Blacklist, Verkäufer, Rating, etc.)

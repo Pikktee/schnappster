@@ -7,12 +7,16 @@ Verwendung:
 import logging
 from datetime import UTC, datetime, timedelta
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.core import db_engine, setup_logging
-from app.models import AdSearch, AppSettings, ErrorLog, ScrapeRun
+from app.core.security import hash_password
+from app.models import AdSearch, AppSettings, ErrorLog, ScrapeRun, User
 
 logger = logging.getLogger(__name__)
+
+_SEED_EMAIL = "demo@schnappster.local"
+_SEED_PASSWORD = "Demo1234!"  # noqa: S105 — nur lokale Beispieldaten
 
 
 def main() -> None:
@@ -21,13 +25,27 @@ def main() -> None:
 
     past = datetime.now(UTC) - timedelta(hours=2)
 
-    adsearch = AdSearch(
-        owner_id="00000000-0000-0000-0000-000000000001",
-        name="PodMic Frankfurt",
-        url="https://www.kleinanzeigen.de/s-audio-hifi/60325/podmic/k0c172l4305r250",
-    )
-
     with Session(db_engine) as session:
+        # Demo-Benutzer (freigeschaltet) als Eigentümer der Beispieldaten
+        seed_user = session.exec(select(User).where(User.email == _SEED_EMAIL)).first()
+        if seed_user is None:
+            seed_user = User(
+                email=_SEED_EMAIL,
+                password_hash=hash_password(_SEED_PASSWORD),
+                role="admin",
+                is_active=True,
+                display_name="Demo",
+            )
+            session.add(seed_user)
+            session.flush()
+        owner_id = seed_user.id
+
+        adsearch = AdSearch(
+            owner_id=owner_id,
+            name="PodMic Frankfurt",
+            url="https://www.kleinanzeigen.de/s-audio-hifi/60325/podmic/k0c172l4305r250",
+        )
+
         # Suchauftrag
         session.add(adsearch)
         session.flush()

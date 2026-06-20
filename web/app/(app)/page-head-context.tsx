@@ -35,6 +35,10 @@ const defaultTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Logs",
     subtitle: "Scraper-Durchläufe, Fehlerprotokolle und AI-Analysen",
   },
+  "/users": {
+    title: "Benutzer",
+    subtitle: "Konten freischalten, Rollen vergeben und verwalten",
+  },
 }
 
 function getDefaultForPath(pathname: string): { title: string; subtitle: string } {

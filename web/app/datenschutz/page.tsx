@@ -54,8 +54,8 @@ Westendstr. 100
             <section className="space-y-2">
               <h2 className="text-base font-medium">Verarbeitete Daten</h2>
               <p>
-                Wir verarbeiten Authentifizierungsdaten (Supabase), Profilname, Suchaufträge,
-                Anzeigen sowie optional Benachrichtigungsdaten wie Telegram-Chat-ID.
+                Wir verarbeiten Authentifizierungsdaten (E-Mail-Adresse, Passwort-Hash), Profilname,
+                Suchaufträge, Anzeigen sowie optional Benachrichtigungsdaten wie Telegram-Chat-ID.
               </p>
             </section>
 
@@ -71,12 +71,13 @@ Westendstr. 100
             </section>
 
             <section className="space-y-2">
-              <h2 className="text-base font-medium">Supabase (Authentifizierung und Datenbank)</h2>
+              <h2 className="text-base font-medium">Authentifizierung und Hosting</h2>
               <p>
-                Für Login, Nutzerverwaltung und Datenhaltung wird Supabase als Auftragsverarbeiter
-                eingesetzt. Dabei werden insbesondere Konto- und Sitzungsdaten, Nutzerkennungen und
-                anwendungsbezogene Inhalte verarbeitet. Mit Supabase besteht ein Vertrag zur
-                Auftragsverarbeitung nach Art. 28 DSGVO.
+                Login und Nutzerverwaltung erfolgen direkt in der Anwendung; Passwörter werden
+                ausschließlich als kryptografischer Hash gespeichert. Konto- und Anwendungsdaten
+                liegen in einer Datenbank der Anwendung, die bei unserem Hosting-Anbieter (Railway)
+                betrieben wird. Mit dem Hosting-Anbieter besteht ein Vertrag zur Auftragsverarbeitung
+                nach Art. 28 DSGVO.
               </p>
             </section>
 

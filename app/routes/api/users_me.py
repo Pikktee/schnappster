@@ -1,26 +1,22 @@
-"""API-Routen fuer Profil, User-Settings und Konto-Management."""
+"""API-Routen fuer Profil, User-Settings und Konto-Management (eigene Auth)."""
 
 from __future__ import annotations
 
-import re
-
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import delete
-from sqlmodel import Session, SQLModel, select
+from sqlmodel import SQLModel
 
-from app.core.auth import CurrentUser, get_current_user, identity_display_name
-from app.core.config import config
-from app.core.db import UserDbSession
-from app.models.adsearch import AdSearch
+from app.core.auth import CurrentUser, get_current_user
+from app.core.db import SessionDep
+from app.core.security import hash_password, validate_password_strength, verify_password
 from app.models.settings_user import (
     UserProfileRead,
     UserProfileUpdate,
-    UserSettings,
     UserSettingsRead,
     UserSettingsUpdate,
 )
+from app.models.user import User
 from app.services.settings import SettingsService
+from app.services.users import count_active_admins, delete_user_and_data
 
 router = APIRouter(prefix="/users/me", tags=["Users"])
 
@@ -34,152 +30,56 @@ class DeleteAccountRequest(SQLModel):
     confirm_email: str
 
 
-def _ensure_supabase_secret_key() -> str:
-    key = config.supabase_secret_key.strip()
-    if not key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Supabase admin API is not configured",
-        )
-    return key
-
-
-def _supabase_headers(token: str) -> dict[str, str]:
-    return {
-        "apikey": config.supabase_publishable_key,
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    }
-
-
-def _verify_email_password(email: str, password: str) -> None:
-    """Prueft das Passwort per Supabase Password-Grant (ohne Session zu ersetzen)."""
-    url = f"{config.supabase_url.rstrip('/')}/auth/v1/token?grant_type=password"
-    headers = {
-        "apikey": config.supabase_publishable_key,
-        "Content-Type": "application/json",
-    }
-    with httpx.Client(timeout=config.supabase_auth_timeout) as client:
-        response = client.post(
-            url,
-            headers=headers,
-            json={"email": email.strip(), "password": password},
-        )
-    if response.status_code != status.HTTP_200_OK:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Altes Passwort ist falsch.",
-        )
-
-
-def _delete_auth_user(user_id: str) -> None:
-    secret_key = _ensure_supabase_secret_key()
-    url = f"{config.supabase_url.rstrip('/')}/auth/v1/admin/users/{user_id}"
-    headers = {
-        "apikey": secret_key,
-        "Authorization": f"Bearer {secret_key}",
-    }
-    with httpx.Client(timeout=config.supabase_auth_timeout) as client:
-        response = client.delete(url, headers=headers)
-    if response.status_code not in {200, 204, 404}:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to delete auth user: {response.text}",
-        )
-
-
-def _validate_password_strength(password: str) -> None:
-    """Prueft Mindestlaenge, Gross-/Kleinbuchstaben und Sonderzeichen."""
-    errors: list[str] = []
-    if len(password) < 8:
-        errors.append("mindestens 8 Zeichen")
-    if not re.search(r"[A-Z]", password):
-        errors.append("einen Grossbuchstaben")
-    if not re.search(r"[a-z]", password):
-        errors.append("einen Kleinbuchstaben")
-    if not re.search(r"[^A-Za-z0-9]", password):
-        errors.append("ein Sonderzeichen")
-    if errors:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Passwort benoetigt: {', '.join(errors)}.",
-        )
+def _profile(session: SessionDep, current_user: CurrentUser) -> UserProfileRead:
+    service = SettingsService(session)
+    settings = service.get_user_settings(current_user.user_id)
+    user = session.get(User, current_user.user_id)
+    display_name = settings.display_name or (user.display_name if user else "")
+    return UserProfileRead(
+        id=current_user.user_id,
+        email=current_user.email,
+        display_name=display_name,
+        avatar_url=None,
+        role=current_user.role,
+    )
 
 
 @router.get("/", response_model=UserProfileRead)
 def get_me(
-    session: UserDbSession,
+    session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
-    service = SettingsService(session)
-    settings = service.hydrate_display_name_from_identity(
-        current_user.user_id,
-        identity_display_name(current_user),
-    )
-    avatar_url = current_user.user_metadata.get("avatar_url")
-    id_name = identity_display_name(current_user)
-    profile_name = (
-        settings.display_name
-        if settings.display_name_user_set
-        else (settings.display_name or id_name)
-    )
-    return UserProfileRead(
-        id=current_user.user_id,
-        email=current_user.email,
-        display_name=profile_name,
-        avatar_url=str(avatar_url) if avatar_url else None,
-        role=current_user.role,
-    )
+    return _profile(session, current_user)
 
 
 @router.patch("/", response_model=UserProfileRead)
 def patch_me(
     data: UserProfileUpdate,
-    session: UserDbSession,
+    session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     service = SettingsService(session)
-    settings = service.hydrate_display_name_from_identity(
-        current_user.user_id,
-        identity_display_name(current_user),
-    )
+    settings = service.get_user_settings(current_user.user_id)
     settings.display_name = data.display_name
     settings.display_name_user_set = True
     session.add(settings)
     session.commit()
-    session.refresh(settings)
-    avatar_url = current_user.user_metadata.get("avatar_url")
-    id_name = identity_display_name(current_user)
-    profile_name = (
-        settings.display_name
-        if settings.display_name_user_set
-        else (settings.display_name or id_name)
-    )
-    return UserProfileRead(
-        id=current_user.user_id,
-        email=current_user.email,
-        display_name=profile_name,
-        avatar_url=str(avatar_url) if avatar_url else None,
-        role=current_user.role,
-    )
+    return _profile(session, current_user)
 
 
 @router.get("/settings", response_model=UserSettingsRead)
 def get_my_settings(
-    session: UserDbSession,
+    session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     service = SettingsService(session)
-    return service.hydrate_display_name_from_identity(
-        current_user.user_id,
-        identity_display_name(current_user),
-    )
+    return service.get_user_settings(current_user.user_id)
 
 
 @router.patch("/settings", response_model=UserSettingsRead)
 def patch_my_settings(
     data: UserSettingsUpdate,
-    session: UserDbSession,
+    session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     service = SettingsService(session)
@@ -195,99 +95,44 @@ def patch_my_settings(
 @router.post("/change-password", status_code=204)
 def change_password(
     payload: ChangePasswordRequest,
+    session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
-    providers = current_user.app_metadata.get("providers") or []
-    if "email" not in providers:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Passwort aendern ist nur fuer E-Mail-/Passwort-Konten moeglich.",
-        )
-    if not current_user.email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Keine E-Mail fuer dieses Konto hinterlegt.",
-        )
+    user = session.get(User, current_user.user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Konto nicht gefunden.")
     new_pw = payload.new_password.strip()
-    _validate_password_strength(new_pw)
-    _verify_email_password(current_user.email, payload.old_password)
-    url = f"{config.supabase_url.rstrip('/')}/auth/v1/user"
-    with httpx.Client(timeout=config.supabase_auth_timeout) as client:
-        response = client.put(
-            url,
-            headers=_supabase_headers(current_user.access_token),
-            json={"password": new_pw},
-        )
-    if response.status_code != status.HTTP_200_OK:
+    try:
+        validate_password_strength(new_pw)
+    except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Passwort konnte nicht aktualisiert werden.",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    if not verify_password(payload.old_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Altes Passwort ist falsch."
         )
+    user.password_hash = hash_password(new_pw)
+    session.add(user)
+    session.commit()
 
 
 @router.delete("/", status_code=204)
 def delete_me(
-    session: UserDbSession,
+    session: SessionDep,
     payload: DeleteAccountRequest,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
-    if not current_user.email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Keine E-Mail fuer dieses Konto hinterlegt "
-                "(Bestaetigung per E-Mail nicht moeglich)."
-            ),
-        )
     confirmed = payload.confirm_email.strip().casefold()
-    expected = current_user.email.strip().casefold()
-    if confirmed != expected:
+    expected = (current_user.email or "").strip().casefold()
+    if not expected or confirmed != expected:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="E-Mail stimmt nicht mit dem Konto ueberein.",
         )
-    # Schutz fuer den primaeren Admin.
-    if current_user.role == "admin" and config.primary_admin_user_id == current_user.user_id:
+    if current_user.role == "admin" and count_active_admins(session) <= 1:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Primary admin account cannot be deleted",
+            detail="Der letzte aktive Admin kann nicht geloescht werden.",
         )
-
-    _delete_user_app_data(session, current_user.user_id)
-    session.commit()
-
-    try:
-        _delete_auth_user(current_user.user_id)
-    except HTTPException:
-        # Falls Auth-Delete fehlschlaegt, markieren und Retry erlauben.
-        pending = session.get(UserSettings, current_user.user_id)
-        if pending is None:
-            pending = UserSettings(
-                user_id=current_user.user_id,
-                display_name=identity_display_name(current_user),
-                deletion_pending=True,
-            )
-        else:
-            pending.deletion_pending = True
-        session.add(pending)
-        session.commit()
-        raise
-
-
-def _delete_user_app_data(session: Session, user_id: str) -> None:
-    """Entfernt alle App-Daten eines Users per SQL-Bulk-Delete statt ORM-Zeilenloops."""
-    from app.models.ad import Ad
-    from app.models.logs_aianalysis import AIAnalysisLog
-    from app.models.logs_error import ErrorLog
-    from app.models.logs_scraperun import ScrapeRun
-
-    user_search_ids = select(AdSearch.id).where(AdSearch.owner_id == user_id)
-    user_ad_ids = select(Ad.id).where(Ad.owner_id == user_id)
-
-    session.execute(delete(AIAnalysisLog).where(AIAnalysisLog.adsearch_id.in_(user_search_ids)))
-    session.execute(delete(AIAnalysisLog).where(AIAnalysisLog.ad_id.in_(user_ad_ids)))
-    session.execute(delete(ErrorLog).where(ErrorLog.adsearch_id.in_(user_search_ids)))
-    session.execute(delete(ScrapeRun).where(ScrapeRun.adsearch_id.in_(user_search_ids)))
-    session.execute(delete(Ad).where(Ad.owner_id == user_id))
-    session.execute(delete(AdSearch).where(AdSearch.owner_id == user_id))
-    session.execute(delete(UserSettings).where(UserSettings.user_id == user_id))
+    delete_user_and_data(session, current_user.user_id)

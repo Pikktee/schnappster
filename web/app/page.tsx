@@ -8,17 +8,17 @@ import { LandingPage } from "@/components/landing/LandingPage"
 
 export default function RootPage() {
   const router = useRouter()
-  const { session, loading } = useAuth()
+  const { user, loading } = useAuth()
 
   useEffect(() => {
-    if (!loading && session) {
+    if (!loading && user) {
       router.replace("/dashboard")
     }
-  }, [loading, session, router])
+  }, [loading, user, router])
 
   // While auth is resolving, or while redirecting an authenticated user,
   // show a spinner instead of flashing the landing page.
-  if (loading || session) {
+  if (loading || user) {
     return (
       <div className="flex h-svh items-center justify-center">
         <Spinner />

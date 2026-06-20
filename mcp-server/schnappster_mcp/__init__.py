@@ -1,1 +1,1 @@
-"""Schnappster remote MCP server (Streamable HTTP + Supabase Bearer auth)."""
+"""Schnappster remote MCP server (Streamable HTTP + Schnappster JWT Bearer auth)."""

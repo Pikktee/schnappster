@@ -20,6 +20,11 @@ RUN uv sync --frozen --no-dev
 
 COPY . .
 
+# Datenverzeichnis für die SQLite-Datei. Auf Railway ein persistentes Volume hier mounten
+# und DATABASE_URL=sqlite:////data/schnappster.db setzen (4 Slashes = absoluter Pfad).
+RUN mkdir -p /data
+VOLUME ["/data"]
+
 EXPOSE 8000
 
 CMD ["sh", "-c", "uv run uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

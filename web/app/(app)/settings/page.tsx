@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react"
 import { Save, User, Bell, Shield, Trash2, Lock, HelpCircle } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,7 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { supabase } from "@/lib/supabase"
+import { clearToken } from "@/lib/auth"
 import {
   DISPLAY_NAME_MAX_LENGTH,
   getSettingsSaveValidationErrors,
@@ -56,10 +56,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useAuth } from "@/components/auth-provider"
 
 export default function SettingsPage() {
-  const { user } = useAuth()
   const [displayName, setDisplayName] = useState("")
   const [email, setEmail] = useState("")
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
@@ -125,11 +123,6 @@ export default function SettingsPage() {
   )
 
   const settingsFormInvalid = settingsSaveHasErrors(settingsValidation)
-
-  const canChangePassword = useMemo(() => {
-    const raw = user?.app_metadata?.providers
-    return Array.isArray(raw) && raw.includes("email")
-  }, [user])
 
   function HelpTip({ text }: { text: string }) {
     return (
@@ -219,7 +212,7 @@ export default function SettingsPage() {
     setIsDeleting(true)
     try {
       await deleteMyAccount(deleteConfirmation.trim())
-      await supabase?.auth.signOut()
+      clearToken()
       window.location.href = "/login"
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Konto konnte nicht gelöscht werden.")
@@ -460,69 +453,52 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="security" className="flex flex-col gap-6 pt-4">
-          {canChangePassword ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lock className="size-5" />
-                  Passwort ändern
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="old-password">Altes Passwort</Label>
-                  <Input
-                    id="old-password"
-                    type="password"
-                    value={oldPassword}
-                    autoComplete="current-password"
-                    onChange={(e) => setOldPassword(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="new-password">Neues Passwort</Label>
-                  <Input
-                    id="new-password"
-                    type="password"
-                    value={newPassword}
-                    autoComplete="new-password"
-                    onChange={(e) => setNewPassword(e.target.value)}
-                  />
-                  <PasswordStrengthIndicator password={newPassword} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="confirm-password">Neues Passwort bestätigen</Label>
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    value={confirmPassword}
-                    autoComplete="new-password"
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                </div>
-                <div className="pt-2">
-                  <Button variant="outline" onClick={handleChangePassword}>
-                    Passwort speichern
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lock className="size-5" />
-                  Passwort
-                </CardTitle>
-                <CardDescription className="text-pretty">
-                  Du bist mit Google oder Facebook angemeldet — Schnappster vergibt dafür kein
-                  eigenes Passwort. Passwort-Änderungen nimmst du bei deinem Anbieter vor. Wenn du
-                  später E-Mail und Passwort an dieses Konto anbindest, erscheint hier wieder die
-                  Passwort-Änderung.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          )}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="size-5" />
+                Passwort ändern
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="old-password">Altes Passwort</Label>
+                <Input
+                  id="old-password"
+                  type="password"
+                  value={oldPassword}
+                  autoComplete="current-password"
+                  onChange={(e) => setOldPassword(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="new-password">Neues Passwort</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  autoComplete="new-password"
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                <PasswordStrengthIndicator password={newPassword} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="confirm-password">Neues Passwort bestätigen</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  autoComplete="new-password"
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </div>
+              <div className="pt-2">
+                <Button variant="outline" onClick={handleChangePassword}>
+                  Passwort speichern
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           <Separator />
 

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -11,32 +11,31 @@ def get_app_root() -> Path:
     return Path(__file__).resolve().parent.parent.parent
 
 
+_DEFAULT_SQLITE_PATH = get_app_root() / "data" / "schnappster.db"
+_DEFAULT_CORS = "http://localhost:3000,http://127.0.0.1:3000"
+
+
 class Config(BaseSettings):
     """Anwendungskonfiguration aus Umgebung und .env."""
 
     database_url: str = Field(
-        ...,
-        description="PostgreSQL connection URL (e.g. postgresql+psycopg://user:pass@host:5432/db)",
+        default=f"sqlite:///{_DEFAULT_SQLITE_PATH}",
+        description="SQLAlchemy-DB-URL (Default: lokale SQLite-Datei unter data/).",
     )
-    supabase_url: str = ""
-    supabase_publishable_key: str = ""
-    supabase_secret_key: str = ""
-    primary_admin_user_id: str = ""
-    cors_allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    jwt_secret: str = Field(
+        ...,
+        description="Secret zum Signieren der Auth-JWTs (HS256). Zwingend setzen.",
+    )
+    access_token_expire_minutes: int = Field(default=10_080, ge=1)  # 7 Tage
+    admin_email: str = ""
+    admin_password: str = ""
+    cors_allowed_origins: str = _DEFAULT_CORS
     cors_allowed_origin_regex: str = ""
     openai_api_key: str = ""
     openai_model: str = "openai/gpt-5.4-mini"
     openai_cheap_model: str = "openai/gpt-5.4-nano"
     openai_base_url: str = "https://openrouter.ai/api/v1"
     telegram_bot_token: str = ""
-    db_pool_size: int = 5
-    db_max_overflow: int = 5
-    db_pool_timeout: int = 10
-    db_connect_timeout: int = 5
-    db_statement_timeout_ms: int = 30_000
-    db_idle_in_transaction_session_timeout_ms: int = 60_000
-    supabase_auth_timeout: float = 5.0
-    supabase_auth_cache_ttl: float = 60.0
     scrape_request_timeout: float = 20.0
     ai_request_timeout: float = 45.0
     ai_max_comparison_candidates: int = Field(default=12, ge=0, le=30)
@@ -52,24 +51,21 @@ class Config(BaseSettings):
 
     @field_validator("database_url")
     @classmethod
-    def postgres_only(cls, value: str) -> str:
-        """Nur PostgreSQL (lokal, Supabase Pooler, …)."""
+    def supported_db_url(cls, value: str) -> str:
+        """Erlaubt SQLite (Default) und PostgreSQL."""
         url = value.strip()
-        if not url.startswith("postgresql"):
+        if not (url.startswith("sqlite") or url.startswith("postgresql")):
             raise ValueError(
-                "DATABASE_URL must be a PostgreSQL URL, e.g. postgresql+psycopg://user:pass@host:5432/db"
+                "DATABASE_URL must be a SQLite URL (e.g. sqlite:///./data/schnappster.db) "
+                "or a PostgreSQL URL (e.g. postgresql+psycopg://user:pass@host:5432/db)."
             )
         return url
 
-    @model_validator(mode="after")
-    def validate_required_supabase_admin(self):
-        """Im Supabase-Betrieb muss die Primary-Admin-ID gesetzt sein."""
-        if self.supabase_url.strip() and not self.primary_admin_user_id.strip():
-            raise ValueError("PRIMARY_ADMIN_USER_ID is required when SUPABASE_URL is configured.")
-        # Leere CORS-Liste (z. B. CORS_ALLOWED_ORIGINS= in .env) wuerde kein ACAO-Header liefern.
-        if not self.cors_allowed_origins.strip():
-            self.cors_allowed_origins = "http://localhost:3000,http://127.0.0.1:3000"
-        return self
+    @field_validator("cors_allowed_origins")
+    @classmethod
+    def default_cors_when_empty(cls, value: str) -> str:
+        """Leere CORS-Liste (z. B. CORS_ALLOWED_ORIGINS= in .env) auf Default zurücksetzen."""
+        return value.strip() or _DEFAULT_CORS
 
 
 config = Config()  # pyright: ignore[reportCallIssue] — Felder aus Umgebung / .env

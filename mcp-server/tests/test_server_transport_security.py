@@ -10,8 +10,6 @@ def test_transport_security_includes_trycloudflare_host() -> None:
     s = Settings.model_validate(
         {
             "schnappster_api_base_url": "http://127.0.0.1:8000",
-            "supabase_url": "https://x.supabase.co",
-            "supabase_publishable_key": "k",
             "mcp_host": "127.0.0.1",
             "mcp_port": 8766,
             "mcp_resource_server_url": "https://abc.trycloudflare.com/",
@@ -31,8 +29,6 @@ def test_transport_security_none_for_non_loopback_bind() -> None:
     s = Settings.model_validate(
         {
             "schnappster_api_base_url": "http://127.0.0.1:8000",
-            "supabase_url": "https://x.supabase.co",
-            "supabase_publishable_key": "k",
             "mcp_host": "0.0.0.0",
             "mcp_port": 8766,
             "mcp_resource_server_url": "https://abc.trycloudflare.com/",

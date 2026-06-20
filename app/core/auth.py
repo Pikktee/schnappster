@@ -1,62 +1,57 @@
-"""Supabase-basierte Auth-Dependencies fuer FastAPI."""
+"""Eigene JWT-Auth: Token-Erzeugung, -Pruefung und FastAPI-Dependencies."""
 
 from __future__ import annotations
 
-import base64
-import binascii
-import json
-import time
 from dataclasses import dataclass
-from typing import Any
+from datetime import UTC, datetime, timedelta
 
-import httpx
+import jwt
 from fastapi import Depends, Header, HTTPException, status
+from sqlmodel import Session
 
 from app.core.config import config
+from app.core.db import get_session
+from app.models.user import User
 
-
-def _jwt_sub_from_access_token(access_token: str) -> str | None:
-    """Liest `sub` aus dem JWT-Payload (ohne Signaturpruefung — Token ist via /user validiert)."""
-    try:
-        parts = access_token.split(".")
-        if len(parts) != 3:
-            return None
-        payload_b64 = parts[1]
-        pad = (-len(payload_b64)) % 4
-        if pad:
-            payload_b64 += "=" * pad
-        raw = base64.urlsafe_b64decode(payload_b64.encode("ascii"))
-        payload = json.loads(raw.decode("utf-8"))
-        sub = payload.get("sub")
-        return str(sub).strip() if sub else None
-    except (ValueError, json.JSONDecodeError, binascii.Error, UnicodeDecodeError):
-        return None
+_JWT_ALGORITHM = "HS256"
 
 
 @dataclass(slots=True)
 class CurrentUser:
-    """Minimales User-Objekt aus dem Supabase-Auth-User-Endpunkt."""
+    """Authentifizierter Benutzer aus dem dekodierten Access-Token + DB."""
 
     id: str
-    email: str | None
-    app_metadata: dict[str, Any]
-    user_metadata: dict[str, Any]
-    identities: list[dict[str, Any]]
-    access_token: str
+    email: str
+    role: str
 
     @property
     def user_id(self) -> str:
-        """User-ID fuer Postgres/RLS: immer `sub` aus dem Access-Token, sonst User-API-`id`."""
-        sub = _jwt_sub_from_access_token(self.access_token)
-        return sub if sub else self.id
-
-    @property
-    def role(self) -> str:
-        """Rolle aus app_metadata oder Fallback 'user'."""
-        return str(self.app_metadata.get("role", "user"))
+        """Eigentuemer-ID fuer owner_id-Filter."""
+        return self.id
 
 
-_AUTH_CACHE: dict[str, tuple[float, CurrentUser]] = {}
+def create_access_token(user: User) -> str:
+    """Signiert ein kurzlebiges JWT (HS256) fuer den Benutzer."""
+    now = datetime.now(UTC)
+    expire = now + timedelta(minutes=config.access_token_expire_minutes)
+    payload = {
+        "sub": user.id,
+        "email": user.email,
+        "role": user.role,
+        "iat": int(now.timestamp()),
+        "exp": int(expire.timestamp()),
+    }
+    return jwt.encode(payload, config.jwt_secret, algorithm=_JWT_ALGORITHM)
+
+
+def _decode_token(token: str) -> dict:
+    try:
+        return jwt.decode(token, config.jwt_secret, algorithms=[_JWT_ALGORITHM])
+    except jwt.PyJWTError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired access token",
+        ) from exc
 
 
 def _extract_bearer_token(authorization: str | None) -> str:
@@ -74,80 +69,21 @@ def _extract_bearer_token(authorization: str | None) -> str:
     return parts[1].strip()
 
 
-def _require_supabase_auth_config() -> None:
-    if not config.supabase_url or not config.supabase_publishable_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Supabase auth is not configured on the server",
-        )
-
-
-def _get_cached_user(access_token: str) -> CurrentUser | None:
-    ttl = config.supabase_auth_cache_ttl
-    if ttl <= 0:
-        return None
-
-    cached = _AUTH_CACHE.get(access_token)
-    if not cached:
-        return None
-
-    expires_at, user = cached
-    if expires_at <= time.monotonic():
-        _AUTH_CACHE.pop(access_token, None)
-        return None
-    return user
-
-
-def _cache_user(access_token: str, user: CurrentUser) -> None:
-    ttl = config.supabase_auth_cache_ttl
-    if ttl <= 0:
-        return
-
-    _AUTH_CACHE[access_token] = (time.monotonic() + ttl, user)
-
-
-async def get_current_user(authorization: str | None = Header(default=None)) -> CurrentUser:
-    """Validiert Bearer-Token ueber Supabase und liefert User-Claims."""
-    _require_supabase_auth_config()
-    access_token = _extract_bearer_token(authorization)
-    if cached_user := _get_cached_user(access_token):
-        return cached_user
-
-    url = f"{config.supabase_url.rstrip('/')}/auth/v1/user"
-    headers = {
-        "apikey": config.supabase_publishable_key,
-        "Authorization": f"Bearer {access_token}",
-    }
-    try:
-        async with httpx.AsyncClient(timeout=config.supabase_auth_timeout) as client:
-            response = await client.get(url, headers=headers)
-    except httpx.HTTPError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Auth upstream unavailable: {exc}",
-        ) from exc
-
-    if response.status_code != status.HTTP_200_OK:
+def get_current_user(
+    authorization: str | None = Header(default=None),
+    session: Session = Depends(get_session),  # noqa: B008
+) -> CurrentUser:
+    """Dekodiert das Bearer-JWT lokal, laedt den Benutzer und prueft die Freischaltung."""
+    token = _extract_bearer_token(authorization)
+    payload = _decode_token(token)
+    user_id = str(payload.get("sub") or "").strip()
+    user = session.get(User, user_id) if user_id else None
+    if user is None or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired access token",
+            detail="Konto nicht gefunden oder nicht freigeschaltet.",
         )
-
-    data = response.json()
-    raw_identities = data.get("identities")
-    identities: list[dict[str, Any]] = (
-        raw_identities if isinstance(raw_identities, list) else []
-    )
-    user = CurrentUser(
-        id=str(data.get("id", "")),
-        email=data.get("email"),
-        app_metadata=data.get("app_metadata") or {},
-        user_metadata=data.get("user_metadata") or {},
-        identities=identities,
-        access_token=access_token,
-    )
-    _cache_user(access_token, user)
-    return user
+    return CurrentUser(id=user.id, email=user.email, role=user.role)
 
 
 def require_admin(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:  # noqa: B008
@@ -158,39 +94,3 @@ def require_admin(current_user: CurrentUser = Depends(get_current_user)) -> Curr
             detail="Admin role required",
         )
     return current_user
-
-
-def display_name_from_identity_metadata(meta: dict[str, Any]) -> str:
-    """Liest einen Anzeigenamen aus user_metadata bzw. Supabase identity_data (z. B. Google)."""
-    if not meta:
-        return ""
-    for key in ("full_name", "name", "preferred_username", "nickname"):
-        v = meta.get(key)
-        if isinstance(v, str) and v.strip():
-            return v.strip()
-    given = meta.get("given_name")
-    family = meta.get("family_name")
-    parts: list[str] = []
-    if isinstance(given, str) and given.strip():
-        parts.append(given.strip())
-    if isinstance(family, str) and family.strip():
-        parts.append(family.strip())
-    if parts:
-        return " ".join(parts)
-    return ""
-
-
-def identity_display_name(user: CurrentUser) -> str:
-    """Bester verfuegbarer Anzeigename aus user_metadata und OAuth-Identities."""
-    n = display_name_from_identity_metadata(user.user_metadata or {})
-    if n:
-        return n
-    for ident in user.identities:
-        if not isinstance(ident, dict):
-            continue
-        idata = ident.get("identity_data")
-        if isinstance(idata, dict):
-            n = display_name_from_identity_metadata(idata)
-            if n:
-                return n
-    return ""

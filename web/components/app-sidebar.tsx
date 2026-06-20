@@ -12,6 +12,7 @@ import {
   Search,
   Settings,
   Tag,
+  Users,
 } from "lucide-react"
 import { BrandLogo, OwlMark } from "@/components/brand-logo"
 import {
@@ -39,7 +40,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { fetchErrorLogs, fetchMe, fetchVersion } from "@/lib/api"
-import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/components/auth-provider"
 
 const navItems = [
@@ -47,6 +47,7 @@ const navItems = [
   { label: "Suchaufträge", href: "/searches/", icon: Search },
   { label: "Angebote", href: "/ads/", icon: Tag },
   { label: "Logs", href: "/logs/", icon: List },
+  { label: "Benutzer", href: "/users/", icon: Users },
 ]
 
 function getInitials(name: string): string {
@@ -66,9 +67,8 @@ export function AppSidebar() {
   const router = useRouter()
   const pathname = usePathname()
   const { isMobile } = useSidebar()
-  const { user } = useAuth()
-  const role = String(user?.app_metadata?.role ?? "user")
-  const isAdmin = role === "admin"
+  const { user, logout } = useAuth()
+  const isAdmin = user?.role === "admin"
   const [versionLabel, setVersionLabel] = useState("v…")
   const [errorCount, setErrorCount] = useState<number>(0)
   const [profileDisplayName, setProfileDisplayName] = useState<string | null>(null)
@@ -121,22 +121,21 @@ export function AppSidebar() {
     return path === base || path.startsWith(base + "/")
   }
 
-  const visibleItems = navItems.filter((item) => item.href !== "/logs/" || isAdmin)
+  const adminOnlyHrefs = new Set(["/logs/", "/users/"])
+  const visibleItems = navItems.filter((item) => !adminOnlyHrefs.has(item.href) || isAdmin)
   const userDisplayName =
     profileDisplayName?.trim() ||
-    (user?.user_metadata?.display_name ??
-    user?.user_metadata?.name ??
-    user?.email ??
-    "Unbekannter Nutzer")
+    user?.display_name?.trim() ||
+    user?.email ||
+    "Unbekannter Nutzer"
   const userRoleLabel = isAdmin ? "Administrator" : "Mitglied"
   const shortUserDisplayName = truncateDisplayName(userDisplayName, 24)
   const initials = getInitials(userDisplayName)
 
-  async function handleLogout() {
-    await supabase?.auth.signOut()
-    // Hard navigation to the public landing page. Avoids the app layout's
-    // auth-gate effect racing us to /login once the session clears.
-    window.location.href = "/"
+  function handleLogout() {
+    // logout() löscht das Token und navigiert per harter Weiterleitung zu /login,
+    // sodass der Auth-Gate-Effekt des App-Layouts nicht mit uns um die Route konkurriert.
+    logout()
   }
 
   return (

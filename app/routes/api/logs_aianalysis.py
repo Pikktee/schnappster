@@ -5,7 +5,7 @@ from sqlalchemy import delete
 from sqlmodel import col, select
 
 from app.core.auth import CurrentUser, require_admin
-from app.core.db import UserDbSession
+from app.core.db import SessionDep
 from app.models.logs_aianalysis import AIAnalysisLog, AIAnalysisLogRead
 
 router = APIRouter(prefix="/aianalysislogs", tags=["AIAnalysisLogs"])
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/aianalysislogs", tags=["AIAnalysisLogs"])
 # --------------
 @router.get("/", response_model=list[AIAnalysisLogRead])
 def list_aianalysislogs(
-    session: UserDbSession,
+    session: SessionDep,
     adsearch_id: int | None = None,
     limit: int = Query(default=100, ge=1, le=500),
     _: CurrentUser = Depends(require_admin),  # noqa: B008
@@ -35,7 +35,7 @@ def list_aianalysislogs(
 
 @router.delete("/", status_code=204)
 def clear_aianalysislogs(
-    session: UserDbSession,
+    session: SessionDep,
     _: CurrentUser = Depends(require_admin),  # noqa: B008
 ):
     """Löscht alle KI-Analyse-Logs."""

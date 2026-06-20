@@ -1,79 +1,54 @@
-"""Gemeinsame Test-Fixtures für Schnappster-Tests."""
+"""Gemeinsame Test-Fixtures für Schnappster-Tests (SQLite in-memory)."""
 
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
 
 
-# ``app.core`` baut ``Config()`` beim Import — ohne gültige Postgres-URL bricht die Sammlung ab.
-def _ensure_process_database_url() -> None:
-    if os.environ.get("DATABASE_URL", "").strip():
-        return
-    test_url = os.environ.get("TEST_DATABASE_URL", "").strip()
-    if test_url:
-        os.environ["DATABASE_URL"] = test_url
-        return
-    os.environ["DATABASE_URL"] = (
-        "postgresql+psycopg://pytest_collection:pytest_collection@127.0.0.1:65534/pytest_collection"
-    )
+# ``app.core`` baut ``Config()`` beim Import — DATABASE_URL und JWT_SECRET muessen gesetzt sein.
+def _ensure_process_env() -> None:
+    os.environ.setdefault("DATABASE_URL", "sqlite://")
+    os.environ.setdefault("JWT_SECRET", "test-secret-key-which-is-long-enough-32b")
 
 
-_ensure_process_database_url()
+_ensure_process_env()
 
 import pytest  # noqa: E402
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import event  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
 from sqlmodel import Session, SQLModel, create_engine  # noqa: E402
-from testcontainers.postgres import PostgresContainer  # noqa: E402
 
 import app.models  # noqa: E402, F401 — Metadaten registrieren
 from app.core.auth import CurrentUser, get_current_user  # noqa: E402
-from app.core.db import get_db_session, get_user_db_session  # noqa: E402
+from app.core.db import get_session  # noqa: E402
+from app.core.security import hash_password  # noqa: E402
 from app.models.ad import Ad  # noqa: E402
 from app.models.adsearch import AdSearch  # noqa: E402
 from app.models.logs_aianalysis import AIAnalysisLog  # noqa: E402
+from app.models.user import User  # noqa: E402
 from app.routes import api_router  # noqa: E402
 
 TEST_USER_ID = "00000000-0000-0000-0000-000000000001"
 
 
-def _normalize_postgres_url(url: str) -> str:
-    """SQLAlchemy/psycopg3: postgresql+psycopg://…"""
-    u = url.strip()
-    if u.startswith("postgresql+") or u.startswith("postgres+"):
-        return u
-    if u.startswith("postgresql://"):
-        return "postgresql+psycopg://" + u.removeprefix("postgresql://")
-    if u.startswith("postgres://"):
-        return "postgresql+psycopg://" + u.removeprefix("postgres://")
-    msg = f"Unsupported database URL for tests: {url!r}"
-    raise ValueError(msg)
-
-
-@pytest.fixture(scope="session")
-def postgres_url() -> Iterator[str]:
-    """Postgres-URL: ``TEST_DATABASE_URL`` oder temporärer Container (Docker)."""
-    env = os.environ.get("TEST_DATABASE_URL", "").strip()
-    if env:
-        yield _normalize_postgres_url(env)
-        return
-    try:
-        with PostgresContainer("postgres:16-alpine") as postgres:
-            raw = postgres.get_connection_url()
-            yield _normalize_postgres_url(raw)
-    except Exception as exc:  # noqa: BLE001 — Docker fehlt, Socket fehlt, …
-        pytest.skip(
-            "Postgres für DB-Tests: TEST_DATABASE_URL setzen oder Docker starten "
-            f"({type(exc).__name__}: {exc})"
-        )
-
-
 @pytest.fixture(name="engine")
-def engine_fixture(postgres_url: str):
-    """Leeres Schema pro Test (drop/create)."""
-    eng = create_engine(postgres_url, echo=False, connect_args={"connect_timeout": 10})
-    SQLModel.metadata.drop_all(eng)
+def engine_fixture():
+    """Frische In-Memory-SQLite pro Test (eine geteilte Verbindung via StaticPool)."""
+    eng = create_engine(
+        "sqlite://",
+        echo=False,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
+    @event.listens_for(eng, "connect")
+    def _fk_on(dbapi_connection, _record):  # noqa: ANN001
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     SQLModel.metadata.create_all(eng)
     yield eng
     SQLModel.metadata.drop_all(eng)
@@ -87,31 +62,58 @@ def session_fixture(engine):
         yield session
 
 
-@pytest.fixture(name="client")
-def client_fixture(session):
-    """FastAPI-Test-Client mit Testdatenbank."""
+def _build_test_app(session) -> FastAPI:
     test_app = FastAPI()
     test_app.include_router(api_router)
 
-    def override_get_db_session():
+    def override_get_session():
         yield session
 
-    def override_get_current_user():
-        return CurrentUser(
-            id=TEST_USER_ID,
-            email="test@example.com",
-            app_metadata={"role": "admin", "providers": ["email"]},
-            user_metadata={"name": "Test User"},
-            identities=[],
-            access_token="test-token",
-        )
+    test_app.dependency_overrides[get_session] = override_get_session
+    return test_app
 
-    test_app.dependency_overrides[get_db_session] = override_get_db_session
-    test_app.dependency_overrides[get_user_db_session] = override_get_db_session
+
+@pytest.fixture(name="client")
+def client_fixture(session):
+    """Test-Client mit Admin-User-Override (umgeht die echte Token-Pruefung)."""
+    test_app = _build_test_app(session)
+
+    def override_get_current_user():
+        return CurrentUser(id=TEST_USER_ID, email="test@example.com", role="admin")
+
     test_app.dependency_overrides[get_current_user] = override_get_current_user
 
     with TestClient(test_app) as client:
         yield client
+
+
+@pytest.fixture(name="api_client")
+def api_client_fixture(session):
+    """Test-Client mit ECHTER Auth (nur die DB-Session ist gemockt) — fuer Auth-/Admin-Tests."""
+    test_app = _build_test_app(session)
+    with TestClient(test_app) as client:
+        yield client
+
+
+def make_user(
+    session,
+    *,
+    email: str,
+    password: str = "Passwort1!",
+    role: str = "user",
+    is_active: bool = True,
+) -> User:
+    """Legt einen Benutzer mit gehashtem Passwort an."""
+    user = User(
+        email=email,
+        password_hash=hash_password(password),
+        role=role,
+        is_active=is_active,
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
 
 
 @pytest.fixture

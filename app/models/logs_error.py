@@ -17,11 +17,13 @@ class ErrorLog(SQLModel, table=True):
     __tablename__ = "error_logs"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
-    adsearch_id: int | None = Field(default=None, foreign_key="ad_searches.id", ondelete="SET NULL")
+    adsearch_id: int | None = Field(
+        default=None, foreign_key="ad_searches.id", ondelete="SET NULL", index=True
+    )
     error_type: str
     message: str
     details: str | None = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
 
     adsearch: Optional["AdSearch"] = Relationship(back_populates="error_logs")
 

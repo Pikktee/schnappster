@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.core import config as app_config
 from app.core.auth import CurrentUser, get_current_user, require_admin
-from app.core.db import UserDbSession
+from app.core.db import SessionDep
 from app.models.settings_app import AppSettingsRead, AppSettingsUpdate
 from app.services.settings import SettingsService
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/settings", tags=["Settings"])
 # --------------
 @router.get("/", response_model=list[dict])
 def list_settings(
-    session: UserDbSession,
+    session: SessionDep,
     _: CurrentUser = Depends(require_admin),  # noqa: B008
 ):
     """Gibt alle unterstützten Einstellungen mit aktuellem Wert und Metadaten zurück."""
@@ -26,7 +26,7 @@ def list_settings(
 
 @router.get("/telegram-configured")
 def get_telegram_configured(
-    session: UserDbSession,
+    session: SessionDep,
     _: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
     """Gibt an, ob Telegram global konfiguriert ist (Bot-Token vorhanden).
@@ -40,7 +40,7 @@ def get_telegram_configured(
 @router.get("/{key}", response_model=AppSettingsRead)
 def read_setting(
     key: str,
-    session: UserDbSession,
+    session: SessionDep,
     _: CurrentUser = Depends(require_admin),  # noqa: B008
 ):
     """Gibt den Wert für einen Einstellungsschlüssel zurück; 404 wenn Schlüssel nicht
@@ -60,7 +60,7 @@ def read_setting(
 def update_setting(
     key: str,
     data: AppSettingsUpdate,
-    session: UserDbSession,
+    session: SessionDep,
     _: CurrentUser = Depends(require_admin),  # noqa: B008
 ):
     """Aktualisiert eine Einstellung; validiert gegen Regeln (z. B. erlaubte Werte); 422 bei

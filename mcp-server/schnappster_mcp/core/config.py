@@ -51,8 +51,6 @@ class Settings(BaseSettings):
         default_factory=lambda: _parse_any_http_url("http://127.0.0.1:8000"),
         description="Base URL of the Schnappster FastAPI (override in .env for production).",
     )
-    supabase_url: AnyHttpUrl = Field(..., description="Supabase project URL")
-    supabase_publishable_key: str = Field(..., min_length=1)
 
     mcp_host: str = "127.0.0.1"
     mcp_port: int = Field(
@@ -84,11 +82,11 @@ class Settings(BaseSettings):
         return self
 
     @property
-    def supabase_auth_issuer_url(self) -> str:
-        """Basis-URL des Supabase-Auth-Issuers (``…/auth/v1``)."""
-        return f"{str(self.supabase_url).rstrip('/')}/auth/v1"
+    def auth_issuer_url(self) -> str:
+        """Issuer-URL fuer die OAuth-Metadaten — die Schnappster-API selbst."""
+        return str(self.schnappster_api_base_url).rstrip("/")
 
     @property
-    def supabase_user_url(self) -> str:
-        """URL für ``GET /user`` zur Token-Validierung."""
-        return f"{self.supabase_auth_issuer_url}/user"
+    def users_me_url(self) -> str:
+        """URL fuer ``GET /users/me/`` zur Token-Validierung gegen die Schnappster-API."""
+        return f"{self.auth_issuer_url}/users/me/"

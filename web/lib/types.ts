@@ -101,6 +101,36 @@ export interface UserProfile {
   role: string
 }
 
+/** Eingeloggter Nutzer im Auth-Context (aus GET /users/me/). */
+export interface AuthUser {
+  id: string
+  email: string | null
+  display_name: string
+  role: string
+}
+
+/** Datensatz in der Admin-Benutzerverwaltung (GET /admin/users/). */
+export interface AdminUser {
+  id: string
+  email: string
+  role: string
+  is_active: boolean
+  display_name: string
+  created_at: string
+}
+
+export interface AdminUserCreate {
+  email: string
+  password: string
+  role: string
+  is_active: boolean
+}
+
+export interface AdminUserUpdate {
+  is_active?: boolean
+  role?: string
+}
+
 export interface UserSettings {
   user_id: string
   display_name: string

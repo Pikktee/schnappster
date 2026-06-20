@@ -13,15 +13,15 @@ import { AppPageHead } from "./app-page-head"
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { session, loading } = useAuth()
+  const { user, loading } = useAuth()
 
   useEffect(() => {
-    if (!loading && !session) {
+    if (!loading && !user) {
       router.replace("/login")
     }
-  }, [loading, session, router])
+  }, [loading, user, router])
 
-  if (loading || !session) {
+  if (loading || !user) {
     return (
       <div className="flex h-svh items-center justify-center">
         <Spinner />

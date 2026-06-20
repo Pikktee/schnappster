@@ -18,8 +18,9 @@ uv run start --port 8080  # Custom backend port
 uv run scrape [adsearch_id]  # Manually trigger a scrape
 uv run analyze [limit]       # Manually trigger AI analysis
 uv run dbreset               # Drop and recreate DB (no Alembic – use this for schema changes)
+uv run createadmin [email] [pw]  # Create/promote an admin user (uses ADMIN_EMAIL/ADMIN_PASSWORD if omitted)
 uv run docs [show]           # Generate API docs (pdoc), optionally open in browser
-uv run seed                  # Seed database with sample data
+uv run seed                  # Seed database with sample data (creates a demo user as owner)
 uv run release               # Create a release
 uv run release-chrome-extension  # Package Chrome extension to extensions/dist/
 uv run mcp-server              # TTY: Quick-Tunnel, URL einmal; ``r`` MCP neu, ``p`` Proxy, ``q`` Ende
@@ -46,7 +47,7 @@ Frontend and API are separate processes: locally ``uv run start`` starts both; p
 ### Docker
 
 ```bash
-docker compose up -d    # Uses proxy-net external network; ``DATABASE_URL`` in ``.env`` (z. B. Supabase Postgres)
+docker compose up -d    # Uses proxy-net external network; ``DATABASE_URL`` in ``.env`` (SQLite-Datei; auf Railway persistentes Volume unter /data mounten)
 ```
 
 ### Chrome Extension
@@ -55,7 +56,7 @@ Source: `extensions/chrome/`. Package: **`uv run release-chrome-extension`** →
 
 ### Remote MCP-Server (Streamable HTTP)
 
-Separate Python project in **`mcp-server/`** — proxies tools to the Schnappster API with Supabase Bearer auth.
+Separate Python project in **`mcp-server/`** — proxies tools to the Schnappster API. Auth: das App-eigene JWT als Bearer (validiert per ``GET /users/me/`` gegen die API).
 
 ```bash
 # vom Repo-Root (siehe auch: uv run mcp-server in der Befehlsliste oben)
@@ -105,8 +106,10 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Build/dev workflow a
 
 ### Key conventions
 
-- **Database:** PostgreSQL only (`DATABASE_URL`, z. B. Supabase). No Alembic — schema changes → **`uv run dbreset`** (drop all tables + `init_db()`).
-- API keys (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`) live in `.env`, not the DB
+- **Database:** SQLite by default (`DATABASE_URL=sqlite:///./data/schnappster.db`; PostgreSQL still accepted). WAL + `foreign_keys=ON` via PRAGMA in `app/core/db.py`. No Alembic — schema changes → **`uv run dbreset`** (drop all tables + `init_db()`).
+- **Auth:** eigene JWT-Auth (kein Supabase). `JWT_SECRET` (required) signiert HS256-Tokens; `get_current_user` in `app/core/auth.py` dekodiert lokal und lädt den `User`. Mandantentrennung über `owner_id`-Filter im App-Code (keine DB-RLS). Registrierung legt inaktive Konten an; Admin schaltet frei. Erst-Admin via `uv run createadmin` oder `ADMIN_EMAIL`/`ADMIN_PASSWORD` beim Start.
+- API keys (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`) and `JWT_SECRET` live in `.env`, not the DB
+- **Passwords:** bcrypt-hash in `User.password_hash` (`app/core/security.py`); Policy: ≥8 Zeichen, Groß-/Kleinbuchstabe, Sonderzeichen
 - **`AppSettings`:** runtime-configurable settings (seller filters, Telegram, etc.)
 - Image URLs stored as comma-separated strings in `Ad.image_urls`
 - Seller rating is an int 0–2 (0=poor, 1=ok, 2=top)
@@ -139,7 +142,7 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Build/dev workflow a
 - Prefer testing **observable behavior**, not private methods or implementation details.
 - New services and filter logic should get **unit tests** (same spirit as `test_scraper_filters.py`).
 - **`uv run pytest`** (Root) und **`cd mcp-server && uv run pytest`** should stay green before merge. Root-**`pytest.ini`**: **`testpaths = tests cli/mcp_server`** — `mcp-server/tests/` wird separat gesammelt (**`mcp-server/pyproject.toml`** → `testpaths`), weil sonst zwei Ordner `tests/` als dasselbe Python-Paket `tests.*` kollidieren. Gemeinsame MCP-Fixtures: **`mcp-server/conftest.py`** (nicht unter `mcp-server/tests/`), damit `tests.conftest` nur im jeweiligen Pytest-Lauf jeweils einmal vorkommt.
-- **DB-Tests (Root):** Postgres über **`TEST_DATABASE_URL`** (empfohlen in CI) oder lokalen Docker-Container (**testcontainers**; Docker muss laufen). Ohne beides werden Tests, die Postgres brauchen, **übersprungen** (Parser-/Pure-Logik-Tests laufen weiter).
+- **DB-Tests (Root):** laufen gegen **In-Memory-SQLite** (`StaticPool`, frisches Schema pro Test) — kein Docker/Postgres nötig. Fixtures in `tests/conftest.py`: `client` (Admin-Override), `api_client` (echte JWT-Auth), `session`, `make_user`. `DATABASE_URL`/`JWT_SECRET` werden für die Collection per Default gesetzt.
 
 ## Output Format
 

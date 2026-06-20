@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from pydantic import computed_field
-from sqlalchemy import Column
+from sqlalchemy import Column, Index
 from sqlalchemy.types import JSON
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -20,6 +20,28 @@ class Ad(SQLModel, table=True):
     """Datenbanktabelle für Anzeigen (Kleinanzeigen)."""
 
     __tablename__ = "ads"  # type: ignore
+    # Composite-Indizes fuer die haeufigen Dashboard-Queries (frueher via Raw-SQL in init_db).
+    __table_args__ = (
+        Index("idx_ads_first_seen_at", "first_seen_at"),
+        Index("idx_ads_adsearch_price", "adsearch_id", "price"),
+        Index("idx_ads_owner_analyzed_seen", "owner_id", "is_analyzed", "first_seen_at", "id"),
+        Index(
+            "idx_ads_owner_search_analyzed_seen",
+            "owner_id",
+            "adsearch_id",
+            "is_analyzed",
+            "first_seen_at",
+            "id",
+        ),
+        Index(
+            "idx_ads_owner_analyzed_score_seen",
+            "owner_id",
+            "is_analyzed",
+            "bargain_score",
+            "first_seen_at",
+            "id",
+        ),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     owner_id: str = Field(index=True)

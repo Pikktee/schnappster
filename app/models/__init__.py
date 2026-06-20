@@ -7,6 +7,7 @@ from app.models.logs_error import ErrorLog
 from app.models.logs_scraperun import ScrapeRun
 from app.models.settings_app import AppSettings
 from app.models.settings_user import UserSettings
+from app.models.user import User
 
 __all__ = [
     "Ad",
@@ -15,5 +16,6 @@ __all__ = [
     "ScrapeRun",
     "AppSettings",
     "UserSettings",
+    "User",
     "AIAnalysisLog",
 ]

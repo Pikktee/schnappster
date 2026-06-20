@@ -1,4 +1,4 @@
-"""FastMCP app: Streamable HTTP, Supabase auth, Schnappster API tools."""
+"""FastMCP app: Streamable HTTP, Schnappster JWT auth, Schnappster API tools."""
 
 import base64
 from collections.abc import Awaitable
@@ -18,7 +18,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from schnappster_mcp.core.api_client import SchnappsterApiClient, SchnappsterApiError
-from schnappster_mcp.core.auth import SupabaseTokenVerifier
+from schnappster_mcp.core.auth import ApiTokenVerifier
 from schnappster_mcp.core.config import Settings
 from schnappster_mcp.mcp_ui.mcp_apps import (
     AdSearchesMcpApp,
@@ -44,7 +44,7 @@ def build_mcp(settings: Settings) -> FastMCP:
         instructions=(
             "Zugriff auf Schnappster: Schnäppchen (Ads mit Score), persönliche "
             "Benutzereinstellungen und Suchaufträge (Ad Searches). "
-            "Authentifizierung: Supabase Access Token als Bearer (wie im Web-Frontend). "
+            "Authentifizierung: Schnappster Access Token als Bearer (nach Login im Web-Frontend). "
             "In Antworten an Endnutzer keine internen numerischen IDs (z. B. von Anzeigen "
             "oder Suchaufträgen) nennen; stattdessen Titel, Name des Suchauftrags oder "
             "Kurzbeschreibung verwenden. IDs nur still für Folge-Tool-Aufrufe nutzen. "
@@ -61,9 +61,9 @@ def build_mcp(settings: Settings) -> FastMCP:
         # Keine serverseitige MCP-Session: vermeidet „session … no longer exists“ bei
         # Deploys, mehreren Instanzen, Tunnel-Reconnects und längeren Client-Pausen.
         stateless_http=True,
-        token_verifier=SupabaseTokenVerifier(settings),
+        token_verifier=ApiTokenVerifier(settings),
         auth=AuthSettings(
-            issuer_url=AnyHttpUrl(settings.supabase_auth_issuer_url),
+            issuer_url=AnyHttpUrl(settings.auth_issuer_url),
             resource_server_url=resource,
             required_scopes=None,
         ),
@@ -299,7 +299,7 @@ def _api_client(settings: Settings) -> SchnappsterApiClient:
     access = get_access_token()
     if access is None:
         raise ToolError(
-            "Nicht authentifiziert: gültiges Bearer-Token (Supabase Access Token) erforderlich."
+            "Nicht authentifiziert: gültiges Bearer-Token (Schnappster Access Token) erforderlich."
         )
     return SchnappsterApiClient(settings, access.token)
 

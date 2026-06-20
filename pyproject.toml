@@ -18,7 +18,8 @@ dependencies = [
     "rich>=14.3.3",
     "httpx>=0.28.1",
     "jinja2>=3.1.0",
-    "psycopg[binary]>=3.2.12",
+    "pyjwt>=2.9.0",
+    "bcrypt>=4.2.0",
     "schnappster-mcp",
 ]
 
@@ -59,11 +60,11 @@ dev = [
     "ruff>=0.15.4",
     "pdoc>=14",
     "markdown>=3.7",
-    "testcontainers[postgres]>=4.8.0",
 ]
 
 [project.scripts]
 dbreset = "cli.dbreset:main"
+createadmin = "cli.createadmin:main"
 scrape = "cli.scrape:main"
 analyze = "cli.analyze:main"
 start = "cli.start:main"
