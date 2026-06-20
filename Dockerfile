@@ -21,9 +21,9 @@ RUN uv sync --frozen --no-dev
 COPY . .
 
 # Datenverzeichnis für die SQLite-Datei. Auf Railway ein persistentes Volume hier mounten
-# und DATABASE_URL=sqlite:////data/schnappster.db setzen (4 Slashes = absoluter Pfad).
+# (Railway Volumes, NICHT die Docker-VOLUME-Anweisung — die lehnt Railway ab) und
+# DATABASE_URL=sqlite:////data/schnappster.db setzen (4 Slashes = absoluter Pfad).
 RUN mkdir -p /data
-VOLUME ["/data"]
 
 EXPOSE 8000
 
