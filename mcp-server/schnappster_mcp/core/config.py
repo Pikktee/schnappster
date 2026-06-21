@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 from typing import Self
+from urllib.parse import urlparse
 
 from pydantic import AliasChoices, AnyHttpUrl, Field, TypeAdapter, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -82,11 +83,28 @@ class Settings(BaseSettings):
         return self
 
     @property
-    def auth_issuer_url(self) -> str:
-        """Issuer-URL fuer die OAuth-Metadaten — die Schnappster-API selbst."""
+    def api_base_url(self) -> str:
+        """Basis-URL der Schnappster-API (ohne abschliessenden Slash)."""
         return str(self.schnappster_api_base_url).rstrip("/")
 
     @property
     def users_me_url(self) -> str:
         """URL fuer ``GET /users/me/`` zur Token-Validierung gegen die Schnappster-API."""
-        return f"{self.auth_issuer_url}/users/me/"
+        return f"{self.api_base_url}/users/me/"
+
+    @property
+    def login_url(self) -> str:
+        """URL fuer ``POST /auth/login`` (E-Mail/Passwort-Pruefung beim OAuth-Login)."""
+        return f"{self.api_base_url}/auth/login"
+
+    @property
+    def mcp_issuer_url(self) -> str:
+        """OAuth-Issuer: der mcp-server selbst (Origin der oeffentlichen MCP-URL).
+
+        Der mcp-server ist der Authorization-Server; ``/authorize``, ``/token`` und die
+        AS-Metadata liegen hier, nicht in der Haupt-API.
+        """
+        assert self.mcp_resource_server_url is not None
+        parsed = urlparse(str(self.mcp_resource_server_url))
+        port = f":{parsed.port}" if parsed.port and parsed.port not in (80, 443) else ""
+        return f"{parsed.scheme}://{parsed.hostname}{port}"

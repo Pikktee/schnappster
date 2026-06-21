@@ -1,6 +1,7 @@
 """FastMCP app: Streamable HTTP, Schnappster JWT auth, Schnappster API tools."""
 
 import base64
+import html
 from collections.abc import Awaitable
 from functools import lru_cache
 from importlib.resources import files
@@ -8,18 +9,18 @@ from typing import Any, Literal
 from urllib.parse import urlparse
 
 from mcp.server.auth.middleware.auth_context import get_access_token
-from mcp.server.auth.settings import AuthSettings
+from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import Icon
 from pydantic import AnyHttpUrl
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from schnappster_mcp.core.api_client import SchnappsterApiClient, SchnappsterApiError
-from schnappster_mcp.core.auth import ApiTokenVerifier
 from schnappster_mcp.core.config import Settings
+from schnappster_mcp.core.oauth_provider import LoginError, SchnappsterOAuthProvider
 from schnappster_mcp.mcp_ui.mcp_apps import (
     AdSearchesMcpApp,
     RecentBargainsMcpApp,
@@ -38,6 +39,9 @@ def build_mcp(settings: Settings) -> FastMCP:
     # Pro Tool in tools/list — viele Clients (z. B. Claude „Tool Use“) nutzen diese Felder,
     # nicht nur serverInfo.icons aus initialize.
     tool_icons = _schnappster_mcp_icons()
+
+    # Der mcp-server ist selbst der OAuth-Authorization-Server (DCR + Login-Seite + Token).
+    oauth_provider = SchnappsterOAuthProvider(settings)
 
     mcp = FastMCP(
         name="Schnappster",
@@ -61,11 +65,14 @@ def build_mcp(settings: Settings) -> FastMCP:
         # Keine serverseitige MCP-Session: vermeidet „session … no longer exists“ bei
         # Deploys, mehreren Instanzen, Tunnel-Reconnects und längeren Client-Pausen.
         stateless_http=True,
-        token_verifier=ApiTokenVerifier(settings),
+        auth_server_provider=oauth_provider,
         auth=AuthSettings(
-            issuer_url=AnyHttpUrl(settings.auth_issuer_url),
+            # Issuer = der mcp-server selbst; /authorize, /token, /register und die
+            # AS-Metadata liegen hier. Tokens werden gegen GET /users/me/ validiert.
+            issuer_url=AnyHttpUrl(settings.mcp_issuer_url),
             resource_server_url=resource,
             required_scopes=None,
+            client_registration_options=ClientRegistrationOptions(enabled=True),
         ),
         host=settings.mcp_host,
         port=settings.mcp_port,
@@ -103,6 +110,25 @@ def build_mcp(settings: Settings) -> FastMCP:
     async def icon_png(_request: Request) -> Response:  # noqa: ARG001
         """Explizite ``/icon.png``-Route für Clients, die diesen Pfad erwarten."""
         return _branding_png_response()
+
+    @mcp.custom_route("/oauth/login", methods=["GET"])
+    async def oauth_login_form(request: Request) -> Response:
+        """Login-Seite des OAuth-Flows: zeigt das E-Mail/Passwort-Formular."""
+        txn = request.query_params.get("txn", "")
+        return HTMLResponse(_login_page_html(txn))
+
+    @mcp.custom_route("/oauth/login", methods=["POST"])
+    async def oauth_login_submit(request: Request) -> Response:
+        """Prüft die Anmeldedaten und leitet bei Erfolg zum OAuth-Client zurück."""
+        form = await request.form()
+        txn = str(form.get("txn", ""))
+        email = str(form.get("email", "")).strip()
+        password = str(form.get("password", ""))
+        try:
+            redirect_url = await oauth_provider.complete_login(txn, email, password)
+        except LoginError as exc:
+            return HTMLResponse(_login_page_html(txn, error=str(exc)), status_code=401)
+        return RedirectResponse(redirect_url, status_code=302)
 
     @mcp.tool(icons=tool_icons, meta=RecentBargainsMcpApp.tool_meta())
     async def list_recent_bargains(
@@ -258,6 +284,59 @@ def build_mcp(settings: Settings) -> FastMCP:
     )
 
     return mcp
+
+
+def _login_page_html(txn: str, error: str | None = None) -> str:
+    """Rendert die minimalistische OAuth-Login-Seite (E-Mail/Passwort, Schnappster-Branding)."""
+    error_block = (
+        f'<p class="error">{html.escape(error)}</p>' if error else ""
+    )
+    return f"""<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schnappster – Anmelden</title>
+<style>
+  :root {{ color-scheme: light dark; }}
+  body {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+         display: grid; place-items: center; min-height: 100vh; margin: 0;
+         background: #0f0f0f; color: #f5f5f5; }}
+  .card {{ width: min(360px, 92vw); background: #1b1b1b; border: 1px solid #2c2c2c;
+          border-radius: 16px; padding: 32px; box-shadow: 0 10px 40px rgba(0,0,0,.4); }}
+  .brand {{ display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }}
+  .brand img {{ width: 36px; height: 36px; border-radius: 8px; }}
+  .brand h1 {{ font-size: 1.15rem; margin: 0; }}
+  label {{ display: block; font-size: .85rem; margin: 14px 0 6px; color: #bdbdbd; }}
+  input {{ width: 100%; box-sizing: border-box; padding: 11px 12px; border-radius: 9px;
+          border: 1px solid #3a3a3a; background: #111; color: #fff; font-size: 1rem; }}
+  input:focus {{ outline: 2px solid #e0a106; border-color: transparent; }}
+  button {{ width: 100%; margin-top: 22px; padding: 12px; border: 0; border-radius: 9px;
+           background: #e0a106; color: #1a1a1a; font-weight: 600; font-size: 1rem;
+           cursor: pointer; }}
+  button:hover {{ background: #f0b418; }}
+  .error {{ background: #3a1414; border: 1px solid #6b2020; color: #ffb4b4;
+           padding: 10px 12px; border-radius: 9px; font-size: .9rem; margin: 0 0 4px; }}
+  .hint {{ color: #888; font-size: .8rem; margin-top: 18px; text-align: center; }}
+</style>
+</head>
+<body>
+  <form class="card" method="post" action="/oauth/login">
+    <div class="brand">
+      <img src="/icon.png" alt="Schnappster">
+      <h1>Mit Schnappster verbinden</h1>
+    </div>
+    {error_block}
+    <input type="hidden" name="txn" value="{html.escape(txn)}">
+    <label for="email">E-Mail</label>
+    <input id="email" name="email" type="email" autocomplete="username" required autofocus>
+    <label for="password">Passwort</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <button type="submit">Anmelden &amp; verbinden</button>
+    <p class="hint">Zugriff für den Schnappster Remote-MCP-Server.</p>
+  </form>
+</body>
+</html>"""
 
 
 @lru_cache(maxsize=1)

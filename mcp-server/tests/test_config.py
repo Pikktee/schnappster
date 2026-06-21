@@ -30,10 +30,20 @@ def test_mcp_port_prefers_mcp_port_over_port(monkeypatch: pytest.MonkeyPatch) ->
     """``MCP_PORT`` hat Vorrang vor ``PORT``."""
     monkeypatch.setenv("PORT", "3000")
     monkeypatch.setenv("MCP_PORT", "8767")
+    s = Settings.model_validate({})
+    assert s.mcp_port == 8767
+
+
+def test_issuer_and_login_urls() -> None:
+    """OAuth-Issuer ist der mcp-server-Origin; Login-/Users-URLs zeigen auf die API."""
     s = Settings.model_validate(
         {
-            "supabase_url": "https://x.supabase.co",
-            "supabase_publishable_key": "k",
+            "schnappster_api_base_url": "http://127.0.0.1:8000",
+            "mcp_host": "127.0.0.1",
+            "mcp_port": 8766,
+            "mcp_resource_server_url": "https://mcp.example.net/",
         }
     )
-    assert s.mcp_port == 8767
+    assert s.mcp_issuer_url == "https://mcp.example.net"
+    assert s.login_url == "http://127.0.0.1:8000/auth/login"
+    assert s.users_me_url == "http://127.0.0.1:8000/users/me/"

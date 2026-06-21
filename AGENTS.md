@@ -56,7 +56,7 @@ Source: `extensions/chrome/`. Package: **`uv run release-chrome-extension`** →
 
 ### Remote MCP-Server (Streamable HTTP)
 
-Separate Python project in **`mcp-server/`** — proxies tools to the Schnappster API. Auth: das App-eigene JWT als Bearer (validiert per ``GET /users/me/`` gegen die API).
+Separate Python project in **`mcp-server/`** — proxies tools to the Schnappster API. **Auth: der mcp-server ist selbst ein OAuth-2.1-Authorization-Server** (`auth_server_provider` in `schnappster_mcp/server.py`, Logik in `core/oauth_provider.py`): Dynamic Client Registration, eigene Login-Seite unter `/oauth/login` (prüft E-Mail/Passwort gegen die API `POST /auth/login`), Authorization-Code-Flow mit PKCE. Das ausgegebene **Access-Token IST das App-JWT** der API; validiert wird es zustandslos per ``GET /users/me/`` (`ApiTokenVerifier`). Keine Refresh-Tokens — nach Ablauf des JWT (7 Tage) im Client neu verbinden. **Issuer = der mcp-server selbst** (`MCP_RESOURCE_SERVER_URL`-Origin), nicht die API; die Haupt-API stellt keine OAuth-Endpunkte.
 
 ```bash
 # vom Repo-Root (siehe auch: uv run mcp-server in der Befehlsliste oben)
