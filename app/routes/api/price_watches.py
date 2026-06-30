@@ -175,17 +175,35 @@ def _get_owned_watch(session: SessionDep, watch_id: int, owner_id: str) -> Price
     return watch
 
 
+_BOT_BLOCK_STATUS = {403, 429, 503}
+_BOT_CHALLENGE_MARKERS = ("just a moment", "enable javascript and cookies", "cf-challenge")
+_BOT_BLOCK_DETAIL = (
+    "Die Seite ist durch einen Bot-Schutz (z. B. Cloudflare) geschützt und lässt sich "
+    "nicht automatisch auslesen. Ein Preis-Alarm ist für diese Seite leider nicht möglich."
+)
+
+
 def _fetch_or_422(url: str) -> str:
-    """Lädt die URL; wirft 422 bei Nicht-Erreichbarkeit; gibt HTML zurück."""
+    """Lädt die URL; wirft 422 bei Nicht-Erreichbarkeit/Bot-Schutz; gibt HTML zurück."""
     status, html = fetch_page_with_status(url)
     if status == 0:
         raise HTTPException(
             status_code=422,
             detail="Die Webseite konnte nicht aufgerufen werden. Bitte URL und Verbindung prüfen.",
         )
+    if status in _BOT_BLOCK_STATUS or _looks_like_bot_challenge(html):
+        raise HTTPException(status_code=422, detail=_BOT_BLOCK_DETAIL)
     if status >= 400:
         raise HTTPException(
             status_code=422,
             detail=f"Die Seite konnte nicht abgerufen werden (HTTP {status}). Bitte URL prüfen.",
         )
     return html
+
+
+def _looks_like_bot_challenge(html: str) -> bool:
+    """Erkennt eine JS-/Cookie-Challenge-Seite (Cloudflare & Co.), die als HTTP 200 kommt."""
+    if not html or len(html) > 20000:
+        return False
+    low = html.lower()
+    return any(marker in low for marker in _BOT_CHALLENGE_MARKERS)

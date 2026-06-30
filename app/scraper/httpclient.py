@@ -32,6 +32,16 @@ def _float_env(name: str, default: float) -> float:
         return default
 
 
+def _str_env(name: str, default: str) -> str:
+    val = os.environ.get(name)
+    return val if val else default
+
+
+# Browser-Fingerprint für curl_cffi (env: SCRAPE_IMPERSONATE).
+# "chrome131" passt empirisch viele Anti-Bot-Schutzmaßnahmen (Cloudflare, Amazon),
+# die der curl_cffi-Default "chrome" auslöst (403 bzw. preisbereinigte Seiten).
+IMPERSONATE = _str_env("SCRAPE_IMPERSONATE", "chrome131")
+
 # Maximale gleichzeitige Anfragen (env: SCRAPE_MAX_CONCURRENT)
 MAX_CONCURRENT = _int_env("SCRAPE_MAX_CONCURRENT", 6)
 
@@ -77,7 +87,7 @@ async def _fetch_pages(urls: list[str]) -> list[str]:
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
     results: list[str] = [""] * len(urls)
 
-    async with CffiAsyncSession(impersonate="chrome") as session:
+    async with CffiAsyncSession(impersonate=IMPERSONATE) as session:
 
         async def fetch_one(index: int, url: str) -> None:
             async with semaphore:
@@ -99,7 +109,7 @@ async def _fetch_pages(urls: list[str]) -> list[str]:
 
 async def _fetch_page_with_status(url: str) -> tuple[int, str]:
     """Lädt eine URL; gibt (status_code, body) zurück; (0, '') bei Verbindungsfehler."""
-    async with CffiAsyncSession(impersonate="chrome") as session:
+    async with CffiAsyncSession(impersonate=IMPERSONATE) as session:
         try:
             response = await session.get(url, timeout=REQUEST_TIMEOUT)
             return response.status_code, response.text
@@ -112,7 +122,7 @@ async def _fetch_binary(urls: list[str]) -> list[bytes]:
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
     results: list[bytes] = [b""] * len(urls)
 
-    async with CffiAsyncSession(impersonate="chrome") as session:
+    async with CffiAsyncSession(impersonate=IMPERSONATE) as session:
 
         async def fetch_one(index: int, url: str) -> None:
             async with semaphore:

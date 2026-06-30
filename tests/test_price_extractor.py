@@ -89,6 +89,46 @@ def test_extract_visible_candidate_and_roundtrip():
     assert extract_price(VISIBLE_HTML, visible.locator)[0] == 19.95
 
 
+# Mehrere Preise teilen sich dieselbe generische Klasse (Muster: Amazon span.a-offscreen).
+AMBIGUOUS_HTML = """
+<html><body>
+  <div id="corePrice">
+    <span class="a-offscreen">23,90 €</span>
+  </div>
+  <div id="accessory">
+    <span class="a-offscreen">7,99 €</span>
+  </div>
+  <div id="rrp">
+    <span class="a-offscreen">29,99 €</span>
+  </div>
+</body></html>
+"""
+
+
+def test_visible_selector_is_disambiguated_by_ancestor():
+    """Jeder gleich-klassige Preis bekommt einen eigenen, eindeutig wiederfindbaren Selektor."""
+    candidates = extract_candidates(AMBIGUOUS_HTML)
+    by_value = {c.value: c for c in candidates}
+    assert {23.9, 7.99, 29.99} <= set(by_value)
+    # Der gewählte Preis muss per gespeichertem Locator exakt wiedergefunden werden,
+    # nicht bloß der erste Treffer der generischen Klasse.
+    for value, cand in by_value.items():
+        assert extract_price(AMBIGUOUS_HTML, cand.locator)[0] == value
+
+
+def test_css_disambiguation_picks_value_closest_to_reference():
+    """Bleibt der Selektor mehrdeutig, gewinnt der Treffer nahe am ursprünglich gewählten Wert."""
+    html = """
+    <html><body>
+      <span class="a-offscreen">7,99 €</span>
+      <span class="a-offscreen">24,50 €</span>
+    </body></html>
+    """
+    # Generischer Selektor trifft beide; Referenzwert 23,90 → näher an 24,50 als an 7,99.
+    locator = {"strategy": "css", "selector": "span.a-offscreen", "value": 23.9}
+    assert extract_price(html, locator)[0] == 24.5
+
+
 def test_visible_filters_split_digits_and_long_banners():
     values = {c.value for c in extract_candidates(NOISE_HTML)}
     assert 49.99 in values

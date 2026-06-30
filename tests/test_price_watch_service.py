@@ -190,6 +190,29 @@ def test_preview_returns_candidates(client, monkeypatch):
     assert any(c["value"] == 19.99 for c in data["candidates"])
 
 
+def test_preview_bot_block_returns_clear_422(client, monkeypatch):
+    """HTTP 403 (Bot-Schutz) → klare 422-Meldung statt irreführend 'keine Preise'."""
+    monkeypatch.setattr(
+        "app.routes.api.price_watches.fetch_page_with_status",
+        lambda url: (403, "<html><body>blocked</body></html>"),
+    )
+    response = client.post("/price-watches/preview", json={"url": "https://shop.example.com/p"})
+    assert response.status_code == 422
+    assert "Bot-Schutz" in response.json()["detail"]
+
+
+def test_preview_cloudflare_challenge_page_returns_422(client, monkeypatch):
+    """Eine als HTTP 200 gelieferte Cloudflare-Challenge wird als Bot-Schutz erkannt."""
+    challenge = "<html><head><title>Just a moment...</title></head><body></body></html>"
+    monkeypatch.setattr(
+        "app.routes.api.price_watches.fetch_page_with_status",
+        lambda url: (200, challenge),
+    )
+    response = client.post("/price-watches/preview", json={"url": "https://shop.example.com/p"})
+    assert response.status_code == 422
+    assert "Bot-Schutz" in response.json()["detail"]
+
+
 def test_update_and_delete_price_watch(client, monkeypatch):
     payload = {
         "name": "Produkt",

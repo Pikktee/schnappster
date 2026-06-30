@@ -35,6 +35,10 @@ _PRICE_WITH_CURRENCY = re.compile(
 _PRICE_KEYS = ("price", "lowprice", "highprice")
 _MAX_VISIBLE_TEXT_LEN = 30
 _MAX_CANDIDATES = 8
+# Klassenfragmente, die einen Vorfahren als Preis-Container ausweisen (für eindeutige Selektoren).
+_SEMANTIC_ANCHOR_KEYS = ("price", "amount", "cost", "offer", "deal", "pricetopay")
+# Wie viele Vorfahren-Ebenen für die Selektor-Disambiguierung maximal geprüft werden.
+_MAX_ANCESTOR_CLIMB = 6
 
 
 # ---------------------------------------------------------------------------
@@ -196,15 +200,19 @@ def _extract_visible(soup: BeautifulSoup) -> list[PriceCandidate]:
                 currency=currency,
                 label="Preis",
                 source="visible",
-                locator={"strategy": "css", "selector": _css_selector_for(parent)},
+                locator={
+                    "strategy": "css",
+                    "selector": _build_css_selector(soup, parent),
+                    "value": value,
+                },
                 raw=text,
             )
         )
     return out
 
 
-def _css_selector_for(el: Tag) -> str:
-    """Erzeugt einen möglichst stabilen CSS-Selektor für ein Element."""
+def _base_css_selector(el: Tag) -> str:
+    """Erzeugt einen möglichst stabilen Basis-Selektor für ein Element (ohne Eindeutigkeit)."""
     if el.get("id"):
         return f"#{el['id']}"
     if el.get("itemprop"):
@@ -215,6 +223,46 @@ def _css_selector_for(el: Tag) -> str:
     if chosen:
         return f"{el.name}." + ".".join(chosen)
     return el.name
+
+
+def _anchor_selector(el: Tag) -> str | None:
+    """Selektor für einen Vorfahren, der als Preis-Container taugt (id oder semantische Klasse)."""
+    if el.get("id"):
+        return f"#{el['id']}"
+    classes = [c for c in (el.get("class") or []) if c]
+    semantic = [c for c in classes if any(k in c.lower() for k in _SEMANTIC_ANCHOR_KEYS)]
+    return f".{semantic[0]}" if semantic else None
+
+
+def _build_css_selector(soup: BeautifulSoup, el: Tag) -> str:
+    """Liefert einen Selektor, der ``el`` möglichst eindeutig trifft.
+
+    Generische Klassen wie ``a-offscreen`` kommen auf Shop-Seiten dutzendfach vor; ein
+    blanker Basis-Selektor träfe beim Monitoring den falschen Preis. Daher wird der
+    Basis-Selektor an den nächsten id-/Preis-Vorfahren verankert, bis ``el`` eindeutig
+    (oder zumindest der erste Treffer) ist.
+    """
+    base = _base_css_selector(el)
+    matches = soup.select(base)
+    if len(matches) == 1 and matches[0] is el:
+        return base
+    best = base
+    for depth, ancestor in enumerate(el.parents):
+        if depth >= _MAX_ANCESTOR_CLIMB:
+            break
+        if not isinstance(ancestor, Tag):
+            continue
+        anchor = _anchor_selector(ancestor)
+        if not anchor:
+            continue
+        combined = f"{anchor} {base}"
+        anchored = soup.select(combined)
+        if not anchored or anchored[0] is not el:
+            continue
+        best = combined
+        if len(anchored) == 1:
+            return combined
+    return best
 
 
 def _dedupe_and_rank(candidates: list[PriceCandidate]) -> list[PriceCandidate]:
@@ -278,12 +326,25 @@ def _price_from_meta(soup: BeautifulSoup, locator: dict) -> tuple[float | None, 
 def _price_from_css(soup: BeautifulSoup, locator: dict) -> tuple[float | None, str | None]:
     """Liest den Preis aus dem gespeicherten CSS-Selektor (sichtbarer Text)."""
     try:
-        el = soup.select_one(locator.get("selector", ""))
+        matches = soup.select(locator.get("selector", ""))
     except Exception:  # noqa: BLE001 — ungültiger Selektor soll nicht crashen
         return None, None
-    if not el:
+    if not matches:
         return None, None
+    el = _disambiguate_css_match(matches, locator.get("value"))
     return parse_price_value(el.get_text(strip=True))
+
+
+def _disambiguate_css_match(matches: list[Tag], reference: object) -> Tag:
+    """Wählt bei mehreren Treffern den, dessen Preis dem ursprünglich gewählten am nächsten ist."""
+    if len(matches) == 1 or not isinstance(reference, int | float):
+        return matches[0]
+
+    def distance(el: Tag) -> float:
+        value, _ = parse_price_value(el.get_text(strip=True))
+        return abs(value - reference) if value is not None else float("inf")
+
+    return min(matches, key=distance)
 
 
 def _load_json(script: Tag) -> object:
