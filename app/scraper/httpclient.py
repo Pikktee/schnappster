@@ -4,12 +4,15 @@ Nutzt curl_cffi.
 """
 
 import asyncio
+import logging
 import os
 import random
 
 from curl_cffi.requests import AsyncSession as CffiAsyncSession
 
 from app.core.config import config
+
+logger = logging.getLogger(__name__)
 
 
 def _int_env(name: str, default: int) -> int:
@@ -37,10 +40,32 @@ def _str_env(name: str, default: str) -> str:
     return val if val else default
 
 
+def _bool_env(name: str, default: bool) -> bool:
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    return val.strip().lower() in ("1", "true", "yes", "on")
+
+
 # Browser-Fingerprint für curl_cffi (env: SCRAPE_IMPERSONATE).
 # "chrome131" passt empirisch viele Anti-Bot-Schutzmaßnahmen (Cloudflare, Amazon),
 # die der curl_cffi-Default "chrome" auslöst (403 bzw. preisbereinigte Seiten).
 IMPERSONATE = _str_env("SCRAPE_IMPERSONATE", "chrome131")
+
+# Optionaler Proxy / Web-Unlocker (env: SCRAPE_PROXY_URL). Leer = direkter Abruf wie bisher.
+# Von Rechenzentrums-IPs (Railway) liefern Amazon/Cloudflare blockierte bzw. preisbereinigte
+# Seiten — eine vertrauenswürdige (Residential-)IP oder ein Unlocker-Dienst im Proxy-Modus
+# umgeht das. Format: "http://user:pass@host:port" (auch für Scraping-APIs im Proxy-Modus).
+# SCRAPE_PROXY_VERIFY=false bei Diensten mit eigenem TLS-Zertifikat (MITM-Proxy).
+PROXY_URL = _str_env("SCRAPE_PROXY_URL", "")
+PROXY_VERIFY = _bool_env("SCRAPE_PROXY_VERIFY", True)
+
+# Zusatzargumente für jeden Request; nur gesetzt, wenn ein Proxy konfiguriert ist.
+_REQUEST_EXTRA: dict = {}
+if PROXY_URL:
+    _REQUEST_EXTRA["proxy"] = PROXY_URL
+    _REQUEST_EXTRA["verify"] = PROXY_VERIFY
+    logger.info("HTTP-Client nutzt Proxy/Unlocker (verify=%s)", PROXY_VERIFY)
 
 # Maximale gleichzeitige Anfragen (env: SCRAPE_MAX_CONCURRENT)
 MAX_CONCURRENT = _int_env("SCRAPE_MAX_CONCURRENT", 6)
@@ -92,7 +117,7 @@ async def _fetch_pages(urls: list[str]) -> list[str]:
         async def fetch_one(index: int, url: str) -> None:
             async with semaphore:
                 try:
-                    response = await session.get(url, timeout=REQUEST_TIMEOUT)
+                    response = await session.get(url, timeout=REQUEST_TIMEOUT, **_REQUEST_EXTRA)
                     results[index] = response.text
                 except Exception:
                     results[index] = ""
@@ -111,7 +136,7 @@ async def _fetch_page_with_status(url: str) -> tuple[int, str]:
     """Lädt eine URL; gibt (status_code, body) zurück; (0, '') bei Verbindungsfehler."""
     async with CffiAsyncSession(impersonate=IMPERSONATE) as session:
         try:
-            response = await session.get(url, timeout=REQUEST_TIMEOUT)
+            response = await session.get(url, timeout=REQUEST_TIMEOUT, **_REQUEST_EXTRA)
             return response.status_code, response.text
         except Exception:
             return 0, ""
@@ -127,7 +152,7 @@ async def _fetch_binary(urls: list[str]) -> list[bytes]:
         async def fetch_one(index: int, url: str) -> None:
             async with semaphore:
                 try:
-                    response = await session.get(url, timeout=REQUEST_TIMEOUT)
+                    response = await session.get(url, timeout=REQUEST_TIMEOUT, **_REQUEST_EXTRA)
                     results[index] = response.content
                 except Exception:
                     results[index] = b""
