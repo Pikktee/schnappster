@@ -29,6 +29,8 @@ class UserSettings(SQLModel, table=True):
     telegram_chat_id: str | None = None
     notify_telegram: bool = False
     notify_min_score: int = Field(default=8, ge=0, le=10)
+    # Preis-Alarme zusätzlich per Telegram senden (unabhängig vom Schnäppchen-Schalter).
+    notify_price_telegram: bool = False
     deletion_pending: bool = False
 
 
@@ -40,6 +42,7 @@ class UserSettingsRead(SQLModel):
     telegram_chat_id: str | None
     notify_telegram: bool
     notify_min_score: int
+    notify_price_telegram: bool
     deletion_pending: bool
 
 
@@ -50,6 +53,7 @@ class UserSettingsUpdate(SQLModel):
     telegram_chat_id: str | None = None
     notify_telegram: bool | None = None
     notify_min_score: int | None = Field(default=None, ge=0, le=10)
+    notify_price_telegram: bool | None = None
 
     @field_validator("display_name", mode="before")
     @classmethod

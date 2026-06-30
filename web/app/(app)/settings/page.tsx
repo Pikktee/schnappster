@@ -64,6 +64,7 @@ export default function SettingsPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [notifyTelegram, setNotifyTelegram] = useState(false)
   const [notifyMinScore, setNotifyMinScore] = useState("8")
+  const [notifyPriceTelegram, setNotifyPriceTelegram] = useState(false)
   const [telegramChatId, setTelegramChatId] = useState("")
   const [oldPassword, setOldPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -92,6 +93,7 @@ export default function SettingsPage() {
         setIsAdmin(profile.role === "admin")
         setNotifyTelegram(userSettings.notify_telegram)
         setNotifyMinScore(String(userSettings.notify_min_score))
+        setNotifyPriceTelegram(userSettings.notify_price_telegram)
         setTelegramChatId(userSettings.telegram_chat_id ?? "")
         setTelegramConfigured(telegramConfig.configured)
         if (profile.role === "admin") {
@@ -154,6 +156,7 @@ export default function SettingsPage() {
           display_name: nameTrimmed,
           notify_telegram: notifyTelegram,
           notify_min_score: Number(notifyMinScore),
+          notify_price_telegram: notifyPriceTelegram,
           telegram_chat_id: chatTrimmed || null,
         }),
       ])
@@ -397,6 +400,31 @@ export default function SettingsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="price-telegram"
+                    className={cn("flex items-center gap-1.5", !telegramConfigured && "opacity-60")}
+                  >
+                    <span>Preis-Alarme auf Telegram</span>
+                    <HelpTip text="Sendet zusätzlich eine Telegram-Nachricht, wenn ein Preis-Alarm auslöst." />
+                  </Label>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    Bei ausgelösten Preis-Alarmen eine Nachricht an den hinterlegten Telegram-Chat
+                    senden.
+                  </p>
+                </div>
+                <Switch
+                  id="price-telegram"
+                  checked={notifyPriceTelegram}
+                  onCheckedChange={setNotifyPriceTelegram}
+                  disabled={!telegramConfigured}
+                  className={!telegramConfigured ? "opacity-60" : undefined}
+                />
               </div>
             </CardContent>
           </Card>

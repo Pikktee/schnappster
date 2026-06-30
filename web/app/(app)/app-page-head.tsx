@@ -56,6 +56,18 @@ export function AppPageHead() {
               </BreadcrumbItem>
             </>
           )}
+          {pathSegments.length >= 1 && pathSegments[0] === "price-alerts" && (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {pathSegments.length === 1 ? (
+                  <BreadcrumbPage>Preis-Alarme</BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink href="/price-alerts">Preis-Alarme</BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </>
+          )}
           {pathSegments.length >= 1 && pathSegments[0] === "settings" && (
             <>
               <BreadcrumbSeparator />

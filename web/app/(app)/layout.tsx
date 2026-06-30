@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
+import { NotificationBell } from "@/components/notification-bell"
 import { Spinner } from "@/components/ui/spinner"
 import { useAuth } from "@/components/auth-provider"
 import { PageHeadProvider } from "./page-head-context"
@@ -37,6 +38,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <header className="flex h-12 items-center gap-2 border-b px-4">
             <SidebarTrigger />
             <span className="text-sm font-semibold text-foreground md:hidden">Schnappster</span>
+            <div className="ml-auto flex items-center">
+              <NotificationBell />
+            </div>
           </header>
           <main id="main-content" className="main-scroll flex-1 overflow-y-scroll overflow-x-hidden p-6 lg:p-8">
             <div className="w-full ltr">

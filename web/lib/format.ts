@@ -25,6 +25,37 @@ export function formatPrice(price: number | null): string {
   }).format(price)
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  EUR: "€",
+  USD: "$",
+  GBP: "£",
+  CHF: "CHF",
+  JPY: "¥",
+  PLN: "zł",
+}
+
+/** Formatiert einen Betrag mit beliebiger Währung (für Preis-Alarme). */
+export function formatPriceWithCurrency(
+  value: number | null | undefined,
+  currency: string | null | undefined,
+): string {
+  if (value === null || value === undefined) return "—"
+  if (currency) {
+    try {
+      return new Intl.NumberFormat("de-DE", {
+        style: "currency",
+        currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(value)
+    } catch {
+      const symbol = CURRENCY_SYMBOLS[currency] ?? currency
+      return `${value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}`
+    }
+  }
+  return value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 export function formatScore(score: number | null): string {
   if (score === null || score === undefined) return "-"
   return String(Math.round(score))

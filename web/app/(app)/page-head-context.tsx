@@ -27,6 +27,10 @@ const defaultTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Suchaufträge",
     subtitle: "Verwalte deine Kleinanzeigen-Suchen",
   },
+  "/price-alerts": {
+    title: "Preis-Alarme",
+    subtitle: "Überwache beliebige Webseiten auf Preisänderungen",
+  },
   "/settings": {
     title: "Einstellungen",
     subtitle: "Globale App-Einstellungen",

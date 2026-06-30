@@ -7,7 +7,12 @@ import type {
   AIAnalysisLog,
   AppSetting,
   ErrorLog,
+  Notification,
   PaginatedAds,
+  PricePoint,
+  PriceWatch,
+  PriceWatchCreate,
+  PriceWatchPreview,
   ScrapeRun,
   UserProfile,
   UserSettings,
@@ -153,6 +158,35 @@ export const fetchAdsPaginated = (params: {
 export const fetchAd = (id: number) => apiFetch<Ad>(`/ads/${id}`)
 export const deleteAd = (id: number) =>
   apiFetch<void>(`/ads/${id}`, { method: "DELETE" })
+
+// PriceWatches (Preis-Alarme)
+export const previewPriceWatch = (url: string) =>
+  apiFetch<PriceWatchPreview>("/price-watches/preview", {
+    method: "POST",
+    body: JSON.stringify({ url }),
+  })
+export const fetchPriceWatches = () => apiFetch<PriceWatch[]>("/price-watches/")
+export const fetchPriceWatch = (id: number) => apiFetch<PriceWatch>(`/price-watches/${id}`)
+export const createPriceWatch = (data: PriceWatchCreate) =>
+  apiFetch<PriceWatch>("/price-watches/", { method: "POST", body: JSON.stringify(data) })
+export const updatePriceWatch = (id: number, data: Partial<PriceWatch>) =>
+  apiFetch<PriceWatch>(`/price-watches/${id}`, { method: "PATCH", body: JSON.stringify(data) })
+export const deletePriceWatch = (id: number) =>
+  apiFetch<void>(`/price-watches/${id}`, { method: "DELETE" })
+export const fetchPriceHistory = (id: number) =>
+  apiFetch<PricePoint[]>(`/price-watches/${id}/history`)
+export const checkPriceWatchNow = (id: number) =>
+  apiFetch<PriceWatch>(`/price-watches/${id}/check-now`, { method: "POST" })
+
+// Notifications (In-App-Benachrichtigungen)
+export const fetchNotifications = (unreadOnly = false) =>
+  apiFetch<Notification[]>(`/notifications/${unreadOnly ? "?unread_only=true" : ""}`)
+export const fetchUnreadCount = () =>
+  apiFetch<{ count: number }>("/notifications/unread-count")
+export const markNotificationsRead = (ids: number[]) =>
+  apiFetch<void>("/notifications/mark-read", { method: "POST", body: JSON.stringify({ ids }) })
+export const markAllNotificationsRead = () =>
+  apiFetch<void>("/notifications/mark-all-read", { method: "POST" })
 
 // ScrapeRuns
 export const fetchScrapeRuns = (params?: { adsearch_id?: number; limit?: number }) => {

@@ -57,6 +57,70 @@ export interface ScrapeRun {
   ads_new: number
 }
 
+/** Ein Preis-Alarm: überwacht eine beliebige Webseite auf Preisänderungen. */
+export interface PriceWatch {
+  id: number
+  name: string
+  url: string
+  currency: string | null
+  selected_label: string | null
+  scrape_interval_minutes: number
+  notify_threshold: number | null
+  is_active: boolean
+  last_price: number | null
+  initial_price: number | null
+  last_checked_at: string | null
+  last_error: string | null
+  created_at: string
+}
+
+/** Ein beim Anlegen vorgeschlagener Preis (aus der /preview-Extraktion). */
+export interface PriceCandidate {
+  value: number
+  currency: string | null
+  label: string
+  source: string
+  locator: Record<string, unknown>
+  raw: string | null
+  recommended: boolean
+}
+
+/** Antwort des /preview-Endpoints. */
+export interface PriceWatchPreview {
+  title: string | null
+  candidates: PriceCandidate[]
+}
+
+/** Eingabe zum Anlegen eines Preis-Alarms. */
+export interface PriceWatchCreate {
+  name?: string
+  url: string
+  locator: Record<string, unknown>
+  currency?: string | null
+  selected_label?: string | null
+  scrape_interval_minutes?: number
+  notify_threshold?: number | null
+  is_active?: boolean
+}
+
+/** Ein Preis-Datenpunkt für den Verlaufsgraphen. */
+export interface PricePoint {
+  price: number
+  currency: string | null
+  recorded_at: string
+}
+
+/** Eine In-App-Benachrichtigung. */
+export interface Notification {
+  id: number
+  type: string
+  title: string
+  body: string | null
+  link: string | null
+  is_read: boolean
+  created_at: string
+}
+
 export interface ErrorLog {
   id: number
   adsearch_id: number | null
@@ -137,5 +201,6 @@ export interface UserSettings {
   telegram_chat_id: string | null
   notify_telegram: boolean
   notify_min_score: number
+  notify_price_telegram: boolean
   deletion_pending: boolean
 }

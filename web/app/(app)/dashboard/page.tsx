@@ -1,15 +1,21 @@
 "use client"
 
 import { useEffect, useState, useMemo, useCallback } from "react"
-import { Search, Package, Clock, Sparkles, Zap, Settings, X } from "lucide-react"
+import { Search, Package, Clock, Sparkles, Zap, Settings, Target, TrendingDown, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard } from "@/components/stat-card"
 import { LatestDeals } from "@/components/latest-deals"
 import { ContentReveal } from "@/components/content-reveal"
-import { fetchSearches, fetchAdsPaginated, fetchScrapeRuns } from "@/lib/api"
-import type { Ad, AdSearch, ScrapeRun } from "@/lib/types"
+import {
+  fetchSearches,
+  fetchAdsPaginated,
+  fetchScrapeRuns,
+  fetchPriceWatches,
+  fetchNotifications,
+} from "@/lib/api"
+import type { Ad, AdSearch, Notification, PriceWatch, ScrapeRun } from "@/lib/types"
 import { timeAgo } from "@/lib/format"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -22,6 +28,8 @@ export default function DashboardPage() {
   const [totalAds, setTotalAds] = useState<number>(0)
   const [latestDeals, setLatestDeals] = useState<Ad[]>([])
   const [scraperuns, setScraperuns] = useState<ScrapeRun[]>([])
+  const [priceWatches, setPriceWatches] = useState<PriceWatch[]>([])
+  const [priceAlerts, setPriceAlerts] = useState<Notification[]>([])
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -35,16 +43,21 @@ export default function DashboardPage() {
     setLoading(true)
     setError(null)
     try {
-      const [s, countRes, dealsRes, r] = await Promise.all([
+      const [s, countRes, dealsRes, r, watches, alerts] = await Promise.all([
         fetchSearches(),
         fetchAdsPaginated({ limit: 1 }),
         fetchAdsPaginated({ min_score: 8, sort: "date", limit: 5 }),
         fetchScrapeRuns({ limit: 100 }),
+        // Neue Bereiche dürfen das Dashboard bei Fehlern nicht blockieren.
+        fetchPriceWatches().catch(() => [] as PriceWatch[]),
+        fetchNotifications().catch(() => [] as Notification[]),
       ])
       setSearches(s)
       setTotalAds(countRes.total)
       setLatestDeals(dealsRes.items)
       setScraperuns(r)
+      setPriceWatches(watches)
+      setPriceAlerts(alerts.slice(0, 5))
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Daten konnten nicht geladen werden."
       setError(msg)
@@ -63,6 +76,11 @@ export default function DashboardPage() {
   const activeSearches = useMemo(
     () => searches.filter((s) => s.is_active).length,
     [searches]
+  )
+
+  const activePriceWatches = useMemo(
+    () => priceWatches.filter((w) => w.is_active).length,
+    [priceWatches]
   )
 
   const lastUpdate = useMemo(() => {
@@ -161,11 +179,18 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 reveal-stagger">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 reveal-stagger">
         <StatCard
           label="Aktive Suchaufträge"
           value={activeSearches}
           icon={Search}
+          iconBgColor="bg-amber-50"
+          iconTextColor="text-amber-600"
+        />
+        <StatCard
+          label="Aktive Preis-Alarme"
+          value={activePriceWatches}
+          icon={TrendingDown}
           iconBgColor="bg-amber-50"
           iconTextColor="text-amber-600"
         />
@@ -196,6 +221,59 @@ export default function DashboardPage() {
           <LatestDeals ads={latestDeals} />
         </CardContent>
       </Card>
+
+      {priceAlerts.length > 0 && (
+        <Card className="reveal-stagger gap-0">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <TrendingDown className="size-5" />
+              Letzte Preis-Alarme
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <ul className="m-0 flex list-none flex-col gap-1 p-0">
+              {priceAlerts.map((alert) => {
+                const Icon = alert.type === "price_below_threshold" ? Target : TrendingDown
+                const tone =
+                  alert.type === "price_below_threshold"
+                    ? "bg-primary/15 text-primary"
+                    : "bg-emerald-500/15 text-emerald-600"
+                const row = (
+                  <span className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50">
+                    <span className={`flex size-8 shrink-0 items-center justify-center rounded-full ${tone}`}>
+                      <Icon className="size-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {alert.title}
+                      </span>
+                      {alert.body && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {alert.body}
+                        </span>
+                      )}
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground/70">
+                      {timeAgo(alert.created_at)}
+                    </span>
+                  </span>
+                )
+                return (
+                  <li key={alert.id}>
+                    {alert.link ? (
+                      <Link href={alert.link} className="block">
+                        {row}
+                      </Link>
+                    ) : (
+                      row
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </ContentReveal>
   )
 }

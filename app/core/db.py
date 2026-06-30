@@ -1,13 +1,22 @@
 """Datenbank-Engine, Session-Abhaengigkeit und Initialisierung."""
 
+import logging
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import event
+from sqlalchemy import event, inspect
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.config import config
+
+logger = logging.getLogger(__name__)
+
+# Additive Spalten, die in bestehenden Tabellen fehlen koennen (kein Alembic).
+# Format: (Tabelle, Spalte, SQL-Definition fuer ADD COLUMN). Nur additiv, idempotent.
+_ADDITIVE_COLUMNS: list[tuple[str, str, str]] = [
+    ("user_settings", "notify_price_telegram", "BOOLEAN NOT NULL DEFAULT 0"),
+]
 
 _SQLITE_PREFIX = "sqlite:///"
 _is_sqlite = config.database_url.startswith("sqlite")
@@ -46,8 +55,27 @@ if _is_sqlite:
 
 
 def init_db() -> None:
-    """Alle Tabellen anlegen. Schemaaenderungen laufen ueber `uv run dbreset`."""
+    """Alle Tabellen anlegen; fehlende additive Spalten in bestehenden Tabellen ergaenzen.
+
+    Strukturelle Schemaaenderungen laufen weiterhin ueber `uv run dbreset`; nur
+    rueckwaertskompatible Spaltenzusaetze werden hier ohne Datenverlust nachgezogen.
+    """
     SQLModel.metadata.create_all(db_engine)
+    _apply_additive_columns()
+
+
+def _apply_additive_columns() -> None:
+    """Ergaenzt fehlende Spalten aus `_ADDITIVE_COLUMNS` (idempotent, ohne Datenverlust)."""
+    inspector = inspect(db_engine)
+    existing_tables = set(inspector.get_table_names())
+    with db_engine.begin() as conn:
+        for table, column, ddl in _ADDITIVE_COLUMNS:
+            if table not in existing_tables:
+                continue
+            if column in {col["name"] for col in inspector.get_columns(table)}:
+                continue
+            conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+            logger.info("Added missing column %s.%s", table, column)
 
 
 def get_session():

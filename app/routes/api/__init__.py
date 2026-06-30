@@ -8,6 +8,8 @@ from app.routes.api.auth import router as auth_router
 from app.routes.api.logs_aianalysis import router as aianalysislogs_router
 from app.routes.api.logs_error import router as errorlogs_router
 from app.routes.api.logs_scraperun import router as scraperuns_router
+from app.routes.api.notifications import router as notifications_router
+from app.routes.api.price_watches import router as price_watches_router
 from app.routes.api.settings import router as settings_router
 from app.routes.api.users_admin import router as users_admin_router
 from app.routes.api.users_me import router as users_me_router
@@ -20,6 +22,8 @@ api_router.include_router(adsearch_router)
 api_router.include_router(aianalysislogs_router)
 api_router.include_router(errorlogs_router)
 api_router.include_router(scraperuns_router)
+api_router.include_router(price_watches_router)
+api_router.include_router(notifications_router)
 api_router.include_router(settings_router)
 api_router.include_router(users_me_router)
 api_router.include_router(users_admin_router)

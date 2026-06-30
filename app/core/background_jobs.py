@@ -37,6 +37,7 @@ class BackgroundJobs:
         "default": {"type": "threadpool", "max_workers": 1},  # Fallback
         "scraper": {"type": "threadpool", "max_workers": 1},
         "analyzer": {"type": "threadpool", "max_workers": 1},
+        "pricewatch": {"type": "threadpool", "max_workers": 1},
     }
 
     def __init__(self) -> None:
@@ -88,6 +89,26 @@ class BackgroundJobs:
             misfire_grace_time=SCHEDULER_MISFIRE_GRACE_SECONDS,
         )
 
+        # Periodischer Preis-Check-Job (jede Minute; prüft fällige Preis-Alarme)
+        self._scheduler.add_job(
+            self._run_price_checks,
+            "interval",
+            minutes=1,
+            id="run_price_checks",
+            replace_existing=True,
+            executor="pricewatch",
+        )
+
+        # Erster Preis-Check-Job (einmalig beim Start)
+        self._scheduler.add_job(
+            self._run_price_checks,
+            "date",
+            run_date=startup_run_date,
+            id="initial_price_checks",
+            executor="pricewatch",
+            misfire_grace_time=SCHEDULER_MISFIRE_GRACE_SECONDS,
+        )
+
         # Periodischer Aufräum-Job (alle 24 Stunden)
         self._scheduler.add_job(
             self._run_cleanup_old_ads,
@@ -135,6 +156,19 @@ class BackgroundJobs:
         )
         logger.debug("Queued one-off scrape run")
 
+    def trigger_price_check_once(self) -> None:
+        """Stellt einen einmaligen Preis-Check in die Queue (z. B. nach Anlegen eines Alarms)."""
+        self._scheduler.add_job(
+            self._run_price_checks,
+            "date",
+            run_date=datetime.now(UTC),
+            id="trigger_price_check_once",
+            replace_existing=True,
+            executor="pricewatch",
+            misfire_grace_time=SCHEDULER_MISFIRE_GRACE_SECONDS,
+        )
+        logger.debug("Queued one-off price check")
+
     def _queue_analyze_ads(self, delay_seconds: int = 0) -> None:
         """Stellt einen Analyzer-Lauf in die Queue, dedupliziert aber wartende Retries."""
         job_kwargs = {
@@ -157,6 +191,18 @@ class BackgroundJobs:
         if total_new > 0:
             self._queue_analyze_ads()
             logger.info(f"Queued AI analysis after scraping {total_new} new ad(s)")
+
+    def _run_price_checks(self) -> None:
+        """Job: fällige Preis-Alarme prüfen und ggf. Benachrichtigungen auslösen."""
+        from app.services.price_watch import PriceWatchService
+
+        with Session(db_engine) as session:
+            try:
+                alarms = PriceWatchService(session).check_due_watches()
+                if alarms > 0:
+                    logger.info(f"Triggered {alarms} price alarm(s)")
+            except Exception as e:
+                logger.error(f"Price checks failed: {e}")
 
     def _run_analyze_ads(self) -> None:
         """Job: unbearbeitete Anzeigen analysieren; bei Rückstand erneut einplanen."""

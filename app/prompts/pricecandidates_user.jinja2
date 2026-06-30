@@ -1,0 +1,8 @@
+{% if title %}Seitentitel: {{ title }}{% endif %}
+
+Gefundene Preis-Kandidaten:
+{% for c in candidates %}
+[{{ loop.index0 }}] {{ c.value }}{% if c.currency %} {{ c.currency }}{% endif %} — Quelle: {{ c.source }}{% if c.raw %}, Fundstelle: "{{ c.raw }}"{% endif %}
+{% endfor %}
+
+Benenne jeden Kandidaten und markiere den Hauptpreis.

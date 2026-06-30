@@ -2,7 +2,7 @@
 
 ## What is Schnappster?
 
-A personal web app that periodically scrapes Kleinanzeigen.de search results, analyzes them for bargains using AI (OpenAI-compatible API, e.g. OpenRouter or Alibaba Model Studio), and displays results in a dashboard.
+A personal web app that periodically scrapes Kleinanzeigen.de search results, analyzes them for bargains using AI (OpenAI-compatible API, e.g. OpenRouter or Alibaba Model Studio), and displays results in a dashboard. A second area, **Preis-Alarme** (price watches), monitors **arbitrary websites** for price changes and notifies via an in-app notification center and optional Telegram.
 
 ## Commands
 
@@ -77,8 +77,8 @@ cd mcp-server && uv run ruff check schnappster_mcp tests
 - **`app/core/`** — DB engine, settings (Pydantic `.env`), background jobs (APScheduler), logging. Everything re-exported via `core/__init__.py`.
 - **`app/models/`** — SQLModel table definitions (source of truth) + API schemas (Read/Create/Update) in the same file. All re-exported via `models/__init__.py`.
 - **`app/scraper/`** — Pure HTTP/HTML layer: `httpclient.py` (curl-cffi) and `parser.py` (BeautifulSoup). No business logic here.
-- **`app/services/`** — Business logic: `ScraperService` orchestrates scraping pipeline, `AIService` handles AI analysis (OpenAI-compatible API) with comparison prices, `SettingsService` reads runtime settings from DB.
-- **`app/routes/`** — FastAPI routers. All bundled via `routes/__init__.py` into `api_router`, which is included in `main.py`.
+- **`app/services/`** — Business logic: `ScraperService` orchestrates scraping pipeline, `AIService` handles AI analysis (OpenAI-compatible API) with comparison prices, `SettingsService` reads runtime settings from DB. **`PriceExtractor`** (`price_extractor.py`) extracts price candidates from arbitrary HTML (JSON-LD → meta → visible text) and re-finds the chosen price via a stored locator; **`PriceWatchService`** runs the price-check pipeline; **`NotificationService`** manages the generic in-app notification store.
+- **`app/routes/`** — FastAPI routers. All bundled via `routes/__init__.py` into `api_router`, which is included in `main.py`. Price-watch routes (`price_watches.py`, incl. `POST /price-watches/preview` for candidate extraction) and `notifications.py`.
 - **`cli/`** — Root CLI (`uv run <cmd>`). Komfort-**`mcp-server`** (Tunnel-Supervisor, mitmproxy): **`cli/mcp_server/`**. **`schnappster-mcp`**: Python-Paket **`mcp-server/schnappster_mcp/`** (Import **`schnappster_mcp`**).
 
 ### Scraping pipeline (ScraperService)
@@ -90,10 +90,17 @@ cd mcp-server && uv run ruff check schnappster_mcp tests
 5. Save new ads to DB
 6. AI analysis runs after each scrape when new ads were found (queued on analyzer), and once at startup; each analyze run processes up to 10 ads and re-queues another run if backlog remains (until empty). Scraper and analyzer each have a single-worker queue so jobs run one after another without overlap.
 
+### Price-watch pipeline (PriceWatchService, `services/price_watch.py`)
+
+1. **Create:** frontend `POST /price-watches/preview {url}` → backend fetches HTML (curl-cffi) → `PriceExtractor.extract_candidates()` (+ optional AI labels via `refine_with_ai`, falls back to heuristics without API key) → user picks one → `POST /price-watches/` stores the `PriceWatch` incl. the chosen **locator** (JSON: `jsonld`/`meta`/`css` strategy).
+2. **Monitor:** for each due watch, fetch HTML → `PriceExtractor.extract_price(html, locator)` → compare with `last_price`. On change, store a `PricePoint` (history only stores changes, not every check). Extraction failures set `last_error`/`consecutive_failures` (surfaced in the UI), not an exception.
+3. **Alert:** with a threshold → alert when the price drops to/below it; without a threshold → alert on **any** price drop. Alerts create a `Notification` (+ optional Telegram via `notify_price_telegram`). Limitation: JS-rendered SPAs without structured/SEO data yield no price in the initial HTML (communicated in the wizard).
+
 ### Scheduler (APScheduler, `core/background_jobs.py`, class `BackgroundJobs`)
 
 - Scrape job runs every 1 minute and once at startup — loads active `AdSearch` records, scrapes those that are due via `ScraperService.scrape_due_searches()`; when new ads were scraped, queues one AI analysis run (separate single-worker queue so scrape and analyze never overlap).
 - Analyze job runs once at startup (to process any backlog) and is queued after each scrape when new ads were found. Each run processes up to 10 unprocessed ads; if backlog remains and at least one ad was analyzed, another analyze run is queued (re-queue until backlog is empty).
+- Price-check job runs every 1 minute and once at startup (own `pricewatch` single-worker queue) — checks due `PriceWatch` records via `PriceWatchService.check_due_watches()`. `trigger_price_check_once()` runs one immediately after a watch is created.
 
 ### Frontend
 
@@ -101,12 +108,13 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Build/dev workflow a
 
 - `web/lib/api.ts` — all API calls, typed against `web/lib/types.ts`
 - `web/app/(app)/` — route group for the main app layout (sidebar)
-- Dynamic detail routes (`/ads/[id]`, `/searches/[id]`) are normal Next.js App Router pages; data is fetched in the browser from the API
+- Dynamic detail routes (`/ads/[id]`, `/searches/[id]`, `/price-alerts/[id]`) are normal Next.js App Router pages; data is fetched in the browser from the API
+- **Preis-Alarme:** `app/(app)/price-alerts/` (list + `[id]` detail with a `recharts` price-history chart); `price-watch-wizard.tsx` (URL → candidate selection → interval/threshold), `price-watch-card.tsx`. `notification-bell.tsx` in the header (`app/(app)/layout.tsx`) polls unread count. New page areas must be registered in `page-head-context.tsx` (title) and `app-page-head.tsx` (breadcrumb).
 - `web/components/ui/` — shadcn/ui primitives (don't modify directly)
 
 ### Key conventions
 
-- **Database:** SQLite by default (`DATABASE_URL=sqlite:///./data/schnappster.db`; PostgreSQL still accepted). WAL + `foreign_keys=ON` via PRAGMA in `app/core/db.py`. No Alembic — schema changes → **`uv run dbreset`** (drop all tables + `init_db()`).
+- **Database:** SQLite by default (`DATABASE_URL=sqlite:///./data/schnappster.db`; PostgreSQL still accepted). WAL + `foreign_keys=ON` via PRAGMA in `app/core/db.py`. No Alembic — structural schema changes → **`uv run dbreset`** (drop all tables + `init_db()`). **Backwards-compatible column additions** are handled without data loss by `_apply_additive_columns()` in `init_db()` (list in `_ADDITIVE_COLUMNS`, `ALTER TABLE ADD COLUMN`, idempotent) — so prod (Railway SQLite volume) migrates on startup without `dbreset`.
 - **Auth:** eigene JWT-Auth (kein Supabase). `JWT_SECRET` (required) signiert HS256-Tokens; `get_current_user` in `app/core/auth.py` dekodiert lokal und lädt den `User`. Mandantentrennung über `owner_id`-Filter im App-Code (keine DB-RLS). Registrierung legt inaktive Konten an; Admin schaltet frei. Erst-Admin via `uv run createadmin` oder `ADMIN_EMAIL`/`ADMIN_PASSWORD` beim Start.
 - API keys (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`) and `JWT_SECRET` live in `.env`, not the DB
 - **Passwords:** bcrypt-hash in `User.password_hash` (`app/core/security.py`); Policy: ≥8 Zeichen, Groß-/Kleinbuchstabe, Sonderzeichen
