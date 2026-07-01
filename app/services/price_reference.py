@@ -1,13 +1,26 @@
 """Marktwert-Referenz aus echten eBay-Verkäufen: Median + Spanne (Sold Comps)."""
 
+import logging
 import statistics
+import time
 from dataclasses import dataclass
 
 from app.scraper.ebay_sold import SoldListing, fetch_sold_html, parse_sold_listings
 
+logger = logging.getLogger(__name__)
+
 # Weniger belastbare Vergleiche ergeben keinen aussagekräftigen Median.
 MIN_COMPARISONS = 3
 MAX_COMPARISONS = 60
+
+# Cache pro Produkt-Schlüssel (viele Anzeigen = dasselbe Produkt → ein Abruf).
+# Prozessweit: der Analyse-Job läuft im langlebigen API-Prozess, ein Neustart leert ihn.
+_CACHE_TTL_SECONDS = 7 * 24 * 3600
+# Nach einem Block/Fehler eine Weile gar nicht abfragen (kein 403-Storm in Prod ohne Proxy).
+_BLOCK_COOLDOWN_SECONDS = 3600
+
+_cache: dict[str, tuple[float, "SoldReference | None"]] = {}
+_blocked_until: float = 0.0
 
 
 class EbayBlockedError(RuntimeError):
@@ -71,3 +84,41 @@ def _trim_outliers(sorted_prices: list[float]) -> list[float]:
     high_fence = q3 + 1.5 * iqr
     trimmed = [p for p in sorted_prices if low_fence <= p <= high_fence]
     return trimmed if len(trimmed) >= max(MIN_COMPARISONS, n // 2) else sorted_prices
+
+
+def get_market_reference_cached(query: str) -> SoldReference | None:
+    """Wie ``get_ebay_sold_reference``, aber mit Cache + Block-Cooldown und ohne Exceptions.
+
+    Für den Einsatz in der Analyse-Pipeline: liefert ``None`` (statt zu werfen), wenn eBay
+    gerade blockt oder zu wenige Vergleiche vorliegen — dann greift der bisherige
+    Suchvergleich als Marktwert.
+    """
+    global _blocked_until
+    key = query.strip().lower()
+    if not key:
+        return None
+
+    now = time.time()
+    cached = _cache.get(key)
+    if cached is not None and (now - cached[0]) < _CACHE_TTL_SECONDS:
+        return cached[1]
+
+    if now < _blocked_until:
+        return None  # Cooldown: eBay wird gerade nicht abgefragt
+
+    try:
+        reference = get_ebay_sold_reference(query)
+    except EbayBlockedError as exc:
+        _blocked_until = now + _BLOCK_COOLDOWN_SECONDS
+        logger.info("eBay-Sold blockiert (%s) — Cooldown %ss", exc, _BLOCK_COOLDOWN_SECONDS)
+        return None
+
+    _cache[key] = (now, reference)
+    return reference
+
+
+def reset_cache() -> None:
+    """Leert Cache und Cooldown (v. a. für Tests)."""
+    global _blocked_until
+    _cache.clear()
+    _blocked_until = 0.0

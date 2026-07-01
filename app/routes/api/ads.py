@@ -5,14 +5,10 @@ from sqlmodel import col, func, select
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.db import SessionDep
-from app.models.ad import Ad, AdRead, MarketReference, NegotiationMessage, SoldComp
+from app.models.ad import Ad, AdRead, NegotiationMessage
 from app.services.ai import AIService
-from app.services.price_reference import EbayBlockedError, get_ebay_sold_reference
 
 router = APIRouter(prefix="/ads", tags=["Ads"])
-
-# Anzeigentitel auf einen brauchbaren eBay-Suchbegriff kürzen.
-_MARKET_QUERY_MAX_LEN = 80
 
 
 # --------------
@@ -108,52 +104,3 @@ def create_negotiation_message(
         ) from exc
 
     return NegotiationMessage(**result)
-
-
-@router.post("/{ad_id}/market-reference", response_model=MarketReference)
-def market_reference(
-    ad_id: int,
-    session: SessionDep,
-    current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
-):
-    """Ermittelt den Marktwert aus echten eBay-Verkäufen (Median + Spanne) zur Anzeige."""
-    ad = session.exec(select(Ad).where(Ad.id == ad_id, Ad.owner_id == current_user.user_id)).first()
-    if not ad:
-        raise HTTPException(status_code=404, detail="Ad not found")
-    query = (ad.title or "").strip()[:_MARKET_QUERY_MAX_LEN]
-    session.rollback()  # Read-Transaktion vor dem externen Abruf schließen
-
-    if not query:
-        return MarketReference(query="")
-
-    try:
-        reference = get_ebay_sold_reference(query)
-    except EbayBlockedError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "eBay hat den Abruf blockiert oder war nicht erreichbar "
-                "(in Prod ggf. Proxy nötig)."
-            ),
-        ) from exc
-
-    if reference is None:
-        return MarketReference(query=query)
-
-    return MarketReference(
-        query=reference.query,
-        currency=reference.currency,
-        median=reference.median,
-        low=reference.low,
-        high=reference.high,
-        count=reference.count,
-        comps=[
-            SoldComp(
-                title=listing.title,
-                price=listing.price,
-                sold_date=listing.sold_date,
-                condition=listing.condition,
-            )
-            for listing in reference.listings[:8]
-        ],
-    )

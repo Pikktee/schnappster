@@ -132,24 +132,3 @@ class NegotiationMessage(SQLModel):
     message: str
     suggested_offer: float | None = None
     reasoning: str | None = None
-
-
-class SoldComp(SQLModel):
-    """Ein verkauftes Vergleichsangebot (für die Marktwert-Referenz)."""
-
-    title: str
-    price: float | None = None
-    sold_date: str | None = None
-    condition: str | None = None
-
-
-class MarketReference(SQLModel):
-    """Marktwert aus echten eBay-Verkäufen: Median + Spanne + Beispiel-Verkäufe."""
-
-    query: str
-    currency: str = "EUR"
-    median: float | None = None
-    low: float | None = None
-    high: float | None = None
-    count: int = 0
-    comps: list[SoldComp] = []

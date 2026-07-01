@@ -19,6 +19,8 @@ MAX_REASON_LEN = 180
 MARKET_PRICE_OUTLIER_LOW = 0.45
 MARKET_PRICE_OUTLIER_HIGH = 2.2
 BASE_CONFIDENCE = 0.35
+# Echte eBay-Verkäufe sind belastbarer als Angebotspreise → höhere Grundzuversicht.
+SOLD_BASE_CONFIDENCE = 0.6
 CONFIDENCE_PER_COMPARISON = 0.08
 SPECIFIC_PRODUCT_CONFIDENCE_BONUS = 0.12
 MAX_MARKET_CONFIDENCE = 0.9
@@ -239,8 +241,26 @@ def build_market_estimate(
     product: ProductExtraction,
     candidates: list[ComparisonCandidate],
     judgements: list[ComparisonJudgement],
+    *,
+    sold_median: float | None = None,
+    sold_low: float | None = None,
+    sold_high: float | None = None,
+    sold_count: int = 0,
 ) -> MarketEstimate:
-    """Estimate market value from comparable candidate prices."""
+    """Schätzt den Marktwert; bevorzugt echte eBay-Verkäufe, sonst den Suchvergleich.
+
+    Liegt ein eBay-Sold-Median vor (``sold_median``/``sold_count``), ist er der Anker —
+    das ist der ehrlichste Wert. Ohne ihn greift der bisherige Median der Vergleichspreise.
+    """
+    if sold_median is not None and sold_median > 0 and sold_count >= 1:
+        return MarketEstimate(
+            estimated_market_price=float(round(sold_median, 2)),
+            market_price_confidence=_sold_confidence(sold_count),
+            price_delta_percent=_price_delta_percent(ad_price, sold_median),
+            comparison_count=sold_count,
+            comparison_summary=_sold_summary(sold_median, sold_low, sold_high, sold_count),
+        )
+
     prices = _accepted_prices(candidates, judgements)
     filtered_prices = _remove_outliers(prices)
     if not filtered_prices:
@@ -492,6 +512,19 @@ def _market_confidence(count: int, is_specific_product: bool) -> float:
     if is_specific_product:
         confidence += SPECIFIC_PRODUCT_CONFIDENCE_BONUS
     return min(MAX_MARKET_CONFIDENCE, round(confidence, 2))
+
+
+def _sold_confidence(count: int) -> float:
+    """Echte Verkäufe wiegen schwerer als Angebotspreise → höhere Grundzuversicht."""
+    confidence = SOLD_BASE_CONFIDENCE + count * CONFIDENCE_PER_COMPARISON
+    return min(MAX_MARKET_CONFIDENCE, round(confidence, 2))
+
+
+def _sold_summary(
+    market_price: float, low: float | None, high: float | None, count: int
+) -> str:
+    span = f" (Spanne {low:.0f}–{high:.0f} EUR)" if low is not None and high is not None else ""
+    return f"Median aus {count} echten eBay-Verkäufen: {market_price:.0f} EUR{span}."
 
 
 def _price_delta_percent(ad_price: float | None, market_price: float) -> float | None:

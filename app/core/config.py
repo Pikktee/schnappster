@@ -55,6 +55,9 @@ class Config(BaseSettings):
     ai_max_comparison_candidates: int = Field(default=12, ge=0, le=30)
     ai_strong_model_min_delta_percent: float = Field(default=18.0, ge=0, le=100)
     ai_strong_model_min_savings_eur: float = Field(default=75.0, ge=0)
+    # eBay-Sold-Median als Marktwert-Anker in der Analyse (Fallback: Suchvergleich).
+    # In Prod erst nutzbar, wenn eBay von der Server-IP nicht blockt (sonst Proxy nötig).
+    ebay_sold_reference_enabled: bool = True
 
     # Pydantic-Einstellungen
     model_config = {

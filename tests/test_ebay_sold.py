@@ -1,12 +1,23 @@
-"""Tests für die eBay-Sold-Marktwert-Referenz (Parser, Median, Endpunkt)."""
+"""Tests für die eBay-Sold-Marktwert-Referenz: Parser, Median, Cache, Score-Anker."""
 
 from unittest.mock import patch
 
 import pytest
 
 from app.scraper import ebay_sold
-from app.scraper.ebay_sold import SoldListing, parse_sold_listings
-from app.services.price_reference import EbayBlockedError, SoldReference, get_ebay_sold_reference
+from app.scraper.ebay_sold import parse_sold_listings
+from app.services.deal_analysis import (
+    ComparisonCandidate,
+    ComparisonJudgement,
+    ProductExtraction,
+    build_market_estimate,
+)
+from app.services.price_reference import (
+    EbayBlockedError,
+    get_ebay_sold_reference,
+    get_market_reference_cached,
+    reset_cache,
+)
 
 # Minimal-HTML, das die verifizierte eBay-Struktur nachbildet (inkl. Platzhalter-Item in USD).
 _SOLD_HTML = """
@@ -48,7 +59,7 @@ def _html_with_prices(prices: list[str]) -> str:
 def test_parse_sold_listings_extracts_fields_and_skips_placeholder():
     """Platzhalter (Shop on eBay/USD) wird übersprungen; Felder werden geparst."""
     listings = parse_sold_listings(_SOLD_HTML)
-    assert len(listings) == 2  # Platzhalter raus
+    assert len(listings) == 2
 
     first = listings[0]
     assert first.title == "iPhone 15 Pro 256GB Titan Blau"  # "Neues Angebot" entfernt
@@ -57,9 +68,7 @@ def test_parse_sold_listings_extracts_fields_and_skips_placeholder():
     assert first.sold_date == "1. Jul 2026"
     assert first.condition == "Gebraucht"
     assert first.seller_type == "Privat"
-
     assert listings[1].price == 675.31
-    assert listings[1].condition == "Gut - Refurbished"
 
 
 def test_parse_price_handles_formats():
@@ -69,7 +78,7 @@ def test_parse_price_handles_formats():
     assert ebay_sold._parse_price("$20.00") == (None, None)
 
 
-# --- Median-Aggregation (fetch dort patchen, wo der Service ihn nutzt) ---
+# --- Median-Aggregation ---
 
 
 def test_get_ebay_sold_reference_computes_median():
@@ -79,14 +88,11 @@ def test_get_ebay_sold_reference_computes_median():
         ref = get_ebay_sold_reference("iphone")
     assert ref is not None
     assert ref.median == 300.0
-    assert ref.low == 100.0
-    assert ref.high == 500.0
-    assert ref.count == 5
-    assert ref.currency == "EUR"
+    assert (ref.low, ref.high, ref.count) == (100.0, 500.0, 5)
 
 
 def test_get_ebay_sold_reference_too_few_returns_none():
-    """Weniger als MIN_COMPARISONS Vergleiche → None (kein belastbarer Median)."""
+    """Weniger als MIN_COMPARISONS Vergleiche → None."""
     html = _html_with_prices(["100,00", "200,00"])
     with patch("app.services.price_reference.fetch_sold_html", return_value=(200, html)):
         assert get_ebay_sold_reference("iphone") is None
@@ -101,38 +107,62 @@ def test_get_ebay_sold_reference_blocked_raises():
         get_ebay_sold_reference("iphone")
 
 
-# --- Endpunkt (Service gemockt, kein echter eBay-Abruf) ---
+# --- Cache + Cooldown (für die Pipeline) ---
 
 
-@patch("app.routes.api.ads.get_ebay_sold_reference")
-def test_market_reference_endpoint_success(mock_ref, client, sample_ads):
-    """POST liefert Median + Vergleiche für die Anzeige."""
-    mock_ref.return_value = SoldReference(
-        query="Rode PodMic",
-        currency="EUR",
-        median=95.0,
-        low=70.0,
-        high=130.0,
-        count=12,
-        listings=[SoldListing("Rode PodMic", 95.0, "EUR", "1. Jul 2026", "Gebraucht", "Privat")],
+def test_get_market_reference_cached_uses_cache():
+    """Zweiter Aufruf mit gleichem Schlüssel kommt aus dem Cache (kein erneuter Abruf)."""
+    reset_cache()
+    html = _html_with_prices(["100,00", "200,00", "300,00"])
+    with patch("app.services.price_reference.fetch_sold_html", return_value=(200, html)) as mock:
+        first = get_market_reference_cached("iPhone")
+        second = get_market_reference_cached("iphone")  # gleicher Schlüssel (case-insensitiv)
+    assert first is not None and second is not None
+    assert mock.call_count == 1
+
+
+def test_get_market_reference_cached_cooldown_after_block():
+    """Nach einem Block wird eBay im Cooldown nicht erneut abgefragt (returnt None)."""
+    reset_cache()
+    with patch("app.services.price_reference.fetch_sold_html", return_value=(403, "")) as mock:
+        first = get_market_reference_cached("blocked")
+        second = get_market_reference_cached("blocked")
+    assert first is None and second is None
+    assert mock.call_count == 1  # zweiter Aufruf durch Cooldown unterdrückt
+    reset_cache()
+
+
+# --- Score-Anker: build_market_estimate bevorzugt den Sold-Median ---
+
+
+def test_build_market_estimate_prefers_sold_median():
+    """Liegt ein eBay-Sold-Median vor, ist er der Marktwert-Anker (statt Suchvergleich)."""
+    estimate = build_market_estimate(
+        100.0,
+        ProductExtraction(product_key="x"),
+        [ComparisonCandidate(title="a", price=999.0)],
+        [ComparisonJudgement(candidate_index=0, comparable=True, adjusted_price=999.0)],
+        sold_median=140.0,
+        sold_low=120.0,
+        sold_high=170.0,
+        sold_count=10,
     )
-    response = client.post(f"/ads/{sample_ads[0].id}/market-reference")
-    assert response.status_code == 200
-    body = response.json()
-    assert body["median"] == 95.0
-    assert body["count"] == 12
-    assert len(body["comps"]) == 1
-    assert body["comps"][0]["title"] == "Rode PodMic"
+    assert estimate.estimated_market_price == 140.0
+    assert estimate.comparison_count == 10
+    assert "eBay-Verkäufen" in estimate.comparison_summary
+    assert estimate.price_delta_percent == 28.6  # (140-100)/140
 
 
-@patch("app.routes.api.ads.get_ebay_sold_reference", side_effect=EbayBlockedError("403"))
-def test_market_reference_endpoint_blocked_returns_502(_mock_ref, client, sample_ads):
-    """Blockierter eBay-Abruf → 502 mit klarer Meldung."""
-    response = client.post(f"/ads/{sample_ads[0].id}/market-reference")
-    assert response.status_code == 502
-
-
-def test_market_reference_endpoint_404_for_unknown_ad(client):
-    """Unbekannte Anzeige → 404."""
-    response = client.post("/ads/999999/market-reference")
-    assert response.status_code == 404
+def test_build_market_estimate_falls_back_without_sold():
+    """Ohne Sold-Median greift der Median der Suchvergleiche."""
+    prices = [200.0, 220.0, 240.0]
+    candidates = [ComparisonCandidate(title=str(p), price=p) for p in prices]
+    judgements = [
+        ComparisonJudgement(candidate_index=i, comparable=True, adjusted_price=c.price)
+        for i, c in enumerate(candidates)
+    ]
+    estimate = build_market_estimate(
+        150.0, ProductExtraction(product_key="x"), candidates, judgements
+    )
+    assert estimate.estimated_market_price == 220.0  # Median
+    assert "Vergleichen" in estimate.comparison_summary

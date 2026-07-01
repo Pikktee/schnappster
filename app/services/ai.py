@@ -42,6 +42,7 @@ from app.services.deal_analysis import (
     should_use_strong_model,
     should_use_strong_model_for_gift_search,
 )
+from app.services.price_reference import SoldReference, get_market_reference_cached
 from app.services.settings import SettingsService
 from app.services.telegram import TelegramService
 
@@ -242,7 +243,17 @@ class AIService:
         candidates = self._build_comparison_candidates(ad)
         self._release_session_connection()
         judgements = self._judge_comparisons(context, product, candidates)
-        market = build_market_estimate(ad.price, product, candidates, judgements)
+        sold = self._fetch_sold_reference(ad, product)
+        market = build_market_estimate(
+            ad.price,
+            product,
+            candidates,
+            judgements,
+            sold_median=sold.median if sold else None,
+            sold_low=sold.low if sold else None,
+            sold_high=sold.high if sold else None,
+            sold_count=sold.count if sold else 0,
+        )
         is_gift_category = is_gift_category_context(context)
         use_strong = should_use_strong_model(
             market,
@@ -261,6 +272,21 @@ class AIService:
             model_used=model,
             used_strong_model=use_strong,
         )
+
+    def _fetch_sold_reference(self, ad: Ad, product: ProductExtraction) -> SoldReference | None:
+        """Holt den eBay-Sold-Marktwert (gecacht, ohne Exceptions) als Anker.
+
+        Nur für bepreiste Anzeigen; bei Block/zu wenigen Verkäufen None → Fallback auf
+        den Suchvergleich. In Prod ohne Proxy blockt eBay meist → dann greift der Fallback.
+        """
+        if not app_config.ebay_sold_reference_enabled:
+            return None
+        if ad.price is None or ad.price <= 0:
+            return None
+        query = (product.product_key or "").strip() or (ad.title or "").strip()[:80]
+        if not query:
+            return None
+        return get_market_reference_cached(query)
 
     def _extract_product(self, ad: Ad, context: dict) -> ProductExtraction:
         """Low-cost product extraction with deterministic fallback."""
