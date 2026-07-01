@@ -7,6 +7,7 @@ import type {
   AIAnalysisLog,
   AppSetting,
   ErrorLog,
+  MarketReference,
   NegotiationMessage,
   Notification,
   PaginatedAds,
@@ -169,6 +170,13 @@ export const deleteAd = (id: number) =>
 export const generateNegotiationMessage = (id: number) =>
   apiFetch<NegotiationMessage>(
     `/ads/${id}/negotiation-message`,
+    { method: "POST" },
+    PROXY_FETCH_TIMEOUT_MS,
+  )
+// Marktwert aus eBay-Verkäufen – externer Abruf mit Session, daher großzügiges Timeout.
+export const getMarketReference = (id: number) =>
+  apiFetch<MarketReference>(
+    `/ads/${id}/market-reference`,
     { method: "POST" },
     PROXY_FETCH_TIMEOUT_MS,
   )

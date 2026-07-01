@@ -165,6 +165,25 @@ export interface NegotiationMessage {
   reasoning: string | null
 }
 
+/** Ein verkauftes eBay-Vergleichsangebot. */
+export interface SoldComp {
+  title: string
+  price: number | null
+  sold_date: string | null
+  condition: string | null
+}
+
+/** Marktwert aus echten eBay-Verkäufen: Median + Spanne + Beispiel-Verkäufe. */
+export interface MarketReference {
+  query: string
+  currency: string
+  median: number | null
+  low: number | null
+  high: number | null
+  count: number
+  comps: SoldComp[]
+}
+
 export interface AppSetting {
   key: string
   value: string
