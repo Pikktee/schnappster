@@ -45,8 +45,8 @@ import { useAuth } from "@/components/auth-provider"
 
 const navItems = [
   { label: "Start", href: "/dashboard", icon: Home },
-  { label: "Suchaufträge", href: "/searches/", icon: Search },
   { label: "Angebote", href: "/ads/", icon: Tag },
+  { label: "Suchaufträge", href: "/searches/", icon: Search },
   { label: "Preis-Alarme", href: "/price-alerts/", icon: TrendingDown },
   { label: "Logs", href: "/logs/", icon: List },
   { label: "Benutzer", href: "/users/", icon: Users },

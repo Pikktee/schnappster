@@ -98,14 +98,10 @@ export default function DashboardPage() {
           <Skeleton className="h-28" />
           <Skeleton className="h-28" />
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Letzte Schnäppchen</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-48" />
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
       </div>
     )
   }
@@ -210,70 +206,90 @@ export default function DashboardPage() {
         />
       </div>
 
-      <Card className="reveal-stagger gap-0">
-        <CardHeader className="pb-0">
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="size-5" />
-            Letzte Schnäppchen
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <LatestDeals ads={latestDeals} />
-        </CardContent>
-      </Card>
+      {/* Aktuelle Chancen — Kleinanzeigen-Schnäppchen + ausgelöste Preis-Drops nebeneinander */}
+      <section className="reveal-stagger flex flex-col gap-3">
+        <h2 className="flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <Sparkles className="size-4 text-primary" aria-hidden />
+          Aktuelle Chancen
+        </h2>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card className="gap-0">
+            <CardHeader className="pb-0">
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="size-5" />
+                Letzte Schnäppchen
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <LatestDeals ads={latestDeals} />
+            </CardContent>
+          </Card>
 
-      {priceAlerts.length > 0 && (
-        <Card className="reveal-stagger gap-0">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <TrendingDown className="size-5" />
-              Letzte Preis-Alarme
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <ul className="m-0 flex list-none flex-col gap-1 p-0">
-              {priceAlerts.map((alert) => {
-                const Icon = alert.type === "price_below_threshold" ? Target : TrendingDown
-                const tone =
-                  alert.type === "price_below_threshold"
-                    ? "bg-primary/15 text-primary"
-                    : "bg-emerald-500/15 text-emerald-600"
-                const row = (
-                  <span className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50">
-                    <span className={`flex size-8 shrink-0 items-center justify-center rounded-full ${tone}`}>
-                      <Icon className="size-4" aria-hidden />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-foreground">
-                        {alert.title}
-                      </span>
-                      {alert.body && (
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {alert.body}
+          <Card className="gap-0">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2">
+                <TrendingDown className="size-5" />
+                Letzte Preis-Alarme
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {priceAlerts.length > 0 ? (
+                <ul className="m-0 flex list-none flex-col gap-1 p-0">
+                  {priceAlerts.map((alert) => {
+                    const Icon = alert.type === "price_below_threshold" ? Target : TrendingDown
+                    const tone =
+                      alert.type === "price_below_threshold"
+                        ? "bg-primary/15 text-primary"
+                        : "bg-emerald-500/15 text-emerald-600"
+                    const row = (
+                      <span className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50">
+                        <span className={`flex size-8 shrink-0 items-center justify-center rounded-full ${tone}`}>
+                          <Icon className="size-4" aria-hidden />
                         </span>
-                      )}
-                    </span>
-                    <span className="shrink-0 text-xs text-muted-foreground/70">
-                      {timeAgo(alert.created_at)}
-                    </span>
-                  </span>
-                )
-                return (
-                  <li key={alert.id}>
-                    {alert.link ? (
-                      <Link href={alert.link} className="block">
-                        {row}
-                      </Link>
-                    ) : (
-                      row
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-foreground">
+                            {alert.title}
+                          </span>
+                          {alert.body && (
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {alert.body}
+                            </span>
+                          )}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground/70">
+                          {timeAgo(alert.created_at)}
+                        </span>
+                      </span>
+                    )
+                    return (
+                      <li key={alert.id}>
+                        {alert.link ? (
+                          <Link href={alert.link} className="block">
+                            {row}
+                          </Link>
+                        ) : (
+                          row
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <div className="flex flex-col items-center gap-2 py-10 text-center">
+                  <TrendingDown className="size-8 text-muted-foreground/30" aria-hidden />
+                  <p className="text-sm text-muted-foreground">Noch keine Preis-Alarme ausgelöst.</p>
+                  <Link
+                    href="/price-alerts/"
+                    className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    Preis-Alarm einrichten
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </section>
     </ContentReveal>
   )
 }
