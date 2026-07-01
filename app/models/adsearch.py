@@ -48,6 +48,8 @@ class AdSearch(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     owner_id: str = Field(index=True)
     name: str
+    # Quelle/Plattform des Suchauftrags (Registry-Name); Default hält Altbestand bei Kleinanzeigen.
+    platform: str = Field(default="kleinanzeigen")
     # Effektive Such-URL (bei Keyword-Suchen aus den Feldern unten abgeleitet und gespeichert).
     url: str
     # Keyword-basierte Suche (optional, rückwärtskompatibel zur reinen URL-Eingabe).
@@ -81,6 +83,7 @@ class AdSearchCreate(SQLModel):
     """
 
     name: str = ""
+    platform: str = "kleinanzeigen"
     url: str | None = None
     search_query: str | None = None
     postal_code: str | None = None
@@ -121,6 +124,7 @@ class AdSearchRead(SQLModel):
     id: int
     owner_id: str
     name: str
+    platform: str
     url: str
     search_query: str | None
     postal_code: str | None

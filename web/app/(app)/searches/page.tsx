@@ -74,6 +74,7 @@ export default function SearchesPage() {
     try {
       const newSearch = await createSearch({
         name: data.name || "",
+        platform: data.platform ?? undefined,
         // Entweder URL ODER Suchbegriff — nur das jeweils gesetzte Feld senden.
         url: data.url || undefined,
         search_query: data.search_query ?? undefined,

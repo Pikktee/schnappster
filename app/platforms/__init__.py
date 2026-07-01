@@ -5,12 +5,14 @@ Interfaces aus ``_base`` und holt konkrete Plattformen ausschließlich über ``g
 """
 
 from app.platforms._base import PlatformDefinition, PlatformScraper, SearchParams
+from app.platforms.ebay import Ebay
 from app.platforms.kleinanzeigen import Kleinanzeigen
 
 DEFAULT_PLATFORM = "kleinanzeigen"
 
 PLATFORM_REGISTRY: dict[str, PlatformDefinition] = {
     Kleinanzeigen.name: Kleinanzeigen(),
+    Ebay.name: Ebay(),
 }
 
 

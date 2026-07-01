@@ -1,6 +1,8 @@
 export interface AdSearch {
   id: number
   name: string
+  /** Quelle/Plattform des Suchauftrags ("kleinanzeigen" | "ebay"). */
+  platform: string
   url: string
   /** Keyword-basierte Suche (Alternative zur direkten URL). */
   search_query: string | null

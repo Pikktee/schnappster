@@ -1,11 +1,15 @@
-"""Kleinanzeigen-Scraper: URL-Bau + dünner Adapter auf app.scraper.parser."""
+"""Kleinanzeigen-Scraper: URL-Bau, HTTP-Abruf (paginiert + Detailseiten) + Parsing."""
 
+import logging
 import re
 from urllib.parse import urlencode
 
 from app.platforms._base import PlatformScraper, SearchParams
 from app.scraper import parser
+from app.scraper.httpclient import fetch_page, fetch_pages
 from app.scraper.parser import ScrapedAdDetail, ScrapedAdPreview
+
+logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://www.kleinanzeigen.de"
 # Kleinanzeigen-Slugs transliterieren Umlaute (ä→ae …); Rohumlaute funktionieren zwar auch,
@@ -29,7 +33,7 @@ def _price_segment(min_price: float | None, max_price: float | None) -> str | No
 
 
 class KleinanzeigenScraper(PlatformScraper):
-    """URL-Bau für Keyword-Suchen + Delegation an die Kleinanzeigen-Parserfunktionen."""
+    """URL-Bau für Keyword-Suchen, paginierter Abruf + Delegation an die Parserfunktionen."""
 
     def build_search_url(self, params: SearchParams) -> str:
         """Baut eine Kleinanzeigen-Suchergebnis-URL aus Suchbegriff, PLZ/Radius und Preis.
@@ -51,6 +55,36 @@ class KleinanzeigenScraper(PlatformScraper):
             if params.radius_km:
                 query["radiusKm"] = params.radius_km
         return f"{url}?{urlencode(query)}" if query else url
+
+    def collect_previews(self, search_url: str) -> list[ScrapedAdPreview]:
+        """Lädt alle paginierten Suchergebnisseiten und sammelt Anzeigen-Vorschauen."""
+        first_page_html = fetch_page(search_url)
+        previews = self.parse_search_results(first_page_html)
+        next_page_urls = self.parse_next_page_urls(first_page_html)
+
+        if next_page_urls:
+            for html in fetch_pages(next_page_urls):
+                if html:
+                    previews.extend(self.parse_search_results(html))
+        return previews
+
+    def build_details(self, previews: list[ScrapedAdPreview]) -> list[ScrapedAdDetail]:
+        """Lädt für jede Vorschau die Detailseite und parst sie zu vollständigen Anzeigendaten."""
+        if not previews:
+            return []
+
+        htmls = fetch_pages([p.url for p in previews])
+        details: list[ScrapedAdDetail] = []
+        for preview, html in zip(previews, htmls, strict=True):
+            if not html:
+                logger.warning(f"Failed to fetch detail page for {preview.external_id}")
+                continue
+            detail = self.parse_ad_detail(html, preview.url, preview.external_id)
+            if detail:
+                details.append(detail)
+            else:
+                logger.warning(f"Failed to parse detail page for {preview.external_id}")
+        return details
 
     def parse_search_results(self, html: str) -> list[ScrapedAdPreview]:
         return parser.parse_search_results(html)

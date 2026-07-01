@@ -12,7 +12,12 @@ from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearch
 from app.models.logs_aianalysis import AIAnalysisLog
 from app.models.logs_error import ErrorLog
 from app.models.logs_scraperun import ScrapeRun
-from app.platforms import DEFAULT_PLATFORM, SearchParams, get_platform
+from app.platforms import (
+    DEFAULT_PLATFORM,
+    SearchParams,
+    get_all_platform_names,
+    get_platform,
+)
 from app.scraper.httpclient import fetch_page_with_status
 from app.scraper.parser import parse_search_title
 
@@ -66,19 +71,27 @@ def create_adsearch(
     """
     name = data.name.strip()
     session.rollback()
+    if data.platform not in get_all_platform_names():
+        raise HTTPException(status_code=422, detail=f"Unbekannte Plattform '{data.platform}'.")
     effective_url = _resolve_search_url(data)
-    title_from_page = _validate_search_url_reachable(effective_url)
 
-    if not name:
-        if not title_from_page:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    "Kein Seitentitel auf der Seite gefunden. Bitte URL prüfen "
-                    "oder einen Namen manuell eingeben."
-                ),
-            )
-        name = title_from_page
+    if data.platform == DEFAULT_PLATFORM:
+        # Kleinanzeigen: URL per Abruf validieren, leerer Name → Seitentitel.
+        title_from_page = _validate_search_url_reachable(effective_url)
+        if not name:
+            if not title_from_page:
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "Kein Seitentitel auf der Seite gefunden. Bitte URL prüfen "
+                        "oder einen Namen manuell eingeben."
+                    ),
+                )
+            name = title_from_page
+    elif not name:
+        # eBay & Co.: URL ist selbst gebaut (deterministisch); ein direkter Abruf würde eBay
+        # ohnehin blocken (der Scrape nutzt später den Proxy). Name aus dem Suchbegriff.
+        name = _default_search_name(data.search_query)
 
     adsearch = AdSearch.model_validate(
         {
@@ -120,13 +133,15 @@ def update_adsearch(
 
     update_data = data.model_dump(exclude_unset=True)
     current_url = adsearch.url
+    platform = adsearch.platform or DEFAULT_PLATFORM
+    is_default_platform = platform == DEFAULT_PLATFORM
 
     # Keyword-Felder geändert und keine explizite URL: effektive Such-URL neu ableiten.
     keyword_fields = {"search_query", "postal_code", "radius_km", "min_price", "max_price"}
     if "url" not in update_data and keyword_fields & update_data.keys():
         merged_query = update_data.get("search_query", adsearch.search_query)
         if merged_query:
-            scraper = get_platform(DEFAULT_PLATFORM).scraper
+            scraper = get_platform(platform).scraper
             update_data["url"] = scraper.build_search_url(
                 SearchParams(
                     query=merged_query,
@@ -137,35 +152,33 @@ def update_adsearch(
                 )
             )
 
-    # Bei geänderter URL Erreichbarkeit prüfen (und ggf. Seitentitel für leeren Namen nutzen).
-    if "url" in update_data:
+    # Erreichbarkeit nur für Kleinanzeigen prüfen — eBay blockt direkte Abrufe; die URL ist
+    # selbst gebaut (deterministisch), also nichts zu validieren.
+    if "url" in update_data and is_default_platform:
         session.rollback()
         _validate_search_url_reachable(update_data["url"])
 
-    # Wenn der Client den Namen leert, nutzen wir den Seitentitel der aktuellen URL.
-    title_from_page: str | None = None
+    # Leerer Name: bei Kleinanzeigen aus dem Seitentitel, sonst aus dem Suchbegriff.
     if (
         "name" in update_data
         and isinstance(update_data["name"], str)
         and not update_data["name"].strip()
     ):
-        session.rollback()
-        title_from_page = _validate_search_url_reachable(current_url)
-
-    if (
-        "name" in update_data
-        and isinstance(update_data["name"], str)
-        and not update_data["name"].strip()
-    ):
-        if not title_from_page:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    "Kein Seitentitel auf der Seite gefunden. Bitte URL prüfen "
-                    "oder einen Namen manuell eingeben."
-                ),
-            )
-        update_data["name"] = title_from_page
+        if is_default_platform:
+            session.rollback()
+            title_from_page = _validate_search_url_reachable(current_url)
+            if not title_from_page:
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "Kein Seitentitel auf der Seite gefunden. Bitte URL prüfen "
+                        "oder einen Namen manuell eingeben."
+                    ),
+                )
+            update_data["name"] = title_from_page
+        else:
+            merged_query = update_data.get("search_query", adsearch.search_query)
+            update_data["name"] = _default_search_name(merged_query)
 
     adsearch = session.exec(
         select(AdSearch).where(
@@ -222,7 +235,7 @@ def _resolve_search_url(data: AdSearchCreate) -> str:
     """Direkte URL oder – bei Keyword-Suche – aus Suchbegriff/PLZ/Radius/Preis abgeleitete URL."""
     if data.url:
         return data.url
-    scraper = get_platform(DEFAULT_PLATFORM).scraper
+    scraper = get_platform(data.platform).scraper
     return scraper.build_search_url(
         SearchParams(
             query=data.search_query or "",
@@ -232,6 +245,12 @@ def _resolve_search_url(data: AdSearchCreate) -> str:
             max_price=data.max_price,
         )
     )
+
+
+def _default_search_name(query: str | None) -> str:
+    """Fallback-Name für Quellen ohne Seitentitel-Abruf (z. B. eBay): aus dem Suchbegriff."""
+    cleaned = (query or "").strip()
+    return cleaned if cleaned else "Suche"
 
 
 def _validate_search_url_reachable(url: str) -> str | None:

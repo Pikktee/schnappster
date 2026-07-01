@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ScoreBadge } from "@/components/score-badge"
 import { SavingsBadge } from "@/components/savings-badge"
 import { SellerRatingTag } from "@/components/seller-rating-tag"
-import { formatPrice, timeAgo, getAdImageUrls } from "@/lib/format"
+import { formatPrice, timeAgo, getAdImageUrls, getAdSource } from "@/lib/format"
 import type { Ad } from "@/lib/types"
 
 interface AdCardProps {
@@ -18,6 +18,8 @@ interface AdCardProps {
 export function AdCard({ ad }: AdCardProps) {
   const images = getAdImageUrls(ad)
   const [imgError, setImgError] = useState(false)
+  const source = getAdSource(ad.url)
+  const hasLocation = Boolean(ad.postal_code && ad.city)
 
   return (
     <Card className="group relative transition-all hover:shadow-md hover:-translate-y-1 card-lift cursor-pointer overflow-hidden p-0 flex flex-col">
@@ -50,6 +52,13 @@ export function AdCard({ ad }: AdCardProps) {
         {/* Ersparnis ggü. geschätztem Marktwert (nur bei belastbarer Ersparnis) */}
         <div className="absolute top-2 left-2 z-20">
           <SavingsBadge deltaPercent={ad.price_delta_percent} size="sm" tone="solid" />
+        </div>
+
+        {/* Quellen-Badge (Kleinanzeigen / eBay) */}
+        <div className="absolute bottom-2 left-2 z-20">
+          <span className="text-xs font-medium text-white bg-black/55 backdrop-blur-sm px-2 py-0.5 rounded-full">
+            {source.label}
+          </span>
         </div>
 
         {/* Image count indicator */}
@@ -86,18 +95,22 @@ export function AdCard({ ad }: AdCardProps) {
         </div>
 
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ad.postal_code + " " + ad.city)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 min-w-0 hover:text-link transition-colors cursor-pointer relative z-20"
-            onClick={(e) => e.stopPropagation()}
-            title={`Auf Google Maps öffnen: ${ad.postal_code} ${ad.city}`}
-          >
-            <MapPin className="size-3 shrink-0" />
-            <span className="truncate">{ad.postal_code} {ad.city}</span>
-          </a>
-          <span className="text-muted-foreground/40 shrink-0">•</span>
+          {hasLocation && (
+            <>
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ad.postal_code + " " + ad.city)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 min-w-0 hover:text-link transition-colors cursor-pointer relative z-20"
+                onClick={(e) => e.stopPropagation()}
+                title={`Auf Google Maps öffnen: ${ad.postal_code} ${ad.city}`}
+              >
+                <MapPin className="size-3 shrink-0" />
+                <span className="truncate">{ad.postal_code} {ad.city}</span>
+              </a>
+              <span className="text-muted-foreground/40 shrink-0">•</span>
+            </>
+          )}
           <span className="shrink-0">{timeAgo(ad.first_seen_at)}</span>
         </div>
       </CardContent>

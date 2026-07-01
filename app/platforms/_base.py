@@ -27,23 +27,29 @@ class SearchParams:
 
 
 class PlatformScraper(ABC):
-    """Reine Scraping-Logik einer Plattform: HTML-Parsing, kein DB- oder Business-Code."""
+    """Scraping-Logik einer Plattform: URL-Bau, HTTP-Abruf und HTML-Parsing.
+
+    Die Plattform besitzt ihren **HTTP-Abruf** selbst (Kleinanzeigen: direkter curl-cffi-Client;
+    eBay: Session + Proxy-Fallback), weil sich Fingerprinting, Cookies und Proxy je Quelle
+    unterscheiden. Der ``ScraperService`` orchestriert nur (bekannte aussortieren, filtern,
+    speichern) und kennt keine plattformspezifischen Fetch-Details.
+    """
 
     @abstractmethod
     def build_search_url(self, params: SearchParams) -> str:
         """Baut die Suchergebnis-URL aus plattformunabhängigen Suchparametern."""
 
     @abstractmethod
-    def parse_search_results(self, html: str) -> list[ScrapedAdPreview]:
-        """Parst Anzeigen-Vorschauen aus dem HTML einer Suchergebnisseite."""
+    def collect_previews(self, search_url: str) -> list[ScrapedAdPreview]:
+        """Holt die Suchergebnisseite(n) inkl. Paginierung und parst Anzeigen-Vorschauen."""
 
     @abstractmethod
-    def parse_next_page_urls(self, html: str) -> list[str]:
-        """Extrahiert die Paginierungs-URLs aus einer Suchergebnisseite."""
+    def build_details(self, previews: list[ScrapedAdPreview]) -> list[ScrapedAdDetail]:
+        """Ergänzt Vorschauen zu vollständigen Anzeigendaten.
 
-    @abstractmethod
-    def parse_ad_detail(self, html: str, url: str, external_id: str) -> ScrapedAdDetail | None:
-        """Parst eine Detailseite zu vollständigen Anzeigendaten; None wenn ungültig."""
+        Kleinanzeigen holt dafür je Vorschau die Detailseite; eBay hat bereits alle Daten in der
+        Trefferkarte und mappt sie ohne weiteren Abruf.
+        """
 
 
 class PlatformDefinition:

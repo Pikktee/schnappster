@@ -127,6 +127,18 @@ export function formatSearchPriceRange(search: {
   return `bis ${formatPrice(search.max_price)}`
 }
 
+/** Quelle einer Anzeige aus der URL ableiten (für das Quellen-Badge). */
+export function getAdSource(url: string): { key: "kleinanzeigen" | "ebay" | "other"; label: string } {
+  try {
+    const host = new URL(url).hostname
+    if (host.includes("ebay.")) return { key: "ebay", label: "eBay" }
+    if (host.includes("kleinanzeigen.")) return { key: "kleinanzeigen", label: "Kleinanzeigen" }
+    return { key: "other", label: host.replace(/^www\./, "") }
+  } catch {
+    return { key: "other", label: "Quelle" }
+  }
+}
+
 export function truncateUrl(url: string, maxLength = 50): string {
   try {
     const parsed = new URL(url)

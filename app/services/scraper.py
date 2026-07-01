@@ -13,7 +13,6 @@ from app.models.adsearch import AdSearch
 from app.models.logs_error import ErrorLog
 from app.models.logs_scraperun import ScrapeRun
 from app.platforms import DEFAULT_PLATFORM, get_platform
-from app.scraper.httpclient import fetch_page, fetch_pages
 from app.scraper.parser import ScrapedAdDetail
 from app.services.deal_analysis import is_gift_category_search_url
 from app.services.settings import SettingsService
@@ -29,6 +28,7 @@ class AdSearchSnapshot:
     owner_id: str
     name: str
     url: str
+    platform: str
     min_price: float | None
     max_price: float | None
     blacklist_keywords: str | None
@@ -42,9 +42,6 @@ class ScraperService:
     def __init__(self, session: Session):
         """Erstellt den Service mit der übergebenen Datenbank-Session."""
         self.session = session
-        # Solange es nur eine Quelle gibt, ist Kleinanzeigen die Standard-Plattform.
-        # Mit der keyword-basierten Suche wird die Plattform pro Suchauftrag aufgelöst.
-        self._scraper = get_platform(DEFAULT_PLATFORM).scraper
 
     def scrape_due_searches(self) -> int:
         """Scrape für alle aktiven, fälligen Suchaufträge; Zahl neu gespeicherter Anzeigen."""
@@ -96,14 +93,15 @@ class ScraperService:
         ads_filtered_result = 0
         ads_new_result = 0
 
+        scraper = get_platform(search.platform).scraper
         try:
-            previews = self._collect_previews(search.url)
+            previews = scraper.collect_previews(search.url)
             new_previews = self._filter_known(previews, search.id)
             self._release_session_connection()
 
             logger.info(f"AdSearch '{search.name}': {len(previews)} found, {len(new_previews)} new")
 
-            details = self._fetch_details(new_previews)
+            details = scraper.build_details(new_previews)
             filtered = self._filter_ads(details, search)
             ads = self._save_ads(filtered, search.id, search.owner_id)
 
@@ -261,20 +259,6 @@ class ScraperService:
 
         return None
 
-    def _collect_previews(self, search_url: str) -> list:
-        """Lädt alle paginierten Suchergebnisseiten und sammelt Anzeigen-Vorschauen."""
-        first_page_html = fetch_page(search_url)
-        all_previews = self._scraper.parse_search_results(first_page_html)
-        next_page_urls = self._scraper.parse_next_page_urls(first_page_html)
-
-        if next_page_urls:
-            page_htmls = fetch_pages(next_page_urls)
-            for html in page_htmls:
-                if html:
-                    all_previews.extend(self._scraper.parse_search_results(html))
-
-        return all_previews
-
     def _filter_known(self, previews: list, adsearch_id: int) -> list:
         """Entfernt Vorschauen, deren external_id für diesen Suchauftrag bereits existiert."""
         if not previews:
@@ -290,27 +274,6 @@ class ScraperService:
         existing_ids = set(existing)
 
         return [p for p in previews if p.external_id not in existing_ids]
-
-    def _fetch_details(self, previews: list) -> list[ScrapedAdDetail]:
-        """Lädt die Detailseiten für jede Vorschau und parst sie in eine ScrapedAdDetail-Liste."""
-        if not previews:
-            return []
-
-        urls = [p.url for p in previews]
-        htmls = fetch_pages(urls)
-
-        details: list[ScrapedAdDetail] = []
-        for preview, html in zip(previews, htmls, strict=True):
-            if not html:
-                logger.warning(f"Failed to fetch detail page for {preview.external_id}")
-                continue
-            detail = self._scraper.parse_ad_detail(html, preview.url, preview.external_id)
-            if detail:
-                details.append(detail)
-            else:
-                logger.warning(f"Failed to parse detail page for {preview.external_id}")
-
-        return details
 
     def _save_ads(
         self, details: list[ScrapedAdDetail], adsearch_id: int, owner_id: str
@@ -358,6 +321,7 @@ def _snapshot_adsearch(adsearch: AdSearch | AdSearchSnapshot) -> AdSearchSnapsho
         owner_id=adsearch.owner_id,
         name=adsearch.name,
         url=adsearch.url,
+        platform=adsearch.platform or DEFAULT_PLATFORM,
         min_price=adsearch.min_price,
         max_price=adsearch.max_price,
         blacklist_keywords=adsearch.blacklist_keywords,

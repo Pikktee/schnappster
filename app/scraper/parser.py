@@ -24,7 +24,12 @@ BASE_URL = "https://www.kleinanzeigen.de"
 # --------------------------
 @dataclass
 class ScrapedAdPreview:
-    """Grunddaten einer Anzeige von der Suchergebnisseite."""
+    """Grunddaten einer Anzeige von der Suchergebnisseite.
+
+    Die letzten Felder befüllen nur Plattformen, deren Trefferliste bereits Detaildaten
+    enthält (z. B. eBay: Zustand/Verkäufertyp/Versand stehen schon auf der Karte). Kleinanzeigen
+    lässt sie None und holt diese Daten aus der Detailseite.
+    """
 
     external_id: str
     title: str
@@ -32,6 +37,10 @@ class ScrapedAdPreview:
     price: float | None = None
     location: str | None = None
     image_url: str | None = None
+    price_raw: str | None = None
+    condition: str | None = None
+    seller_type: str | None = None
+    shipping_cost: str | None = None
 
 
 @dataclass

@@ -73,6 +73,36 @@ def test_create_adsearch_with_search_query(mock_validate, client):
     mock_validate.assert_called_once_with(expected_url)
 
 
+def test_create_adsearch_ebay_keyword(client):
+    """POST mit platform=ebay + Suchbegriff leitet die eBay-URL ab (ohne Erreichbarkeits-Abruf)."""
+    response = client.post(
+        "/adsearches/",
+        json={
+            "platform": "ebay",
+            "search_query": "sony wh-1000xm5",
+            "min_price": 100,
+            "max_price": 250,
+        },
+    )
+    assert response.status_code == 201
+    result = response.json()
+    assert result["platform"] == "ebay"
+    assert result["url"].startswith("https://www.ebay.de/sch/i.html")
+    assert "_nkw=sony+wh-1000xm5" in result["url"]
+    assert "_udlo=100" in result["url"] and "_udhi=250" in result["url"]
+    assert result["search_query"] == "sony wh-1000xm5"
+    assert result["name"] == "sony wh-1000xm5"  # aus dem Suchbegriff abgeleitet
+
+
+def test_create_adsearch_rejects_unknown_platform(client):
+    """POST mit unbekannter Plattform wird mit 422 abgelehnt."""
+    response = client.post(
+        "/adsearches/",
+        json={"platform": "willhaben", "search_query": "fahrrad"},
+    )
+    assert response.status_code == 422
+
+
 def test_create_adsearch_rejects_both_url_and_query(client):
     """POST mit URL UND Suchbegriff wird mit 422 abgelehnt (genau eines erlaubt)."""
     response = client.post(

@@ -26,6 +26,12 @@ def test_get_platform_falls_back_to_default_for_unknown():
     assert get_platform("gibt-es-nicht").name == DEFAULT_PLATFORM
 
 
+def test_registry_contains_ebay():
+    """eBay ist als zweite Quelle registriert und erfüllt das PlatformScraper-Interface."""
+    assert "ebay" in get_all_platform_names()
+    assert isinstance(get_platform("ebay").scraper, PlatformScraper)
+
+
 def test_kleinanzeigen_scraper_is_a_platform_scraper():
     """Der Kleinanzeigen-Scraper erfüllt das PlatformScraper-Interface."""
     assert isinstance(get_platform("kleinanzeigen").scraper, PlatformScraper)

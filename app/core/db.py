@@ -20,6 +20,8 @@ _ADDITIVE_COLUMNS: list[tuple[str, str, str]] = [
     ("ad_searches", "search_query", "VARCHAR"),
     ("ad_searches", "postal_code", "VARCHAR"),
     ("ad_searches", "radius_km", "INTEGER"),
+    # Quelle/Plattform je Suchauftrag; Default hält bestehende Suchen bei Kleinanzeigen.
+    ("ad_searches", "platform", "VARCHAR NOT NULL DEFAULT 'kleinanzeigen'"),
 ]
 
 _SQLITE_PREFIX = "sqlite:///"

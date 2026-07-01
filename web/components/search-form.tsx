@@ -67,7 +67,13 @@ function parseKeywords(str: string): string[] {
 export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChange }: SearchFormProps) {
   const [name, setName] = useState(initial?.name || "")
   const [url, setUrl] = useState(initial?.url || "")
+  // Quelle/Plattform. Nach dem Anlegen nicht mehr änderbar (wie die URL).
+  const [platform, setPlatform] = useState<"kleinanzeigen" | "ebay">(
+    (initial?.platform as "kleinanzeigen" | "ebay") || "kleinanzeigen"
+  )
+  const isEbay = platform === "ebay"
   // Eingabemodus: Suchbegriff (Standard) oder direkte URL. Beim Bearbeiten aus den Daten abgeleitet.
+  // eBay kennt nur den Suchbegriff-Modus (keine URL-Eingabe).
   const [mode, setMode] = useState<"query" | "url">(
     initial?.id ? (initial?.search_query ? "query" : "url") : "query"
   )
@@ -88,6 +94,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const isDirty = name !== (initial?.name || "") ||
+    (!initial?.id && platform !== ((initial?.platform as string) || "kleinanzeigen")) ||
     (!initial?.id && url !== (initial?.url || "")) ||
     searchQuery !== (initial?.search_query || "") ||
     postalCode !== (initial?.postal_code || "") ||
@@ -171,11 +178,13 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
         prompt_addition: promptAddition || null,
         is_exclude_images: excludeImages,
       }
+      if (!initial?.id) payload.platform = platform
       if (mode === "query") {
         const plz = postalCode.trim()
         payload.search_query = searchQuery.trim()
-        payload.postal_code = plz || null
-        payload.radius_km = plz && radiusKm ? Number(radiusKm) : null
+        // eBay ist bundesweit → kein Standort.
+        payload.postal_code = isEbay ? null : plz || null
+        payload.radius_km = !isEbay && plz && radiusKm ? Number(radiusKm) : null
       } else if (!initial?.id) {
         // URL kann nach dem Anlegen nicht mehr geändert werden.
         payload.url = url
@@ -189,8 +198,43 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      {/* Modus-Umschalter – nur beim Anlegen; beim Bearbeiten ist der Modus durch die Suche festgelegt. */}
+      {/* Quelle/Plattform – nur beim Anlegen wählbar (nach dem Anlegen fest, wie die URL). */}
       {!initial?.id && (
+        <div className="flex flex-col gap-1.5">
+          <Label className="flex items-center gap-1.5">
+            <span>Quelle</span>
+            <HelpTip text="Wo gesucht wird. Kleinanzeigen: lokale Privatverkäufe mit Umkreissuche. eBay: bundesweite Angebote (mit Versand)." />
+          </Label>
+          <div className="flex gap-1.5">
+            <Button
+              type="button"
+              variant={!isEbay ? "default" : "outline"}
+              size="sm"
+              onClick={() => setPlatform("kleinanzeigen")}
+              className="flex-1 cursor-pointer"
+              aria-pressed={!isEbay}
+            >
+              Kleinanzeigen
+            </Button>
+            <Button
+              type="button"
+              variant={isEbay ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setPlatform("ebay")
+                setMode("query")
+              }}
+              className="flex-1 cursor-pointer"
+              aria-pressed={isEbay}
+            >
+              eBay
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Modus-Umschalter – nur bei Kleinanzeigen (eBay kennt nur den Suchbegriff-Modus). */}
+      {!initial?.id && !isEbay && (
         <div className="flex gap-1.5">
           <Button
             type="button"
@@ -220,7 +264,7 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="search-query" className="flex items-center gap-1.5">
               <span>Suchbegriff *</span>
-              <HelpTip text="Wonach suchst du? Z.B. 'iPhone 15 Pro'. Daraus bauen wir die Kleinanzeigen-Suche automatisch." />
+              <HelpTip text={`Wonach suchst du? Z.B. 'iPhone 15 Pro'. Daraus bauen wir die ${isEbay ? "eBay" : "Kleinanzeigen"}-Suche automatisch.`} />
             </Label>
             <Input
               id="search-query"
@@ -232,44 +276,50 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
             />
             {errors.searchQuery && <p className="text-xs text-destructive">{errors.searchQuery}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="search-plz" className="font-normal flex items-center gap-1.5">
-                <span>PLZ</span>
-                <HelpTip text="Postleitzahl als Mittelpunkt der Umkreissuche. Leer = deutschlandweit." />
-              </Label>
-              <Input
-                id="search-plz"
-                value={postalCode}
-                onChange={(e) => setPostalCode(e.target.value)}
-                placeholder="z.B. 50667"
-                inputMode="numeric"
-              />
+          {isEbay ? (
+            <p className="text-xs text-muted-foreground">
+              eBay-Angebote werden bundesweit versendet – PLZ und Umkreis entfallen.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="search-plz" className="font-normal flex items-center gap-1.5">
+                  <span>PLZ</span>
+                  <HelpTip text="Postleitzahl als Mittelpunkt der Umkreissuche. Leer = deutschlandweit." />
+                </Label>
+                <Input
+                  id="search-plz"
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)}
+                  placeholder="z.B. 50667"
+                  inputMode="numeric"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="search-radius" className="font-normal flex items-center gap-1.5">
+                  <span>Umkreis</span>
+                  <HelpTip text="Suchradius um die PLZ. Nur wirksam, wenn eine PLZ angegeben ist." />
+                </Label>
+                <Select
+                  value={radiusKm || "any"}
+                  onValueChange={(v) => setRadiusKm(v === "any" ? "" : v)}
+                  disabled={!postalCode.trim()}
+                >
+                  <SelectTrigger id="search-radius" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Egal</SelectItem>
+                    {RADIUS_PRESETS.map((r) => (
+                      <SelectItem key={r} value={String(r)}>
+                        {r} km
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="search-radius" className="font-normal flex items-center gap-1.5">
-                <span>Umkreis</span>
-                <HelpTip text="Suchradius um die PLZ. Nur wirksam, wenn eine PLZ angegeben ist." />
-              </Label>
-              <Select
-                value={radiusKm || "any"}
-                onValueChange={(v) => setRadiusKm(v === "any" ? "" : v)}
-                disabled={!postalCode.trim()}
-              >
-                <SelectTrigger id="search-radius" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Egal</SelectItem>
-                  {RADIUS_PRESETS.map((r) => (
-                    <SelectItem key={r} value={String(r)}>
-                      {r} km
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          )}
         </>
       ) : (
         <div className="flex flex-col gap-1.5">
@@ -296,13 +346,13 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="search-name" className="font-normal flex items-center gap-1.5">
           <span>Name</span>
-          <HelpTip text="Ein Kurzname für diesen Suchauftrag, z.B. für die Übersicht. Wird von der Kleinanzeigen-Seite übernommen, wenn leer." />
+          <HelpTip text={`Ein Kurzname für diesen Suchauftrag, z.B. für die Übersicht. Wird ${isEbay ? "aus dem Suchbegriff" : "von der Kleinanzeigen-Seite"} übernommen, wenn leer.`} />
         </Label>
         <Input
           id="search-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Wird von der Kleinanzeigen-Seite übernommen."
+          placeholder={isEbay ? "Wird aus dem Suchbegriff übernommen." : "Wird von der Kleinanzeigen-Seite übernommen."}
         />
       </div>
 
