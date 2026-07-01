@@ -6,6 +6,7 @@ import Image from "next/image"
 import { Package, MapPin } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScoreBadge } from "@/components/score-badge"
+import { SavingsBadge } from "@/components/savings-badge"
 import { SellerRatingTag } from "@/components/seller-rating-tag"
 import { formatPrice, timeAgo, getAdImageUrls } from "@/lib/format"
 import type { Ad } from "@/lib/types"
@@ -44,6 +45,11 @@ export function AdCard({ ad }: AdCardProps) {
         {/* Score badge */}
         <div className="absolute top-2 right-2 z-20">
           <ScoreBadge score={ad.bargain_score} size="sm" />
+        </div>
+
+        {/* Ersparnis ggü. geschätztem Marktwert (nur bei belastbarer Ersparnis) */}
+        <div className="absolute top-2 left-2 z-20">
+          <SavingsBadge deltaPercent={ad.price_delta_percent} size="sm" tone="solid" />
         </div>
 
         {/* Image count indicator */}

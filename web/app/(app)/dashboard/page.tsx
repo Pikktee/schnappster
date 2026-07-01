@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useState, useMemo, useCallback } from "react"
-import { Search, Package, Clock, Sparkles, Zap, Settings, Target, TrendingDown, X } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import Link from "next/link"
+import { Search, Package, Clock, Sparkles, Settings, TrendingDown, X, ArrowRight, SearchX } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { StatCard } from "@/components/stat-card"
-import { LatestDeals } from "@/components/latest-deals"
+import { DealHero } from "@/components/deal-hero"
+import { AdCard } from "@/components/ad-card"
 import { CardEmptyState } from "@/components/card-empty-state"
 import { ContentReveal } from "@/components/content-reveal"
 import {
@@ -19,35 +20,91 @@ import {
 import type { Ad, AdSearch, Notification, PriceWatch, ScrapeRun } from "@/lib/types"
 import { timeAgo } from "@/lib/format"
 import { toast } from "sonner"
-import Link from "next/link"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
+import { useAuth } from "@/components/auth-provider"
+import { usePageHead } from "../page-head-context"
 
 const WELCOME_DISMISSED_KEY = "schnappster-welcome-dismissed"
+const LAST_VISIT_KEY = "schnappster-last-visit"
+
+/** Ab diesem Score gilt eine Anzeige als "Schnäppchen". */
+const SCHNAEPPCHEN_MIN_SCORE = 8
+/** So viele aktuelle Schnäppchen laden (für Hero, Galerie und "seit letztem Besuch"). */
+const DEALS_FETCH_LIMIT = 24
+/** So viele Karten in der Galerie unter dem Top-Fund zeigen. */
+const GALLERY_SIZE = 8
+
+/** Benachrichtigungstypen, die einen Preis-Alarm darstellen. */
+const PRICE_ALERT_TYPES = new Set(["price_drop", "price_below_threshold"])
+
+/**
+ * Zeitpunkt des vorherigen Besuchs, pro Seitenladen genau einmal erfasst.
+ * Modul-Ebene (statt State/Ref), damit Reacts StrictMode-Doppel-Mount und ein
+ * Refetch bei Fokuswechsel den frisch gesetzten Baseline-Wert nicht wieder als
+ * "vorherigen Besuch" einlesen. `undefined` = in diesem Seitenladen noch nicht erfasst.
+ */
+let capturedPreviousVisitMs: number | null | undefined
+
+/** Parst einen (ggf. zeitzonenlosen) Backend-Timestamp robust zu Millisekunden. */
+function toMs(dateStr: string | null): number {
+  if (!dateStr) return 0
+  const normalized = dateStr.includes("+") || dateStr.endsWith("Z") ? dateStr : dateStr + "Z"
+  const t = new Date(normalized).getTime()
+  return Number.isNaN(t) ? 0 : t
+}
+
+function greetingForHour(hour: number): string {
+  if (hour < 5) return "Guten Abend"
+  if (hour < 11) return "Guten Morgen"
+  if (hour < 18) return "Guten Tag"
+  return "Guten Abend"
+}
+
+/** Deutsche Pluralisierung als kurzer Satzteil, z.B. "3 neue Schnäppchen". */
+function countPart(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`
+}
 
 export default function DashboardPage() {
+  const { user } = useAuth()
+  const { setTitle } = usePageHead()
+
   const [searches, setSearches] = useState<AdSearch[]>([])
   const [totalAds, setTotalAds] = useState<number>(0)
-  const [latestDeals, setLatestDeals] = useState<Ad[]>([])
+  const [deals, setDeals] = useState<Ad[]>([])
   const [scraperuns, setScraperuns] = useState<ScrapeRun[]>([])
   const [priceWatches, setPriceWatches] = useState<PriceWatch[]>([])
-  const [priceAlerts, setPriceAlerts] = useState<Notification[]>([])
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
+  const [greeting, setGreeting] = useState("")
+  const [previousVisitMs, setPreviousVisitMs] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Einmal beim Öffnen: Begrüßung, letzter Besuch (Baseline für "seit letztem Besuch"),
+  // dann sofort die neue Baseline setzen. Bewusst getrennt von load(), damit ein
+  // Refetch bei Fokuswechsel die Zählung nicht auf null zurücksetzt.
   useEffect(() => {
     if (typeof window === "undefined") return
+    setGreeting(greetingForHour(new Date().getHours()))
     setWelcomeDismissed(localStorage.getItem(WELCOME_DISMISSED_KEY) === "true")
+    // Baseline nur einmal pro Seitenladen erfassen und sofort auf "jetzt" fortschreiben.
+    if (capturedPreviousVisitMs === undefined) {
+      const previous = localStorage.getItem(LAST_VISIT_KEY)
+      capturedPreviousVisitMs = previous ? toMs(previous) : null
+      localStorage.setItem(LAST_VISIT_KEY, new Date().toISOString())
+    }
+    setPreviousVisitMs(capturedPreviousVisitMs)
   }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [s, countRes, dealsRes, r, watches, alerts] = await Promise.all([
+      const [s, countRes, dealsRes, r, watches, notes] = await Promise.all([
         fetchSearches(),
         fetchAdsPaginated({ limit: 1 }),
-        fetchAdsPaginated({ min_score: 8, sort: "date", limit: 5 }),
+        fetchAdsPaginated({ min_score: SCHNAEPPCHEN_MIN_SCORE, sort: "date", limit: DEALS_FETCH_LIMIT }),
         fetchScrapeRuns({ limit: 100 }),
         // Neue Bereiche dürfen das Dashboard bei Fehlern nicht blockieren.
         fetchPriceWatches().catch(() => [] as PriceWatch[]),
@@ -55,10 +112,10 @@ export default function DashboardPage() {
       ])
       setSearches(s)
       setTotalAds(countRes.total)
-      setLatestDeals(dealsRes.items)
+      setDeals(dealsRes.items)
       setScraperuns(r)
       setPriceWatches(watches)
-      setPriceAlerts(alerts.slice(0, 5))
+      setNotifications(notes)
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Daten konnten nicht geladen werden."
       setError(msg)
@@ -74,32 +131,67 @@ export default function DashboardPage() {
 
   useRefetchOnFocus(load)
 
-  const activeSearches = useMemo(
-    () => searches.filter((s) => s.is_active).length,
-    [searches]
-  )
-
-  const activePriceWatches = useMemo(
-    () => priceWatches.filter((w) => w.is_active).length,
-    [priceWatches]
-  )
+  const activeSearches = useMemo(() => searches.filter((s) => s.is_active).length, [searches])
+  const activePriceWatches = useMemo(() => priceWatches.filter((w) => w.is_active).length, [priceWatches])
 
   const lastUpdate = useMemo(() => {
-    const finishedRuns = scraperuns
+    const finished = scraperuns
       .filter((r) => r.finished_at)
-      .sort((a, b) => new Date(b.finished_at!).getTime() - new Date(a.finished_at!).getTime())
-    return finishedRuns.length > 0 ? finishedRuns[0].finished_at : null
+      .sort((a, b) => toMs(b.finished_at) - toMs(a.finished_at))
+    return finished.length > 0 ? finished[0].finished_at : null
   }, [scraperuns])
+
+  // Bester aktueller Fund = höchster Score (Gleichstand: größere Ersparnis).
+  const { hero, galleryDeals } = useMemo(() => {
+    if (deals.length === 0) return { hero: null as Ad | null, galleryDeals: [] as Ad[] }
+    const best = [...deals].sort((a, b) => {
+      const byScore = (b.bargain_score ?? 0) - (a.bargain_score ?? 0)
+      if (byScore !== 0) return byScore
+      return (b.price_delta_percent ?? 0) - (a.price_delta_percent ?? 0)
+    })[0]
+    return { hero: best, galleryDeals: deals.filter((d) => d.id !== best.id).slice(0, GALLERY_SIZE) }
+  }, [deals])
+
+  // "Seit deinem letzten Besuch": neue Schnäppchen + ausgelöste Preis-Alarme.
+  const { newDealCount, newDropCount } = useMemo(() => {
+    if (previousVisitMs === null) return { newDealCount: 0, newDropCount: 0 }
+    const newDeals = deals.filter((d) => toMs(d.first_seen_at) > previousVisitMs).length
+    const newDrops = notifications.filter(
+      (n) => PRICE_ALERT_TYPES.has(n.type) && toMs(n.created_at) > previousVisitMs,
+    ).length
+    return { newDealCount: newDeals, newDropCount: newDrops }
+  }, [deals, notifications, previousVisitMs])
+
+  const substance = useMemo(() => {
+    if (previousVisitMs === null) return "Schön, dass du da bist — hier sind deine besten Funde."
+    if (newDealCount === 0 && newDropCount === 0) {
+      return "Seit deinem letzten Besuch nichts Neues — deine Suchen und Alarme laufen weiter."
+    }
+    const parts: string[] = []
+    if (newDealCount > 0) parts.push(countPart(newDealCount, "neues Schnäppchen", "neue Schnäppchen"))
+    if (newDropCount > 0) parts.push(countPart(newDropCount, "Preissenkung", "Preissenkungen"))
+    return `${parts.join(" und ")}, seit du zuletzt hier warst.`
+  }, [previousVisitMs, newDealCount, newDropCount])
+
+  const greetingTitle = useMemo(() => {
+    if (!greeting) return ""
+    const firstName = user?.display_name?.trim().split(/\s+/)[0] ?? ""
+    return firstName ? `${greeting}, ${firstName}` : greeting
+  }, [greeting, user])
+
+  // Begrüßung + Substanz-Satz ersetzen den generischen "Dashboard"-Seitentitel.
+  useEffect(() => {
+    if (loading || !greetingTitle) return
+    setTitle(greetingTitle, substance)
+  }, [loading, greetingTitle, substance, setTitle])
 
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Skeleton className="h-28" />
-          <Skeleton className="h-28" />
-          <Skeleton className="h-28" />
-        </div>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Skeleton className="h-64 w-full" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
         </div>
@@ -125,7 +217,7 @@ export default function DashboardPage() {
 
   return (
     <ContentReveal className="flex flex-col gap-6">
-      {/* Welcome – nur bei noch keinen Suchaufträgen, schließbar */}
+      {/* Willkommen – nur ohne Suchen/Alarme, schließbar */}
       {showWelcome && !welcomeDismissed && (
         <Card className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-background via-background to-primary/[0.06] shadow-sm">
           <Button
@@ -181,118 +273,72 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 reveal-stagger">
-        <StatCard
-          label="Aktive Suchaufträge"
-          value={activeSearches}
-          icon={Search}
-          iconBgColor="bg-amber-50"
-          iconTextColor="text-amber-600"
-        />
-        <StatCard
-          label="Aktive Preis-Alarme"
-          value={activePriceWatches}
-          icon={TrendingDown}
-          iconBgColor="bg-amber-50"
-          iconTextColor="text-amber-600"
-        />
-        <StatCard
-          label="Anzeigen insgesamt"
-          value={totalAds}
-          icon={Package}
-          iconBgColor="bg-amber-50"
-          iconTextColor="text-amber-600"
-        />
-        <StatCard
-          label="Letzte Aktualisierung"
-          value={lastUpdate ? timeAgo(lastUpdate) : "Noch nie"}
-          icon={Clock}
-          iconBgColor="bg-amber-50"
-          iconTextColor="text-amber-600"
-        />
-      </div>
+      {/* Top-Fund: das beste aktuelle Schnäppchen */}
+      {hero && <DealHero ad={hero} />}
 
-      {/* Aktuelle Chancen — Kleinanzeigen-Schnäppchen + ausgelöste Preis-Drops nebeneinander */}
-      <section className="reveal-stagger flex flex-col gap-3">
-        <h2 className="flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <Sparkles className="size-4 text-primary" aria-hidden />
-          Aktuelle Chancen
-        </h2>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Card className="gap-0">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="size-5" />
-                Letzte Schnäppchen
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <LatestDeals ads={latestDeals} />
-            </CardContent>
-          </Card>
+      {/* Schnäppchen-Galerie mit Bildern zum Stöbern */}
+      {galleryDeals.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Sparkles className="size-4 text-primary" aria-hidden />
+              Weitere Schnäppchen
+            </h2>
+            <Link
+              href="/ads/"
+              className="group inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Alle Angebote
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 reveal-stagger">
+            {galleryDeals.map((ad) => (
+              <AdCard key={ad.id} ad={ad} />
+            ))}
+          </div>
+        </section>
+      )}
 
-          <Card className="gap-0">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <TrendingDown className="size-5" />
-                Letzte Preis-Alarme
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {priceAlerts.length > 0 ? (
-                <ul className="m-0 flex list-none flex-col gap-1 p-0">
-                  {priceAlerts.map((alert) => {
-                    const Icon = alert.type === "price_below_threshold" ? Target : TrendingDown
-                    const tone =
-                      alert.type === "price_below_threshold"
-                        ? "bg-primary/15 text-primary"
-                        : "bg-emerald-500/15 text-emerald-600"
-                    const row = (
-                      <span className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50">
-                        <span className={`flex size-8 shrink-0 items-center justify-center rounded-full ${tone}`}>
-                          <Icon className="size-4" aria-hidden />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium text-foreground">
-                            {alert.title}
-                          </span>
-                          {alert.body && (
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {alert.body}
-                            </span>
-                          )}
-                        </span>
-                        <span className="shrink-0 text-xs text-muted-foreground/70">
-                          {timeAgo(alert.created_at)}
-                        </span>
-                      </span>
-                    )
-                    return (
-                      <li key={alert.id}>
-                        {alert.link ? (
-                          <Link href={alert.link} className="block">
-                            {row}
-                          </Link>
-                        ) : (
-                          row
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : (
-                <CardEmptyState
-                  icon={TrendingDown}
-                  title="Noch keine Preis-Alarme ausgelöst"
-                  description="Sobald ein überwachter Preis fällt, erscheint der Alarm hier."
-                  actionLabel="Preis-Alarm einrichten"
-                  actionHref="/price-alerts/"
-                />
-              )}
-            </CardContent>
-          </Card>
+      {/* Noch keine Schnäppchen, aber schon Suchen/Alarme eingerichtet */}
+      {!hero && !showWelcome && (
+        <Card className="gap-0">
+          <CardContent className="pt-6">
+            <CardEmptyState
+              icon={SearchX}
+              title="Noch keine Schnäppchen gefunden"
+              description="Sobald deine Suchaufträge Angebote mit hohem Score finden, erscheinen die besten hier."
+              actionLabel="Suchauftrag anlegen"
+              actionHref="/searches/"
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Betriebs-Status – bewusst dezent in der Fußzeile statt als KPI-Kacheln */}
+      {!showWelcome && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t pt-4 text-xs text-muted-foreground">
+          <Link href="/searches/" className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
+            <Search className="size-3.5" aria-hidden />
+            {countPart(activeSearches, "aktiver Suchauftrag", "aktive Suchaufträge")}
+          </Link>
+          <span className="text-muted-foreground/40">·</span>
+          <Link href="/price-alerts/" className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
+            <TrendingDown className="size-3.5" aria-hidden />
+            {countPart(activePriceWatches, "aktiver Preis-Alarm", "aktive Preis-Alarme")}
+          </Link>
+          <span className="text-muted-foreground/40">·</span>
+          <span className="inline-flex items-center gap-1.5">
+            <Package className="size-3.5" aria-hidden />
+            {countPart(totalAds, "Anzeige erfasst", "Anzeigen erfasst")}
+          </span>
+          <span className="text-muted-foreground/40">·</span>
+          <span className="inline-flex items-center gap-1.5">
+            <Clock className="size-3.5" aria-hidden />
+            Aktualisiert {lastUpdate ? timeAgo(lastUpdate) : "noch nie"}
+          </span>
         </div>
-      </section>
+      )}
     </ContentReveal>
   )
 }
