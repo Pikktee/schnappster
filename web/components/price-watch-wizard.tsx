@@ -3,6 +3,8 @@
 import { useState } from "react"
 import {
   ArrowLeft,
+  ChevronDown,
+  ChevronUp,
   Loader2,
   Search,
   Sparkles,
@@ -35,6 +37,9 @@ const SOURCE_LABELS: Record<string, string> = {
   visible: "von der Seite",
 }
 
+// Standardmäßig nur die wahrscheinlichsten Preise zeigen; der Rest ist aufklappbar.
+const VISIBLE_CANDIDATES = 3
+
 export function PriceWatchWizard({ onCreated, onCancel }: PriceWatchWizardProps) {
   const [step, setStep] = useState<"url" | "select">("url")
   const [url, setUrl] = useState("")
@@ -46,9 +51,15 @@ export function PriceWatchWizard({ onCreated, onCancel }: PriceWatchWizardProps)
   const [threshold, setThreshold] = useState("")
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showAllCandidates, setShowAllCandidates] = useState(false)
 
   const selected = candidates[selectedIndex]
   const currency = selected?.currency ?? null
+  const hasMoreCandidates = candidates.length > VISIBLE_CANDIDATES
+  const moreCount = candidates.length - VISIBLE_CANDIDATES
+  const shownCandidates = showAllCandidates
+    ? candidates
+    : candidates.slice(0, VISIBLE_CANDIDATES)
 
   async function handlePreview(e: React.FormEvent) {
     e.preventDefault()
@@ -62,7 +73,10 @@ export function PriceWatchWizard({ onCreated, onCancel }: PriceWatchWizardProps)
       const preview = await previewPriceWatch(url.trim())
       setCandidates(preview.candidates)
       const recommended = preview.candidates.findIndex((c) => c.recommended)
-      setSelectedIndex(recommended >= 0 ? recommended : 0)
+      const selectedIdx = recommended >= 0 ? recommended : 0
+      setSelectedIndex(selectedIdx)
+      // Liste aufgeklappt starten, falls der empfohlene Preis außerhalb der ersten drei liegt.
+      setShowAllCandidates(selectedIdx >= VISIBLE_CANDIDATES)
       setName(preview.title ?? "")
       setStep("select")
     } catch (err) {
@@ -157,7 +171,7 @@ export function PriceWatchWizard({ onCreated, onCancel }: PriceWatchWizardProps)
             <Label className="font-normal">Welcher Preis soll überwacht werden?</Label>
           </div>
           <div className="flex flex-col gap-2">
-            {candidates.map((candidate, index) => {
+            {shownCandidates.map((candidate, index) => {
               const isSelected = index === selectedIndex
               return (
                 <button
@@ -202,6 +216,25 @@ export function PriceWatchWizard({ onCreated, onCancel }: PriceWatchWizardProps)
               )
             })}
           </div>
+          {hasMoreCandidates && (
+            <button
+              type="button"
+              onClick={() => setShowAllCandidates((v) => !v)}
+              aria-expanded={showAllCandidates}
+              className="mt-0.5 flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground cursor-pointer"
+            >
+              {showAllCandidates ? (
+                <ChevronUp className="size-3.5" aria-hidden />
+              ) : (
+                <ChevronDown className="size-3.5" aria-hidden />
+              )}
+              {showAllCandidates
+                ? "Weniger anzeigen"
+                : moreCount === 1
+                  ? "1 weiteren Preis anzeigen"
+                  : `${moreCount} weitere Preise anzeigen`}
+            </button>
+          )}
         </div>
       )}
 
