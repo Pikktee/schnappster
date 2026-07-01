@@ -22,6 +22,8 @@ import { clearToken, getToken } from "./auth"
 // Leer = gleicher Origin (nur sinnvoll bei Reverse-Proxy); lokal/Vercel: z. B. http://127.0.0.1:8000 bzw. https://api.example.com
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
 const API_TIMEOUT_MS = 15000
+// Preis-Alarm-Abrufe gehen über Proxy + JS-Rendering (ScrapingAnt) und dauern 15–30s.
+const PROXY_FETCH_TIMEOUT_MS = 90000
 
 export class ApiAuthError extends Error {}
 
@@ -52,7 +54,11 @@ export function formatFastApiDetail(detail: unknown): string {
   return String(detail)
 }
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+async function apiFetch<T>(
+  path: string,
+  options?: RequestInit,
+  timeoutMs: number = API_TIMEOUT_MS,
+): Promise<T> {
   const token = getToken()
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
   const customHeaders = options?.headers ?? {}
@@ -60,7 +66,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => {
     controller.abort()
-  }, API_TIMEOUT_MS)
+  }, timeoutMs)
   const userSignal = options?.signal
   const onAbort = () => controller.abort()
   if (userSignal) {
@@ -161,14 +167,19 @@ export const deleteAd = (id: number) =>
 
 // PriceWatches (Preis-Alarme)
 export const previewPriceWatch = (url: string) =>
-  apiFetch<PriceWatchPreview>("/price-watches/preview", {
-    method: "POST",
-    body: JSON.stringify({ url }),
-  })
+  apiFetch<PriceWatchPreview>(
+    "/price-watches/preview",
+    { method: "POST", body: JSON.stringify({ url }) },
+    PROXY_FETCH_TIMEOUT_MS,
+  )
 export const fetchPriceWatches = () => apiFetch<PriceWatch[]>("/price-watches/")
 export const fetchPriceWatch = (id: number) => apiFetch<PriceWatch>(`/price-watches/${id}`)
 export const createPriceWatch = (data: PriceWatchCreate) =>
-  apiFetch<PriceWatch>("/price-watches/", { method: "POST", body: JSON.stringify(data) })
+  apiFetch<PriceWatch>(
+    "/price-watches/",
+    { method: "POST", body: JSON.stringify(data) },
+    PROXY_FETCH_TIMEOUT_MS,
+  )
 export const updatePriceWatch = (id: number, data: Partial<PriceWatch>) =>
   apiFetch<PriceWatch>(`/price-watches/${id}`, { method: "PATCH", body: JSON.stringify(data) })
 export const deletePriceWatch = (id: number) =>
@@ -176,7 +187,11 @@ export const deletePriceWatch = (id: number) =>
 export const fetchPriceHistory = (id: number) =>
   apiFetch<PricePoint[]>(`/price-watches/${id}/history`)
 export const checkPriceWatchNow = (id: number) =>
-  apiFetch<PriceWatch>(`/price-watches/${id}/check-now`, { method: "POST" })
+  apiFetch<PriceWatch>(
+    `/price-watches/${id}/check-now`,
+    { method: "POST" },
+    PROXY_FETCH_TIMEOUT_MS,
+  )
 
 // Notifications (In-App-Benachrichtigungen)
 export const fetchNotifications = (unreadOnly = false) =>

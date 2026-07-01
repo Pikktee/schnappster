@@ -100,7 +100,8 @@ export function PriceWatchWizard({ onCreated, onCancel }: PriceWatchWizardProps)
       <form onSubmit={handlePreview} className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
           Gib die Adresse einer Produkt- oder Angebotsseite ein. Schnappster durchsucht die Seite
-          nach Preisen, die du überwachen kannst.
+          nach Preisen, die du überwachen kannst. Bei geschützten Seiten (z. B. Amazon) kann die
+          Analyse ~20–30 Sekunden dauern.
         </p>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="watch-url">Webadresse *</Label>
