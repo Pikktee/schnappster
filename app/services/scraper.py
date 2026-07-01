@@ -12,13 +12,9 @@ from app.models.ad import Ad
 from app.models.adsearch import AdSearch
 from app.models.logs_error import ErrorLog
 from app.models.logs_scraperun import ScrapeRun
+from app.platforms import DEFAULT_PLATFORM, get_platform
 from app.scraper.httpclient import fetch_page, fetch_pages
-from app.scraper.parser import (
-    ScrapedAdDetail,
-    parse_ad_detail,
-    parse_next_page_urls,
-    parse_search_results,
-)
+from app.scraper.parser import ScrapedAdDetail
 from app.services.deal_analysis import is_gift_category_search_url
 from app.services.settings import SettingsService
 
@@ -46,6 +42,9 @@ class ScraperService:
     def __init__(self, session: Session):
         """Erstellt den Service mit der übergebenen Datenbank-Session."""
         self.session = session
+        # Solange es nur eine Quelle gibt, ist Kleinanzeigen die Standard-Plattform.
+        # Mit der keyword-basierten Suche wird die Plattform pro Suchauftrag aufgelöst.
+        self._scraper = get_platform(DEFAULT_PLATFORM).scraper
 
     def scrape_due_searches(self) -> int:
         """Scrape für alle aktiven, fälligen Suchaufträge; Zahl neu gespeicherter Anzeigen."""
@@ -265,14 +264,14 @@ class ScraperService:
     def _collect_previews(self, search_url: str) -> list:
         """Lädt alle paginierten Suchergebnisseiten und sammelt Anzeigen-Vorschauen."""
         first_page_html = fetch_page(search_url)
-        all_previews = parse_search_results(first_page_html)
-        next_page_urls = parse_next_page_urls(first_page_html)
+        all_previews = self._scraper.parse_search_results(first_page_html)
+        next_page_urls = self._scraper.parse_next_page_urls(first_page_html)
 
         if next_page_urls:
             page_htmls = fetch_pages(next_page_urls)
             for html in page_htmls:
                 if html:
-                    all_previews.extend(parse_search_results(html))
+                    all_previews.extend(self._scraper.parse_search_results(html))
 
         return all_previews
 
@@ -305,7 +304,7 @@ class ScraperService:
             if not html:
                 logger.warning(f"Failed to fetch detail page for {preview.external_id}")
                 continue
-            detail = parse_ad_detail(html, preview.url, preview.external_id)
+            detail = self._scraper.parse_ad_detail(html, preview.url, preview.external_id)
             if detail:
                 details.append(detail)
             else:
