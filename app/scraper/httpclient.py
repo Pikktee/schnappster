@@ -56,13 +56,18 @@ def _resolve_proxy() -> tuple[str, bool]:
         return config.scrape_proxy_url, config.scrape_proxy_verify
     if config.scrapingant_api_key:
         render = "true" if config.scrapingant_render else "false"
-        user = f"scrapingant&browser={render}&proxy_type=residential"
+        parts = ["scrapingant", f"browser={render}", "proxy_type=residential"]
+        if config.scrapingant_country:
+            parts.append(f"proxy_country={config.scrapingant_country}")
+        user = "&".join(parts)
         url = f"http://{user}:{config.scrapingant_api_key}@proxy.scrapingant.com:8080"
         return url, False  # ScrapingAnt nutzt ein eigenes TLS-Zertifikat → verify aus
     return "", True
 
 
 PROXY_URL, PROXY_VERIFY = _resolve_proxy()
+# Ob überhaupt ein Proxy konfiguriert ist (für den zweistufigen Abruf: erst direkt, dann Proxy).
+PROXY_CONFIGURED = bool(PROXY_URL)
 
 # Proxy-Args NUR für Preis-Alarm-Abrufe (fetch_page_with_status), NICHT für den
 # hochvolumigen Kleinanzeigen-Scraper — sonst würden dessen viele Seitenabrufe das
@@ -107,6 +112,19 @@ def fetch_page_with_status(url: str, via_proxy: bool = False) -> tuple[int, str]
     auf geschützten Shop-Seiten, nicht für den Kleinanzeigen-Scraper (Credit-Schonung).
     """
     return asyncio.run(_fetch_page_with_status(url, via_proxy))
+
+
+def fetch_with_proxy_fallback(url: str, is_success) -> tuple[int, str]:
+    """Zweistufiger Abruf: erst direkt (schnell/gratis), nur bei Misserfolg über den Proxy.
+
+    ``is_success(status, html) -> bool`` bewertet den direkten Abruf (z. B. „Preis gefunden?").
+    Ist er brauchbar oder kein Proxy konfiguriert, bleibt es beim direkten Ergebnis; sonst
+    wird über den Proxy/Unlocker nachgeladen. Rückgabe: (status_code, html) des genutzten Abrufs.
+    """
+    status, html = fetch_page_with_status(url, via_proxy=False)
+    if not PROXY_CONFIGURED or is_success(status, html):
+        return status, html
+    return fetch_page_with_status(url, via_proxy=True)
 
 
 def fetch_binary(urls: list[str]) -> list[bytes]:

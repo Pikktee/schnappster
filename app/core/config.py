@@ -43,6 +43,8 @@ class Config(BaseSettings):
     # JS-Rendering: nötig für Amazon (Interstitial) und Cloudflare. Default an, damit es
     # funktioniert; auf false setzen spart Credits bei Seiten, die ohne Rendering laden.
     scrapingant_render: bool = True
+    # Land der Proxy-IP (ISO-Code). "DE" → amazon.de liefert EUR statt USD; leer = beliebig.
+    scrapingant_country: str = "DE"
     # Variante B: beliebiger Proxy/Unlocker im Proxy-Modus ("http://user:pass@host:port").
     scrape_proxy_url: str = ""
     scrape_proxy_verify: bool = True  # bei MITM-Cert-Proxys auf false setzen

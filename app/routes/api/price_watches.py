@@ -17,7 +17,7 @@ from app.models.price_watch import (
     PriceWatchRead,
     PriceWatchUpdate,
 )
-from app.scraper.httpclient import fetch_page_with_status
+from app.scraper.httpclient import fetch_page_with_status, fetch_with_proxy_fallback
 from app.services.price_extractor import extract_candidates, parse_title, refine_with_ai
 from app.services.price_watch import PriceWatchService
 
@@ -183,9 +183,14 @@ _BOT_BLOCK_DETAIL = (
 )
 
 
+def _has_candidates(status: int, html: str) -> bool:
+    """Erfolgskriterium für den direkten Abruf: Seite ok und mindestens ein Preis erkannt."""
+    return status == 200 and bool(extract_candidates(html))
+
+
 def _fetch_or_422(url: str) -> str:
-    """Lädt die URL; wirft 422 bei Nicht-Erreichbarkeit/Bot-Schutz; gibt HTML zurück."""
-    status, html = fetch_page_with_status(url, via_proxy=True)
+    """Lädt die URL zweistufig (direkt, dann Proxy); 422 bei Fehlschlag; gibt HTML zurück."""
+    status, html = fetch_with_proxy_fallback(url, _has_candidates)
     if status == 0:
         raise HTTPException(
             status_code=422,

@@ -15,7 +15,7 @@ from app.models.notification import (
     NOTIFICATION_PRICE_DROP,
 )
 from app.models.price_watch import PricePoint, PriceWatch
-from app.scraper.httpclient import fetch_page_with_status
+from app.scraper.httpclient import fetch_with_proxy_fallback
 from app.services.notification import NotificationService
 from app.services.price_extractor import extract_price
 from app.services.settings import SettingsService
@@ -98,7 +98,10 @@ class PriceWatchService:
         snap = _snapshot_watch(watch)
         self._release_session_connection()
 
-        status, html = fetch_page_with_status(snap.url, via_proxy=True)
+        def has_price(status: int, html: str) -> bool:
+            return status == 200 and extract_price(html, snap.locator)[0] is not None
+
+        status, html = fetch_with_proxy_fallback(snap.url, has_price)
         new_price, detected_currency = (None, None)
         if status == 200 and html:
             new_price, detected_currency = extract_price(html, snap.locator)
