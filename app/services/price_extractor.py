@@ -11,6 +11,7 @@ Strategie (robust + billig, kein KI-Call beim Monitoring): strukturierte SEO-Dat
 import json
 import logging
 import re
+from collections import Counter
 
 from bs4 import BeautifulSoup, Tag
 from openai import OpenAI  # pyright: ignore[reportMissingImports]
@@ -39,6 +40,30 @@ _MAX_CANDIDATES = 8
 _SEMANTIC_ANCHOR_KEYS = ("price", "amount", "cost", "offer", "deal", "pricetopay")
 # Wie viele Vorfahren-Ebenen für die Selektor-Disambiguierung maximal geprüft werden.
 _MAX_ANCESTOR_CLIMB = 6
+
+# --- Prominenz-Scoring: welcher Kandidat ist der wahrscheinliche Hauptpreis? ---
+# Strukturierte Daten (JSON-LD/Meta) sind der kanonische Hauptpreis → hoher Sockel; ein
+# sichtbarer Preis im Kaufbereich (Buy-Box) wird geboostet, Streich-/Ratenpreise abgewertet.
+_SCORE_JSONLD = 100.0
+_SCORE_META = 90.0
+_SCORE_VISIBLE_BASE = 40.0
+_SCORE_MAIN_CONTAINER_BOOST = 45.0
+_SCORE_SECONDARY_PENALTY = 60.0
+# id-/Klassenfragmente, die den Kaufbereich (Hauptpreis) markieren — klein geschrieben.
+_MAIN_PRICE_HINTS = (
+    "pricetopay", "apexprice", "coreprice", "priceblock", "buybox",
+    "dealprice", "ourprice", "price-current", "current-price", "product-price",
+)
+# ... die einen Nebenpreis markieren (Streichpreis/UVP/alter Preis).
+_STRIKE_HINTS = (
+    "a-text-price", "basisprice", "listprice", "list-price", "strikethrough",
+    "was-price", "old-price", "uvp", "rrp",
+)
+# Sichtbarer Text, der eine Monatsrate verrät (kein Hauptpreis; steht meist im Preistext selbst).
+_RATE_TEXT = re.compile(r"/\s*monat|/\s*mo\b|\bmtl\.?|monatlich", re.IGNORECASE)
+# Sichtbarer Text, der einen Streich-/Listenpreis verrät (auch wenn er in einem Preis-Container
+# steht) — z. B. "UVP: 54,99 €", "RRP: …", "statt 99 €".
+_STRIKE_TEXT = re.compile(r"\b(uvp|rrp|statt|liste[nm]?preis|früher)\b", re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +153,7 @@ def _extract_jsonld(soup: BeautifulSoup) -> list[PriceCandidate]:
                     source="jsonld",
                     locator={"strategy": "jsonld", "script_index": script_index, "path": path},
                     raw=f"{value}{(' ' + currency) if currency else ''}",
+                    score=_SCORE_JSONLD,
                 )
             )
     return out
@@ -176,6 +202,7 @@ def _extract_meta(soup: BeautifulSoup) -> list[PriceCandidate]:
                     source="meta",
                     locator={"strategy": "meta", "selector": selector, "attr": "content"},
                     raw=str(el.get("content", "")),
+                    score=_SCORE_META,
                 )
             )
     return out
@@ -194,11 +221,12 @@ def _extract_visible(soup: BeautifulSoup) -> list[PriceCandidate]:
         value, currency = parse_price_value(text)
         if value is None or value <= 0:
             continue
+        score, context = _score_visible(parent, text)
         out.append(
             PriceCandidate(
                 value=value,
                 currency=currency,
-                label="Preis",
+                label=context or "Preis",
                 source="visible",
                 locator={
                     "strategy": "css",
@@ -206,9 +234,53 @@ def _extract_visible(soup: BeautifulSoup) -> list[PriceCandidate]:
                     "value": value,
                 },
                 raw=text,
+                context=context,
+                score=score,
             )
         )
     return out
+
+
+def _score_visible(el: Tag, raw: str) -> tuple[float, str | None]:
+    """Bewertet einen sichtbaren Preis nach DOM-Kontext; (Score, Kontext-Hinweis).
+
+    Rate im Preistext → Abschlag; Kaufbereich-Container → Boost; Streich-/UVP-Container →
+    Abschlag. So landet der tatsächlich zu zahlende Preis oben, Nebenpreise darunter.
+    """
+    if _RATE_TEXT.search(raw):
+        return _SCORE_VISIBLE_BASE - _SCORE_SECONDARY_PENALTY, "Monatliche Rate"
+    # Text-Signal schlägt den Container: "UVP: 54,99 €" ist ein Streichpreis, auch wenn es in
+    # einem Preis-Container steht.
+    if _STRIKE_TEXT.search(raw):
+        return _SCORE_VISIBLE_BASE - _SCORE_SECONDARY_PENALTY, "Streichpreis (UVP)"
+    hint = _container_hint(el)
+    if hint == "main":
+        return _SCORE_VISIBLE_BASE + _SCORE_MAIN_CONTAINER_BOOST, "Preis im Kaufbereich"
+    if hint == "strike":
+        return _SCORE_VISIBLE_BASE - _SCORE_SECONDARY_PENALTY, "Streichpreis (UVP)"
+    return _SCORE_VISIBLE_BASE, None
+
+
+def _container_hint(el: Tag) -> str | None:
+    """Sucht im Element und seinen nächsten Vorfahren nach Haupt-/Nebenpreis-Containern."""
+    node: Tag | None = el
+    for _ in range(_MAX_ANCESTOR_CLIMB + 1):
+        if node is None:
+            break
+        tokens = _identifier_tokens(node)
+        if any(any(k in t for k in _MAIN_PRICE_HINTS) for t in tokens):
+            return "main"
+        if any(any(k in t for k in _STRIKE_HINTS) for t in tokens):
+            return "strike"
+        node = node.parent if isinstance(node.parent, Tag) else None
+    return None
+
+
+def _identifier_tokens(el: Tag) -> list[str]:
+    """id + Klassen eines Elements, klein geschrieben (für die Kontext-Heuristik)."""
+    tokens = [str(el.get("id", "")).lower()]
+    tokens += [str(c).lower() for c in (el.get("class") or [])]
+    return [t for t in tokens if t]
 
 
 def _base_css_selector(el: Tag) -> str:
@@ -266,14 +338,21 @@ def _build_css_selector(soup: BeautifulSoup, el: Tag) -> str:
 
 
 def _dedupe_and_rank(candidates: list[PriceCandidate]) -> list[PriceCandidate]:
-    """Dedupliziert nach Betrag (stabilste Quelle gewinnt) und sortiert strukturiert zuerst."""
-    rank = {"jsonld": 0, "meta": 1, "visible": 2}
+    """Dedupliziert nach Betrag (prominenteste Fundstelle gewinnt) und sortiert nach Prominenz.
+
+    Ranking per Prominenz-Score (Hauptpreis-Wahrscheinlichkeit): strukturierte Daten und
+    Kaufbereich-Preise oben, Streich-/Ratenpreise unten. Bei gleichem Score entscheidet die
+    Häufigkeit: der echte Kaufpreis wird auf Shop-Seiten (Buy-Box, Zwischensumme, Sticky-Header)
+    vielfach wiederholt, Nebenpreise meist nur einmal. So steht der wahrscheinliche Hauptpreis
+    an erster Stelle (Default-Auswahl im Wizard).
+    """
+    counts = Counter(round(c.value, 2) for c in candidates)
     best: dict[float, PriceCandidate] = {}
     for cand in candidates:
         key = round(cand.value, 2)
-        if key not in best or rank[cand.source] < rank[best[key].source]:
+        if key not in best or cand.score > best[key].score:
             best[key] = cand
-    ordered = sorted(best.values(), key=lambda c: (rank[c.source], c.value))
+    ordered = sorted(best.values(), key=lambda c: (-c.score, -counts[round(c.value, 2)], c.value))
     return ordered[:_MAX_CANDIDATES]
 
 

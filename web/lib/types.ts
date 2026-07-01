@@ -82,6 +82,7 @@ export interface PriceCandidate {
   source: string
   locator: Record<string, unknown>
   raw: string | null
+  context: string | null
   recommended: boolean
 }
 

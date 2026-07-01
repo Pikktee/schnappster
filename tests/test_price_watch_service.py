@@ -213,37 +213,90 @@ def test_preview_cloudflare_challenge_page_returns_422(client, monkeypatch):
     assert "Bot-Schutz" in response.json()["detail"]
 
 
-def test_two_tier_falls_back_to_proxy_on_direct_failure(monkeypatch):
-    """Zweistufig: erst direkt; scheitert das, wird über den Proxy nachgeladen."""
+def test_falls_back_to_proxy_without_rendering_on_direct_failure(monkeypatch):
+    """Gestuft: scheitert direkt, gewinnt bereits der Proxy OHNE Rendering (schnell/billig)."""
     from app.scraper import httpclient
 
     calls = []
 
-    def fake(url, via_proxy=False):
-        calls.append(via_proxy)
+    def fake(url, via_proxy=False, render=False, timeout=None):
+        calls.append((via_proxy, render))
         return (200, "PROXY" if via_proxy else "DIRECT")
 
     monkeypatch.setattr(httpclient, "fetch_page_with_status", fake)
     monkeypatch.setattr(httpclient, "PROXY_CONFIGURED", True)
+    monkeypatch.setattr(httpclient, "_RENDER_TIER_ENABLED", True)
     status, html = httpclient.fetch_with_proxy_fallback("https://x", lambda s, h: h == "PROXY")
-    assert calls == [False, True]  # erst direkt, dann Proxy
+    assert calls == [(False, False), (True, False)]  # direkt, dann Proxy ohne Rendering
     assert html == "PROXY"
 
 
-def test_two_tier_skips_proxy_when_direct_succeeds(monkeypatch):
-    """Zweistufig: liefert der direkte Abruf schon ein Ergebnis, bleibt der Proxy ungenutzt."""
+def test_falls_back_to_rendering_only_as_last_resort(monkeypatch):
+    """Gestuft: liefert auch der Proxy ohne Rendering nichts, greift die Rendering-Stufe."""
     from app.scraper import httpclient
 
     calls = []
 
-    def fake(url, via_proxy=False):
-        calls.append(via_proxy)
+    def fake(url, via_proxy=False, render=False, timeout=None):
+        calls.append((via_proxy, render))
+        return (200, "PRICE" if (via_proxy and render) else "EMPTY")
+
+    monkeypatch.setattr(httpclient, "fetch_page_with_status", fake)
+    monkeypatch.setattr(httpclient, "PROXY_CONFIGURED", True)
+    monkeypatch.setattr(httpclient, "_RENDER_TIER_ENABLED", True)
+    status, html = httpclient.fetch_with_proxy_fallback("https://x", lambda s, h: h == "PRICE")
+    assert calls == [(False, False), (True, False), (True, True)]
+    assert html == "PRICE"
+
+
+def test_render_tier_skipped_when_disabled(monkeypatch):
+    """Ist die Rendering-Stufe deaktiviert, endet der Abruf beim Proxy ohne Rendering."""
+    from app.scraper import httpclient
+
+    calls = []
+
+    def fake(url, via_proxy=False, render=False, timeout=None):
+        calls.append((via_proxy, render))
+        return (200, "EMPTY")
+
+    monkeypatch.setattr(httpclient, "fetch_page_with_status", fake)
+    monkeypatch.setattr(httpclient, "PROXY_CONFIGURED", True)
+    monkeypatch.setattr(httpclient, "_RENDER_TIER_ENABLED", False)
+    httpclient.fetch_with_proxy_fallback("https://x", lambda s, h: h == "PRICE")
+    assert calls == [(False, False), (True, False)]  # keine (langsame) Rendering-Stufe
+
+
+def test_direct_stage_uses_short_timeout(monkeypatch):
+    """Die erste (direkte) Stufe nutzt das kurze Timeout, damit sie nicht ~20 s hängt."""
+    from app.scraper import httpclient
+
+    seen = {}
+
+    def fake(url, via_proxy=False, render=False, timeout=None):
+        if not via_proxy:
+            seen["timeout"] = timeout
+        return (200, "DIRECT")
+
+    monkeypatch.setattr(httpclient, "fetch_page_with_status", fake)
+    monkeypatch.setattr(httpclient, "PROXY_CONFIGURED", True)
+    httpclient.fetch_with_proxy_fallback("https://x", lambda s, h: True)
+    assert seen["timeout"] == httpclient._PRICEWATCH_DIRECT_TIMEOUT
+
+
+def test_skips_proxy_when_direct_succeeds(monkeypatch):
+    """Liefert der direkte Abruf schon ein Ergebnis, bleibt der Proxy ungenutzt (spart Credits)."""
+    from app.scraper import httpclient
+
+    calls = []
+
+    def fake(url, via_proxy=False, render=False, timeout=None):
+        calls.append((via_proxy, render))
         return (200, "DIRECT")
 
     monkeypatch.setattr(httpclient, "fetch_page_with_status", fake)
     monkeypatch.setattr(httpclient, "PROXY_CONFIGURED", True)
     status, html = httpclient.fetch_with_proxy_fallback("https://x", lambda s, h: True)
-    assert calls == [False]  # nur direkt, kein Proxy-Abruf (spart Credits)
+    assert calls == [(False, False)]  # nur direkt, kein Proxy-Abruf
 
 
 def test_adsearch_validation_stays_direct(monkeypatch):

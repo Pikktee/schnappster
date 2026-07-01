@@ -89,7 +89,11 @@ class PriceCandidate(SQLModel):
     source: str  # "jsonld" | "meta" | "visible"
     locator: dict  # zur späteren Wiederfindung
     raw: str | None = None  # Originaltext der Preisangabe
+    context: str | None = None  # DOM-Kontext-Hinweis, z. B. "Preis im Kaufbereich"
     recommended: bool = False
+    # Interne Prominenz (Hauptpreis-Wahrscheinlichkeit); steuert Sortierung/Empfehlung,
+    # wird aber nicht an die API serialisiert.
+    score: float = Field(default=0.0, exclude=True)
 
 
 class PriceWatchPreviewRequest(SQLModel):

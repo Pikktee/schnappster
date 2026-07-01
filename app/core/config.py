@@ -37,6 +37,9 @@ class Config(BaseSettings):
     openai_base_url: str = "https://openrouter.ai/api/v1"
     telegram_bot_token: str = ""
     scrape_request_timeout: float = 20.0
+    # Sprach-/Länderpräferenz für Preis-Abrufe. Ohne diesen Header liefert Amazon die
+    # englische Variante (andere Preise/Formate) statt der deutschen Seite mit EUR.
+    scrape_accept_language: str = "de-DE,de;q=0.9,en;q=0.3"
     # Proxy/Unlocker NUR für Preis-Alarm-Abrufe (geschützte Shop-Seiten von Datacenter-IPs).
     # Variante A: ScrapingAnt-Key genügt — die Proxy-URL wird daraus gebaut (Residential).
     scrapingant_api_key: str = ""

@@ -149,6 +149,84 @@ def test_dedupe_prefers_structured_source():
     assert matching[0].source == "jsonld"
 
 
+# --- Prominenz: der wahrscheinliche Hauptpreis steht oben (Default-Auswahl) ---
+def test_main_price_container_ranks_first():
+    """Der Preis im Kaufbereich-Container (corePrice) gilt als Hauptpreis und steht vorn."""
+    candidates = extract_candidates(AMBIGUOUS_HTML)
+    assert candidates[0].value == 23.9
+    assert candidates[0].context == "Preis im Kaufbereich"
+
+
+def test_strikethrough_price_ranks_below_main():
+    """Ein Streichpreis-Container (a-text-price) landet hinter dem echten Kaufpreis."""
+    html = """
+    <html><body>
+      <div class="priceToPay"><span class="a-offscreen">99,00 €</span></div>
+      <span class="a-text-price"><span class="a-offscreen">149,00 €</span></span>
+    </body></html>
+    """
+    candidates = extract_candidates(html)
+    assert candidates[0].value == 99.0
+    strike = next(c for c in candidates if c.value == 149.0)
+    assert strike.context == "Streichpreis (UVP)"
+
+
+def test_monthly_rate_is_demoted_below_full_price():
+    """Eine Monatsrate im Preistext wird gegenüber dem Gesamtpreis abgewertet."""
+    html = """
+    <html><body>
+      <span class="product-price">599,00 €</span>
+      <span class="financing">24,99 €/Monat</span>
+    </body></html>
+    """
+    candidates = extract_candidates(html)
+    assert candidates[0].value == 599.0
+    rate = next(c for c in candidates if c.value == 24.99)
+    assert rate.context == "Monatliche Rate"
+
+
+def test_structured_price_beats_visible_main_container():
+    """Strukturierte Daten sind der kanonische Hauptpreis, schlagen sichtbaren Kaufbereich."""
+    html = """
+    <html><head><script type="application/ld+json">
+    {"offers":{"price":"79.00","priceCurrency":"EUR"}}</script></head>
+    <body><div id="corePrice"><span class="a-offscreen">89,00 €</span></div></body></html>
+    """
+    candidates = extract_candidates(html)
+    assert candidates[0].source == "jsonld"
+    assert candidates[0].value == 79.0
+
+
+def test_frequency_breaks_tie_between_equal_score_prices():
+    """Bei gleichem Kaufbereich-Score gewinnt der oft wiederholte Preis (echter Buy-Box-Preis)."""
+    # Muster wie Amazon: der echte Preis (44,40) steht in Buy-Box, Zwischensumme, Sticky-Header;
+    # ein Nebenpreis (38,18) nur einmal. Beide liegen im Kaufbereich-Container → Score-Gleichstand.
+    html = """
+    <html><body>
+      <div class="priceToPay"><span class="a-offscreen">44,40 €</span></div>
+      <div id="tp_price_block"><span class="a-offscreen">44,40 €</span></div>
+      <div class="apexPriceToPay"><span class="a-offscreen">44,40 €</span></div>
+      <div class="priceToPay"><span class="a-offscreen">38,18 €</span></div>
+    </body></html>
+    """
+    candidates = extract_candidates(html)
+    assert candidates[0].value == 44.4  # nicht der niedrigere 38,18
+
+
+def test_uvp_text_marks_strikethrough_even_in_price_container():
+    """'UVP:' im Preistext gilt als Streichpreis, auch in einem Kaufbereich-Container."""
+    html = """
+    <html><body>
+      <div class="priceToPay"><span class="a-offscreen">44,40 €</span></div>
+      <div class="priceToPay"><span class="a-offscreen">UVP: 54,99 €</span></div>
+    </body></html>
+    """
+    candidates = extract_candidates(html)
+    uvp = next(c for c in candidates if c.value == 54.99)
+    assert uvp.context == "Streichpreis (UVP)"
+    assert candidates[0].value == 44.4
+
+
 # --- Edge-Cases ---
 def test_no_price_returns_empty():
     assert extract_candidates("<html><body>Kein Preis</body></html>") == []
