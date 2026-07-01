@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 # Format: (Tabelle, Spalte, SQL-Definition fuer ADD COLUMN). Nur additiv, idempotent.
 _ADDITIVE_COLUMNS: list[tuple[str, str, str]] = [
     ("user_settings", "notify_price_telegram", "BOOLEAN NOT NULL DEFAULT 0"),
+    # Keyword-basierte Suche (rückwärtskompatibel; URL-basierte Suchen bleiben unberührt).
+    ("ad_searches", "search_query", "VARCHAR"),
+    ("ad_searches", "postal_code", "VARCHAR"),
+    ("ad_searches", "radius_km", "INTEGER"),
 ]
 
 _SQLITE_PREFIX = "sqlite:///"

@@ -4,7 +4,7 @@ Der restliche Code (ScraperService, künftig AIService/Frontend) kennt nur die a
 Interfaces aus ``_base`` und holt konkrete Plattformen ausschließlich über ``get_platform``.
 """
 
-from app.platforms._base import PlatformDefinition, PlatformScraper
+from app.platforms._base import PlatformDefinition, PlatformScraper, SearchParams
 from app.platforms.kleinanzeigen import Kleinanzeigen
 
 DEFAULT_PLATFORM = "kleinanzeigen"
@@ -29,6 +29,7 @@ __all__ = [
     "PLATFORM_REGISTRY",
     "PlatformDefinition",
     "PlatformScraper",
+    "SearchParams",
     "get_all_platform_names",
     "get_platform",
 ]

@@ -4,12 +4,15 @@ import pytest
 
 from app.platforms import (
     DEFAULT_PLATFORM,
+    SearchParams,
     get_all_platform_names,
     get_platform,
 )
 from app.platforms._base import PlatformDefinition, PlatformScraper
 from app.platforms.kleinanzeigen import Kleinanzeigen
 from app.scraper import parser
+
+_KA = "https://www.kleinanzeigen.de"
 
 
 def test_registry_contains_kleinanzeigen():
@@ -43,3 +46,40 @@ def test_platform_definition_requires_name_and_scraper():
 
         class Broken(PlatformDefinition):  # fehlt: name, scraper
             pass
+
+
+# --- build_search_url (Format empirisch gegen kleinanzeigen.de bestätigt) ---
+
+
+def test_build_search_url_keyword_only():
+    """Reiner Suchbegriff: lowercase, Leerzeichen werden zu Bindestrichen."""
+    scraper = get_platform("kleinanzeigen").scraper
+    url = scraper.build_search_url(SearchParams(query="iPhone 15 Pro"))
+    assert url == f"{_KA}/s-iphone-15-pro/k0"
+
+
+def test_build_search_url_transliterates_umlauts():
+    """Umlaute werden transliteriert (ä→ae, ö→oe, ü→ue, ß→ss)."""
+    scraper = get_platform("kleinanzeigen").scraper
+    assert scraper.build_search_url(SearchParams(query="Bürostuhl")) == f"{_KA}/s-buerostuhl/k0"
+
+
+def test_build_search_url_with_location():
+    """PLZ + Radius landen als Query-Parameter locationStr/radiusKm."""
+    scraper = get_platform("kleinanzeigen").scraper
+    url = scraper.build_search_url(SearchParams(query="iphone", postal_code="50667", radius_km=50))
+    assert url == f"{_KA}/s-iphone/k0?locationStr=50667&radiusKm=50"
+
+
+def test_build_search_url_with_price_segment():
+    """Preisgrenzen werden zum Pfadsegment preis:min:max."""
+    scraper = get_platform("kleinanzeigen").scraper
+    url = scraper.build_search_url(SearchParams(query="iphone", min_price=100, max_price=500))
+    assert url == f"{_KA}/s-preis:100:500/iphone/k0"
+
+
+def test_build_search_url_rejects_empty_slug():
+    """Ein Suchbegriff ohne verwertbare Zeichen ist ein Fehler."""
+    scraper = get_platform("kleinanzeigen").scraper
+    with pytest.raises(ValueError, match="Slug"):
+        scraper.build_search_url(SearchParams(query="!!!"))

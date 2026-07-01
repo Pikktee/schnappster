@@ -9,13 +9,29 @@ wo sie gegen die echten Seiten validiert werden können.
 """
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import ClassVar
 
 from app.scraper.parser import ScrapedAdDetail, ScrapedAdPreview
 
 
+@dataclass(frozen=True, slots=True)
+class SearchParams:
+    """Plattformunabhängige Suchparameter für den keyword-basierten URL-Bau."""
+
+    query: str
+    postal_code: str | None = None
+    radius_km: int | None = None
+    min_price: float | None = None
+    max_price: float | None = None
+
+
 class PlatformScraper(ABC):
     """Reine Scraping-Logik einer Plattform: HTML-Parsing, kein DB- oder Business-Code."""
+
+    @abstractmethod
+    def build_search_url(self, params: SearchParams) -> str:
+        """Baut die Suchergebnis-URL aus plattformunabhängigen Suchparametern."""
 
     @abstractmethod
     def parse_search_results(self, html: str) -> list[ScrapedAdPreview]:

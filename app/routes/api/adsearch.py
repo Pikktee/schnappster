@@ -12,6 +12,7 @@ from app.models.adsearch import AdSearch, AdSearchCreate, AdSearchRead, AdSearch
 from app.models.logs_aianalysis import AIAnalysisLog
 from app.models.logs_error import ErrorLog
 from app.models.logs_scraperun import ScrapeRun
+from app.platforms import DEFAULT_PLATFORM, SearchParams, get_platform
 from app.scraper.httpclient import fetch_page_with_status
 from app.scraper.parser import parse_search_title
 
@@ -65,7 +66,8 @@ def create_adsearch(
     """
     name = data.name.strip()
     session.rollback()
-    title_from_page = _validate_search_url_reachable(data.url)
+    effective_url = _resolve_search_url(data)
+    title_from_page = _validate_search_url_reachable(effective_url)
 
     if not name:
         if not title_from_page:
@@ -79,7 +81,12 @@ def create_adsearch(
         name = title_from_page
 
     adsearch = AdSearch.model_validate(
-        {**data.model_dump(), "name": name, "owner_id": current_user.user_id}
+        {
+            **data.model_dump(),
+            "name": name,
+            "owner_id": current_user.user_id,
+            "url": effective_url,
+        }
     )
 
     session.add(adsearch)
@@ -113,6 +120,22 @@ def update_adsearch(
 
     update_data = data.model_dump(exclude_unset=True)
     current_url = adsearch.url
+
+    # Keyword-Felder geändert und keine explizite URL: effektive Such-URL neu ableiten.
+    keyword_fields = {"search_query", "postal_code", "radius_km", "min_price", "max_price"}
+    if "url" not in update_data and keyword_fields & update_data.keys():
+        merged_query = update_data.get("search_query", adsearch.search_query)
+        if merged_query:
+            scraper = get_platform(DEFAULT_PLATFORM).scraper
+            update_data["url"] = scraper.build_search_url(
+                SearchParams(
+                    query=merged_query,
+                    postal_code=update_data.get("postal_code", adsearch.postal_code),
+                    radius_km=update_data.get("radius_km", adsearch.radius_km),
+                    min_price=update_data.get("min_price", adsearch.min_price),
+                    max_price=update_data.get("max_price", adsearch.max_price),
+                )
+            )
 
     # Bei geänderter URL Erreichbarkeit prüfen (und ggf. Seitentitel für leeren Namen nutzen).
     if "url" in update_data:
@@ -195,6 +218,22 @@ def delete_adsearch(
 # ---------------
 # --- Hilfsfunktionen ---
 # ---------------
+def _resolve_search_url(data: AdSearchCreate) -> str:
+    """Direkte URL oder – bei Keyword-Suche – aus Suchbegriff/PLZ/Radius/Preis abgeleitete URL."""
+    if data.url:
+        return data.url
+    scraper = get_platform(DEFAULT_PLATFORM).scraper
+    return scraper.build_search_url(
+        SearchParams(
+            query=data.search_query or "",
+            postal_code=data.postal_code,
+            radius_km=data.radius_km,
+            min_price=data.min_price,
+            max_price=data.max_price,
+        )
+    )
+
+
 def _validate_search_url_reachable(url: str) -> str | None:
     """Lädt die URL, prüft Erreichbarkeit; bei Fehler 422; gibt Seitentitel oder None zurück."""
     status, html = fetch_page_with_status(url)

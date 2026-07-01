@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from sqlmodel import Field, Relationship, SQLModel
 
 _SEARCH_PREFIX = "https://www.kleinanzeigen.de/s-"
@@ -48,7 +48,12 @@ class AdSearch(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     owner_id: str = Field(index=True)
     name: str
+    # Effektive Such-URL (bei Keyword-Suchen aus den Feldern unten abgeleitet und gespeichert).
     url: str
+    # Keyword-basierte Suche (optional, rückwärtskompatibel zur reinen URL-Eingabe).
+    search_query: str | None = None
+    postal_code: str | None = None
+    radius_km: int | None = None
     prompt_addition: str | None = None
     min_price: float | None = None
     max_price: float | None = None
@@ -69,10 +74,17 @@ class AdSearch(SQLModel, table=True):
 # --- API-Schemas ---
 # -------------------
 class AdSearchCreate(SQLModel):
-    """API-Eingabe-Schema zum Anlegen eines Suchauftrags."""
+    """API-Eingabe-Schema zum Anlegen eines Suchauftrags.
+
+    Entweder ``url`` (direkte Suchergebnis-URL) ODER ``search_query`` (+ optional PLZ/Radius)
+    angeben – genau eines von beiden. Die effektive URL wird serverseitig abgeleitet.
+    """
 
     name: str = ""
-    url: str
+    url: str | None = None
+    search_query: str | None = None
+    postal_code: str | None = None
+    radius_km: int | None = None
     prompt_addition: str | None = None
     min_price: float | None = None
     max_price: float | None = None
@@ -83,9 +95,24 @@ class AdSearchCreate(SQLModel):
 
     @field_validator("url")
     @classmethod
-    def validate_url(cls, v: str) -> str:
-        """Prüft, dass die URL eine Suchergebnisseite ist."""
+    def validate_url(cls, v: str | None) -> str | None:
+        """Prüft die URL auf Suchergebnisseite, falls angegeben."""
+        if v is None:
+            return v
         return _validate_search_url(v)
+
+    @model_validator(mode="after")
+    def _require_url_or_query(self) -> "AdSearchCreate":
+        """Genau eines von URL oder Suchbegriff; Radius (falls gesetzt) muss positiv sein."""
+        has_url = bool(self.url and self.url.strip())
+        has_query = bool(self.search_query and self.search_query.strip())
+        if has_url == has_query:
+            raise ValueError(
+                "Bitte entweder eine Such-URL oder einen Suchbegriff angeben (nicht beides)."
+            )
+        if self.radius_km is not None and self.radius_km <= 0:
+            raise ValueError("Der Radius muss größer als 0 km sein.")
+        return self
 
 
 class AdSearchRead(SQLModel):
@@ -95,6 +122,9 @@ class AdSearchRead(SQLModel):
     owner_id: str
     name: str
     url: str
+    search_query: str | None
+    postal_code: str | None
+    radius_km: int | None
     prompt_addition: str | None
     min_price: float | None
     max_price: float | None
@@ -111,6 +141,9 @@ class AdSearchUpdate(SQLModel):
 
     name: str | None = None
     url: str | None = None
+    search_query: str | None = None
+    postal_code: str | None = None
+    radius_km: int | None = None
     prompt_addition: str | None = None
     min_price: float | None = None
     max_price: float | None = None

@@ -53,6 +53,41 @@ def test_create_adsearch_rejects_detail_page_url(client):
     assert response.status_code == 422
 
 
+@patch("app.routes.api.adsearch._validate_search_url_reachable")
+def test_create_adsearch_with_search_query(mock_validate, client):
+    """POST mit Suchbegriff + PLZ/Radius leitet die effektive Kleinanzeigen-URL ab."""
+    mock_validate.return_value = "iPhone 15 Pro"
+    expected_url = "https://www.kleinanzeigen.de/s-iphone-15-pro/k0?locationStr=50667&radiusKm=50"
+
+    response = client.post(
+        "/adsearches/",
+        json={"search_query": "iPhone 15 Pro", "postal_code": "50667", "radius_km": 50},
+    )
+
+    assert response.status_code == 201
+    result = response.json()
+    assert result["url"] == expected_url
+    assert result["search_query"] == "iPhone 15 Pro"
+    assert result["postal_code"] == "50667"
+    assert result["name"] == "iPhone 15 Pro"  # aus dem (gemockten) Seitentitel
+    mock_validate.assert_called_once_with(expected_url)
+
+
+def test_create_adsearch_rejects_both_url_and_query(client):
+    """POST mit URL UND Suchbegriff wird mit 422 abgelehnt (genau eines erlaubt)."""
+    response = client.post(
+        "/adsearches/",
+        json={"url": "https://www.kleinanzeigen.de/s-audio/k0", "search_query": "audio"},
+    )
+    assert response.status_code == 422
+
+
+def test_create_adsearch_rejects_neither_url_nor_query(client):
+    """POST ohne URL und ohne Suchbegriff wird mit 422 abgelehnt."""
+    response = client.post("/adsearches/", json={"name": "Ohne Quelle"})
+    assert response.status_code == 422
+
+
 def test_patch_adsearch_rejects_detail_page_url(client, sample_adsearch):
     """PATCH lehnt Detailseiten-URL mit 422 ab."""
     response = client.patch(
