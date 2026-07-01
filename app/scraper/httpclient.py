@@ -40,32 +40,38 @@ def _str_env(name: str, default: str) -> str:
     return val if val else default
 
 
-def _bool_env(name: str, default: bool) -> bool:
-    val = os.environ.get(name)
-    if val is None:
-        return default
-    return val.strip().lower() in ("1", "true", "yes", "on")
-
-
 # Browser-Fingerprint für curl_cffi (env: SCRAPE_IMPERSONATE).
 # "chrome131" passt empirisch viele Anti-Bot-Schutzmaßnahmen (Cloudflare, Amazon),
 # die der curl_cffi-Default "chrome" auslöst (403 bzw. preisbereinigte Seiten).
 IMPERSONATE = _str_env("SCRAPE_IMPERSONATE", "chrome131")
 
-# Optionaler Proxy / Web-Unlocker (env: SCRAPE_PROXY_URL). Leer = direkter Abruf wie bisher.
-# Von Rechenzentrums-IPs (Railway) liefern Amazon/Cloudflare blockierte bzw. preisbereinigte
-# Seiten — eine vertrauenswürdige (Residential-)IP oder ein Unlocker-Dienst im Proxy-Modus
-# umgeht das. Format: "http://user:pass@host:port" (auch für Scraping-APIs im Proxy-Modus).
-# SCRAPE_PROXY_VERIFY=false bei Diensten mit eigenem TLS-Zertifikat (MITM-Proxy).
-PROXY_URL = _str_env("SCRAPE_PROXY_URL", "")
-PROXY_VERIFY = _bool_env("SCRAPE_PROXY_VERIFY", True)
 
-# Zusatzargumente für jeden Request; nur gesetzt, wenn ein Proxy konfiguriert ist.
-_REQUEST_EXTRA: dict = {}
+def _resolve_proxy() -> tuple[str, bool]:
+    """Ermittelt (Proxy-URL, verify) aus der Konfiguration (.env oder echte Env-Variablen).
+
+    Vorrang: expliziter ``scrape_proxy_url``; sonst aus ``scrapingant_api_key`` eine
+    ScrapingAnt-Proxy-URL bauen (Residential, optional JS-Rendering). Leer = direkter Abruf.
+    """
+    if config.scrape_proxy_url:
+        return config.scrape_proxy_url, config.scrape_proxy_verify
+    if config.scrapingant_api_key:
+        render = "true" if config.scrapingant_render else "false"
+        user = f"scrapingant&browser={render}&proxy_type=residential"
+        url = f"http://{user}:{config.scrapingant_api_key}@proxy.scrapingant.com:8080"
+        return url, False  # ScrapingAnt nutzt ein eigenes TLS-Zertifikat → verify aus
+    return "", True
+
+
+PROXY_URL, PROXY_VERIFY = _resolve_proxy()
+
+# Proxy-Args NUR für Preis-Alarm-Abrufe (fetch_page_with_status), NICHT für den
+# hochvolumigen Kleinanzeigen-Scraper — sonst würden dessen viele Seitenabrufe das
+# Proxy-/Credit-Kontingent aufbrauchen. Ohne Proxy bleibt das Dict leer (Verhalten wie bisher).
+_PROXY_EXTRA: dict = {}
 if PROXY_URL:
-    _REQUEST_EXTRA["proxy"] = PROXY_URL
-    _REQUEST_EXTRA["verify"] = PROXY_VERIFY
-    logger.info("HTTP-Client nutzt Proxy/Unlocker (verify=%s)", PROXY_VERIFY)
+    _PROXY_EXTRA["proxy"] = PROXY_URL
+    _PROXY_EXTRA["verify"] = PROXY_VERIFY
+    logger.info("Preis-Alarm-Abrufe nutzen Proxy/Unlocker (verify=%s)", PROXY_VERIFY)
 
 # Maximale gleichzeitige Anfragen (env: SCRAPE_MAX_CONCURRENT)
 MAX_CONCURRENT = _int_env("SCRAPE_MAX_CONCURRENT", 6)
@@ -74,6 +80,8 @@ MAX_CONCURRENT = _int_env("SCRAPE_MAX_CONCURRENT", 6)
 DELAY_MIN = _float_env("SCRAPE_DELAY_MIN", 0.25)
 DELAY_MAX = _float_env("SCRAPE_DELAY_MAX", 1.0)
 REQUEST_TIMEOUT = config.scrape_request_timeout
+# Proxy/Rendering ist deutlich langsamer als ein direkter Abruf → großzügigeres Timeout.
+_PROXY_TIMEOUT = max(REQUEST_TIMEOUT, 70.0)
 
 
 # ---------------------------------------------------------------------------
@@ -92,9 +100,13 @@ def fetch_page(url: str) -> str:
     return results[0] if results else ""
 
 
-def fetch_page_with_status(url: str) -> tuple[int, str]:
-    """Lädt eine URL; gibt (status_code, html) zurück; (0, '') bei Netz-/Verbindungsfehler."""
-    return asyncio.run(_fetch_page_with_status(url))
+def fetch_page_with_status(url: str, via_proxy: bool = False) -> tuple[int, str]:
+    """Lädt eine URL; gibt (status_code, html) zurück; (0, '') bei Netz-/Verbindungsfehler.
+
+    ``via_proxy=True`` routet über den konfigurierten Proxy/Unlocker — nur für Preis-Alarme
+    auf geschützten Shop-Seiten, nicht für den Kleinanzeigen-Scraper (Credit-Schonung).
+    """
+    return asyncio.run(_fetch_page_with_status(url, via_proxy))
 
 
 def fetch_binary(urls: list[str]) -> list[bytes]:
@@ -117,7 +129,7 @@ async def _fetch_pages(urls: list[str]) -> list[str]:
         async def fetch_one(index: int, url: str) -> None:
             async with semaphore:
                 try:
-                    response = await session.get(url, timeout=REQUEST_TIMEOUT, **_REQUEST_EXTRA)
+                    response = await session.get(url, timeout=REQUEST_TIMEOUT)
                     results[index] = response.text
                 except Exception:
                     results[index] = ""
@@ -132,11 +144,13 @@ async def _fetch_pages(urls: list[str]) -> list[str]:
     return results
 
 
-async def _fetch_page_with_status(url: str) -> tuple[int, str]:
+async def _fetch_page_with_status(url: str, via_proxy: bool = False) -> tuple[int, str]:
     """Lädt eine URL; gibt (status_code, body) zurück; (0, '') bei Verbindungsfehler."""
+    extra = _PROXY_EXTRA if via_proxy else {}
+    timeout = _PROXY_TIMEOUT if extra else REQUEST_TIMEOUT
     async with CffiAsyncSession(impersonate=IMPERSONATE) as session:
         try:
-            response = await session.get(url, timeout=REQUEST_TIMEOUT, **_REQUEST_EXTRA)
+            response = await session.get(url, timeout=timeout, **extra)
             return response.status_code, response.text
         except Exception:
             return 0, ""
@@ -152,7 +166,7 @@ async def _fetch_binary(urls: list[str]) -> list[bytes]:
         async def fetch_one(index: int, url: str) -> None:
             async with semaphore:
                 try:
-                    response = await session.get(url, timeout=REQUEST_TIMEOUT, **_REQUEST_EXTRA)
+                    response = await session.get(url, timeout=REQUEST_TIMEOUT)
                     results[index] = response.content
                 except Exception:
                     results[index] = b""

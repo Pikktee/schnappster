@@ -97,7 +97,7 @@ def create_price_watch(
     name = data.name.strip()
     if not name:
         session.rollback()
-        status, html = fetch_page_with_status(data.url)
+        status, html = fetch_page_with_status(data.url, via_proxy=True)
         name = (parse_title(html) if status == 200 else None) or data.url
 
     watch = PriceWatch.model_validate(
@@ -185,7 +185,7 @@ _BOT_BLOCK_DETAIL = (
 
 def _fetch_or_422(url: str) -> str:
     """Lädt die URL; wirft 422 bei Nicht-Erreichbarkeit/Bot-Schutz; gibt HTML zurück."""
-    status, html = fetch_page_with_status(url)
+    status, html = fetch_page_with_status(url, via_proxy=True)
     if status == 0:
         raise HTTPException(
             status_code=422,

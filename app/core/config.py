@@ -37,6 +37,15 @@ class Config(BaseSettings):
     openai_base_url: str = "https://openrouter.ai/api/v1"
     telegram_bot_token: str = ""
     scrape_request_timeout: float = 20.0
+    # Proxy/Unlocker NUR für Preis-Alarm-Abrufe (geschützte Shop-Seiten von Datacenter-IPs).
+    # Variante A: ScrapingAnt-Key genügt — die Proxy-URL wird daraus gebaut (Residential).
+    scrapingant_api_key: str = ""
+    # JS-Rendering: nötig für Amazon (Interstitial) und Cloudflare. Default an, damit es
+    # funktioniert; auf false setzen spart Credits bei Seiten, die ohne Rendering laden.
+    scrapingant_render: bool = True
+    # Variante B: beliebiger Proxy/Unlocker im Proxy-Modus ("http://user:pass@host:port").
+    scrape_proxy_url: str = ""
+    scrape_proxy_verify: bool = True  # bei MITM-Cert-Proxys auf false setzen
     ai_request_timeout: float = 45.0
     ai_max_comparison_candidates: int = Field(default=12, ge=0, le=30)
     ai_strong_model_min_delta_percent: float = Field(default=18.0, ge=0, le=100)

@@ -98,7 +98,7 @@ class PriceWatchService:
         snap = _snapshot_watch(watch)
         self._release_session_connection()
 
-        status, html = fetch_page_with_status(snap.url)
+        status, html = fetch_page_with_status(snap.url, via_proxy=True)
         new_price, detected_currency = (None, None)
         if status == 200 and html:
             new_price, detected_currency = extract_price(html, snap.locator)

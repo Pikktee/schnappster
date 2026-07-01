@@ -71,7 +71,7 @@ def _make_watch(engine, **kwargs) -> int:
 def _run_check(engine, monkeypatch, watch_id: int, price_text: str):
     monkeypatch.setattr(
         "app.services.price_watch.fetch_page_with_status",
-        lambda url: (200, PRICE_HTML.format(price=price_text)),
+        lambda url, via_proxy=False: (200, PRICE_HTML.format(price=price_text)),
     )
     with Session(engine) as svc_session:
         watch = svc_session.get(PriceWatch, watch_id)
@@ -120,7 +120,7 @@ def test_check_watch_extraction_failure_sets_error(engine, monkeypatch):
     watch_id = _make_watch(engine, last_price=10.0)
     monkeypatch.setattr(
         "app.services.price_watch.fetch_page_with_status",
-        lambda url: (200, "<html><body>kein Preis</body></html>"),
+        lambda url, via_proxy=False: (200, "<html><body>kein Preis</body></html>"),
     )
     with Session(engine) as svc:
         result = PriceWatchService(svc).check_watch(svc.get(PriceWatch, watch_id))
@@ -181,7 +181,7 @@ def test_preview_returns_candidates(client, monkeypatch):
     )
     monkeypatch.setattr(
         "app.routes.api.price_watches.fetch_page_with_status",
-        lambda url: (200, html),
+        lambda url, via_proxy=False: (200, html),
     )
     response = client.post("/price-watches/preview", json={"url": "https://example.com/p"})
     assert response.status_code == 200
@@ -194,7 +194,7 @@ def test_preview_bot_block_returns_clear_422(client, monkeypatch):
     """HTTP 403 (Bot-Schutz) → klare 422-Meldung statt irreführend 'keine Preise'."""
     monkeypatch.setattr(
         "app.routes.api.price_watches.fetch_page_with_status",
-        lambda url: (403, "<html><body>blocked</body></html>"),
+        lambda url, via_proxy=False: (403, "<html><body>blocked</body></html>"),
     )
     response = client.post("/price-watches/preview", json={"url": "https://shop.example.com/p"})
     assert response.status_code == 422
@@ -206,11 +206,39 @@ def test_preview_cloudflare_challenge_page_returns_422(client, monkeypatch):
     challenge = "<html><head><title>Just a moment...</title></head><body></body></html>"
     monkeypatch.setattr(
         "app.routes.api.price_watches.fetch_page_with_status",
-        lambda url: (200, challenge),
+        lambda url, via_proxy=False: (200, challenge),
     )
     response = client.post("/price-watches/preview", json={"url": "https://shop.example.com/p"})
     assert response.status_code == 422
     assert "Bot-Schutz" in response.json()["detail"]
+
+
+def test_preview_fetch_routes_through_proxy(client, monkeypatch):
+    """Preis-Alarm-Abrufe müssen den Proxy/Unlocker nutzen (via_proxy=True)."""
+    seen = {}
+
+    def spy(url, via_proxy=False):
+        seen["via_proxy"] = via_proxy
+        return (200, "<html><head><title>X</title></head></html>")
+
+    monkeypatch.setattr("app.routes.api.price_watches.fetch_page_with_status", spy)
+    client.post("/price-watches/preview", json={"url": "https://shop.example.com/p"})
+    assert seen["via_proxy"] is True
+
+
+def test_adsearch_validation_stays_direct(monkeypatch):
+    """Kleinanzeigen-URL-Validierung darf NICHT über den Proxy laufen (Credit-Schonung)."""
+    from app.routes.api import adsearch
+
+    seen = {}
+
+    def spy(url, via_proxy=False):
+        seen["via_proxy"] = via_proxy
+        return (200, "<html></html>")
+
+    monkeypatch.setattr(adsearch, "fetch_page_with_status", spy)
+    adsearch._validate_search_url_reachable("https://www.kleinanzeigen.de/s-fahrrad/k0")
+    assert seen["via_proxy"] is False
 
 
 def test_update_and_delete_price_watch(client, monkeypatch):
