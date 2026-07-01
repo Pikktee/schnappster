@@ -2,6 +2,10 @@ export interface AdSearch {
   id: number
   name: string
   url: string
+  /** Keyword-basierte Suche (Alternative zur direkten URL). */
+  search_query: string | null
+  postal_code: string | null
+  radius_km: number | null
   prompt_addition: string | null
   min_price: number | null
   max_price: number | null

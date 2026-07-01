@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -16,6 +23,7 @@ import {
 import type { AdSearch } from "@/lib/types"
 
 const ADVANCED_CONTENT_ID = "search-form-advanced-content"
+const RADIUS_PRESETS = [5, 10, 25, 50, 100, 200]
 
 interface SearchFormProps {
   initial?: Partial<AdSearch>
@@ -59,6 +67,13 @@ function parseKeywords(str: string): string[] {
 export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChange }: SearchFormProps) {
   const [name, setName] = useState(initial?.name || "")
   const [url, setUrl] = useState(initial?.url || "")
+  // Eingabemodus: Suchbegriff (Standard) oder direkte URL. Beim Bearbeiten aus den Daten abgeleitet.
+  const [mode, setMode] = useState<"query" | "url">(
+    initial?.id ? (initial?.search_query ? "query" : "url") : "query"
+  )
+  const [searchQuery, setSearchQuery] = useState(initial?.search_query || "")
+  const [postalCode, setPostalCode] = useState(initial?.postal_code || "")
+  const [radiusKm, setRadiusKm] = useState<string>(initial?.radius_km?.toString() || "")
   const [interval, setInterval] = useState(initial?.scrape_interval_minutes || 60)
   const [minPrice, setMinPrice] = useState<string>(initial?.min_price?.toString() || "")
   const [maxPrice, setMaxPrice] = useState<string>(initial?.max_price?.toString() || "")
@@ -74,6 +89,9 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
 
   const isDirty = name !== (initial?.name || "") ||
     (!initial?.id && url !== (initial?.url || "")) ||
+    searchQuery !== (initial?.search_query || "") ||
+    postalCode !== (initial?.postal_code || "") ||
+    radiusKm !== (initial?.radius_km?.toString() || "") ||
     interval !== (initial?.scrape_interval_minutes || 60) ||
     minPrice !== (initial?.min_price?.toString() || "") ||
     maxPrice !== (initial?.max_price?.toString() || "") ||
@@ -125,8 +143,12 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
   function validate(): boolean {
     const newErrors: Record<string, string> = {}
 
-    const urlError = validateUrl(url)
-    if (urlError) newErrors.url = urlError
+    if (mode === "url") {
+      const urlError = validateUrl(url)
+      if (urlError) newErrors.url = urlError
+    } else if (!searchQuery.trim()) {
+      newErrors.searchQuery = "Bitte einen Suchbegriff eingeben."
+    }
 
     if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) {
       newErrors.maxPrice = "Max-Preis muss größer als Min-Preis sein."
@@ -149,35 +171,127 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
         prompt_addition: promptAddition || null,
         is_exclude_images: excludeImages,
       }
-      if (!initial?.id) payload.url = url
+      if (mode === "query") {
+        const plz = postalCode.trim()
+        payload.search_query = searchQuery.trim()
+        payload.postal_code = plz || null
+        payload.radius_km = plz && radiusKm ? Number(radiusKm) : null
+      } else if (!initial?.id) {
+        // URL kann nach dem Anlegen nicht mehr geändert werden.
+        payload.url = url
+      }
       await onSubmit(payload)
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Fehler beim Speichern."
-      setErrors((prev) => ({ ...prev, url: msg }))
+      setErrors((prev) => ({ ...prev, [mode === "url" ? "url" : "searchQuery"]: msg }))
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="search-url" className="flex items-center gap-1.5">
-          <span>Kleinanzeigen URL *</span>
-          <HelpTip text="Führe eine Suche auf kleinanzeigen.de durch und kopiere die URL der Suchergebnisseite hierher." />
-        </Label>
-        <Input
-          id="search-url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://www.kleinanzeigen.de/s-..."
-          type="url"
-          aria-invalid={!!errors.url}
-          autoFocus={!initial?.id}
-          disabled={!!initial?.id}
-          title={initial?.id ? "Die URL kann nach dem Anlegen nicht mehr geändert werden." : undefined}
-          aria-readonly={!!initial?.id}
-        />
-        {errors.url && <p className="text-xs text-destructive">{errors.url}</p>}
-      </div>
+      {/* Modus-Umschalter – nur beim Anlegen; beim Bearbeiten ist der Modus durch die Suche festgelegt. */}
+      {!initial?.id && (
+        <div className="flex gap-1.5">
+          <Button
+            type="button"
+            variant={mode === "query" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("query")}
+            className="flex-1 cursor-pointer"
+            aria-pressed={mode === "query"}
+          >
+            Suchbegriff
+          </Button>
+          <Button
+            type="button"
+            variant={mode === "url" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("url")}
+            className="flex-1 cursor-pointer"
+            aria-pressed={mode === "url"}
+          >
+            Kleinanzeigen-URL
+          </Button>
+        </div>
+      )}
+
+      {mode === "query" ? (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="search-query" className="flex items-center gap-1.5">
+              <span>Suchbegriff *</span>
+              <HelpTip text="Wonach suchst du? Z.B. 'iPhone 15 Pro'. Daraus bauen wir die Kleinanzeigen-Suche automatisch." />
+            </Label>
+            <Input
+              id="search-query"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="z.B. iPhone 15 Pro"
+              aria-invalid={!!errors.searchQuery}
+              autoFocus={!initial?.id}
+            />
+            {errors.searchQuery && <p className="text-xs text-destructive">{errors.searchQuery}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="search-plz" className="font-normal flex items-center gap-1.5">
+                <span>PLZ</span>
+                <HelpTip text="Postleitzahl als Mittelpunkt der Umkreissuche. Leer = deutschlandweit." />
+              </Label>
+              <Input
+                id="search-plz"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                placeholder="z.B. 50667"
+                inputMode="numeric"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="search-radius" className="font-normal flex items-center gap-1.5">
+                <span>Umkreis</span>
+                <HelpTip text="Suchradius um die PLZ. Nur wirksam, wenn eine PLZ angegeben ist." />
+              </Label>
+              <Select
+                value={radiusKm || "any"}
+                onValueChange={(v) => setRadiusKm(v === "any" ? "" : v)}
+                disabled={!postalCode.trim()}
+              >
+                <SelectTrigger id="search-radius" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Egal</SelectItem>
+                  {RADIUS_PRESETS.map((r) => (
+                    <SelectItem key={r} value={String(r)}>
+                      {r} km
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="search-url" className="flex items-center gap-1.5">
+            <span>Kleinanzeigen URL *</span>
+            <HelpTip text="Führe eine Suche auf kleinanzeigen.de durch und kopiere die URL der Suchergebnisseite hierher." />
+          </Label>
+          <Input
+            id="search-url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://www.kleinanzeigen.de/s-..."
+            type="url"
+            aria-invalid={!!errors.url}
+            autoFocus={!initial?.id}
+            disabled={!!initial?.id}
+            title={initial?.id ? "Die URL kann nach dem Anlegen nicht mehr geändert werden." : undefined}
+            aria-readonly={!!initial?.id}
+          />
+          {errors.url && <p className="text-xs text-destructive">{errors.url}</p>}
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="search-name" className="font-normal flex items-center gap-1.5">
@@ -362,7 +476,11 @@ export function SearchForm({ initial, onSubmit, onCancel, isLoading, onDirtyChan
         <Button type="button" variant="outline" onClick={onCancel} className="cursor-pointer">
           Abbrechen
         </Button>
-        <Button type="submit" disabled={isLoading || !url} className="cursor-pointer">
+        <Button
+          type="submit"
+          disabled={isLoading || (mode === "url" ? !url : !searchQuery.trim())}
+          className="cursor-pointer"
+        >
           {isLoading ? "Speichern..." : initial?.id ? "Aktualisieren" : "Erstellen"}
         </Button>
       </div>

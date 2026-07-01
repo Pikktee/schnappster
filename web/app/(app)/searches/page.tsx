@@ -74,7 +74,11 @@ export default function SearchesPage() {
     try {
       const newSearch = await createSearch({
         name: data.name || "",
-        url: data.url || "",
+        // Entweder URL ODER Suchbegriff — nur das jeweils gesetzte Feld senden.
+        url: data.url || undefined,
+        search_query: data.search_query ?? undefined,
+        postal_code: data.postal_code ?? null,
+        radius_km: data.radius_km ?? null,
         prompt_addition: data.prompt_addition ?? null,
         min_price: data.min_price ?? null,
         max_price: data.max_price ?? null,
