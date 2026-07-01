@@ -9,7 +9,7 @@ import { PriceWatchWizard } from "@/components/price-watch-wizard"
 import { EmptyState } from "@/components/empty-state"
 import { ContentReveal } from "@/components/content-reveal"
 import { Skeleton } from "@/components/ui/skeleton"
-import { deletePriceWatch, fetchPriceWatches } from "@/lib/api"
+import { deletePriceWatch, fetchPriceWatch, fetchPriceWatches } from "@/lib/api"
 import type { PriceWatch } from "@/lib/types"
 import { toast } from "sonner"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
@@ -65,6 +65,25 @@ export default function PriceAlertsPage() {
     setWatches((prev) => [watch, ...prev])
     setIsCreateOpen(false)
     toast.success("Preis-Alarm erstellt — der erste Preis wird gleich geprüft.")
+    void pollUntilChecked(watch.id)
+  }
+
+  // Der erste Preis-Check läuft im Hintergrund. Hier den neuen Watch nachziehen, bis der Check
+  // durch ist (last_checked_at gesetzt), damit "Wird geprüft…" ohne Reload aktualisiert wird.
+  async function pollUntilChecked(id: number) {
+    const MAX_ATTEMPTS = 20
+    const INTERVAL_MS = 2500
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS))
+      let updated: PriceWatch
+      try {
+        updated = await fetchPriceWatch(id)
+      } catch {
+        return // z.B. inzwischen gelöscht (404) → Polling beenden
+      }
+      setWatches((prev) => prev.map((w) => (w.id === id ? updated : w)))
+      if (updated.last_checked_at != null) return // Check ist durch (Preis oder Fehler steht)
+    }
   }
 
   async function handleDelete(id: number) {

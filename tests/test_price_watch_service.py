@@ -152,6 +152,17 @@ def test_create_and_list_price_watch(client, monkeypatch):
     assert len(listing.json()) == 1
 
 
+def test_list_returns_newest_first(client):
+    """Liste liefert neueste zuerst — konsistent mit dem optimistischen Voranstellen im UI."""
+    base = {"url": "https://example.com/p", "locator": {}, "scrape_interval_minutes": 360}
+    assert client.post("/price-watches/", json={**base, "name": "Erster"}).status_code == 201
+    assert client.post("/price-watches/", json={**base, "name": "Zweiter"}).status_code == 201
+
+    listing = client.get("/price-watches/")
+    assert listing.status_code == 200
+    assert [w["name"] for w in listing.json()] == ["Zweiter", "Erster"]
+
+
 def test_create_rejects_invalid_url(client):
     response = client.post(
         "/price-watches/",

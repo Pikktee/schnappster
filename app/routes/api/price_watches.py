@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import delete
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.background_jobs import BackgroundJobs, get_background_jobs
@@ -46,9 +46,11 @@ def list_price_watches(
     session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
-    """Gibt alle Preis-Alarme des Nutzers zurück."""
+    """Gibt alle Preis-Alarme des Nutzers zurück (neueste zuerst)."""
     watches = session.exec(
-        select(PriceWatch).where(PriceWatch.owner_id == current_user.user_id)
+        select(PriceWatch)
+        .where(PriceWatch.owner_id == current_user.user_id)
+        .order_by(col(PriceWatch.id).desc())
     ).all()
     result = [PriceWatchRead.model_validate(watch) for watch in watches]
     session.rollback()
