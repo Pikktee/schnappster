@@ -88,6 +88,15 @@ def test_create_adsearch_rejects_neither_url_nor_query(client):
     assert response.status_code == 422
 
 
+def test_list_ads_filter_by_external_id(client, sample_ads):
+    """GET /ads/?external_id=… liefert genau die passende Anzeige (für die Extension)."""
+    response = client.get("/ads/?external_id=1001")
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert len(items) == 1
+    assert items[0]["external_id"] == "1001"
+
+
 def test_patch_adsearch_rejects_detail_page_url(client, sample_adsearch):
     """PATCH lehnt Detailseiten-URL mit 422 ab."""
     response = client.patch(

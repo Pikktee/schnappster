@@ -21,12 +21,13 @@ def list_ads(
     adsearch_id: int | None = None,
     is_analyzed: bool | None = None,
     min_score: int | None = Query(default=None, ge=0, le=10),
+    external_id: str | None = None,
     sort: str = "date",
     limit: int = Query(default=24, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ):
     """Gibt paginierte Anzeigen mit optionalen Filtern
-    (adsearch_id, is_analyzed, min_score) und Sortierung zurück.
+    (adsearch_id, is_analyzed, min_score, external_id) und Sortierung zurück.
     """
     filters = [Ad.owner_id == current_user.user_id]
 
@@ -36,6 +37,8 @@ def list_ads(
         filters.append(Ad.is_analyzed == is_analyzed)
     if min_score is not None and min_score > 0:
         filters.append(col(Ad.bargain_score) >= min_score)
+    if external_id is not None:
+        filters.append(Ad.external_id == external_id)
 
     total = session.exec(select(func.count(Ad.id)).where(*filters)).one()
 
