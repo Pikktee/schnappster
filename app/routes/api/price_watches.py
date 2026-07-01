@@ -103,11 +103,18 @@ def create_price_watch(
         name = (parse_title(html) if status == 200 else None) or data.url
 
     watch = PriceWatch.model_validate(
-        {**data.model_dump(), "name": name, "owner_id": current_user.user_id}
+        {
+            **data.model_dump(),
+            "name": name,
+            "owner_id": current_user.user_id,
+            # Gewählten Preis sofort als aktuellen Preis übernehmen (Anzeige ohne Wartezeit).
+            "last_price": data.initial_price,
+        }
     )
     session.add(watch)
     session.commit()
     session.refresh(watch)
+    _seed_initial_point(session, watch)
     background_jobs.trigger_price_check_once()
     return watch
 
@@ -164,6 +171,21 @@ def delete_price_watch(
 # -----------------------
 # --- Hilfsfunktionen ---
 # -----------------------
+def _seed_initial_point(session: SessionDep, watch: PriceWatch) -> None:
+    """Legt beim Anlegen einen Verlaufs-Ankerpunkt an, wenn schon ein Preis gewählt wurde."""
+    if watch.last_price is None or watch.id is None:
+        return
+    session.add(
+        PricePoint(
+            owner_id=watch.owner_id,
+            pricewatch_id=watch.id,
+            price=watch.last_price,
+            currency=watch.currency,
+        )
+    )
+    session.commit()
+
+
 def _get_owned_watch(session: SessionDep, watch_id: int, owner_id: str) -> PriceWatch:
     """Lädt einen Watch des Nutzers oder wirft 404."""
     watch = session.exec(

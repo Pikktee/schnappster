@@ -140,14 +140,18 @@ class PriceWatchService:
             watch.currency = currency
 
         old_price = watch.last_price
-        first_check = old_price is None
-        if first_check:
+        # "Erster Check" heißt: noch nie geprüft — nicht "kein Preis". Der beim Anlegen
+        # gewählte Preis ist bereits gesetzt, darf aber die Erst-Check-Semantik nicht kippen.
+        first_check = snap.last_checked_at is None
+        if watch.initial_price is None:
             watch.initial_price = new_price
-        if first_check or new_price != old_price:
+        if old_price is None or new_price != old_price:
             watch.last_price = new_price
             self._add_point(watch, new_price, currency)
 
-        alarm_type = _evaluate_alarm(snap.notify_threshold, old_price, new_price, first_check)
+        # Auf dem ersten Check nicht gegen den vorab gewählten Anlage-Preis als "gefallen" werten.
+        prev_price = None if first_check else old_price
+        alarm_type = _evaluate_alarm(snap.notify_threshold, prev_price, new_price, first_check)
         self.session.add(watch)
         self.session.commit()
 

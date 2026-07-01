@@ -1,5 +1,7 @@
 """Tests für PriceWatchService: Alarm-Logik, Preis-Check-Ablauf, Routen."""
 
+from datetime import UTC, datetime, timedelta
+
 from sqlmodel import Session, select
 
 from app.models.notification import (
@@ -58,6 +60,9 @@ def _make_watch(engine, **kwargs) -> int:
         url="https://example.com/p",
         locator=CSS_LOCATOR,
         currency="EUR",
+        # Als "bereits geprüft" markieren: diese Watches haben schon einen Preis, ihr nächster
+        # Check ist kein Erst-Check (sonst würde die Drop-/Schwellen-Logik nicht greifen).
+        last_checked_at=datetime.now(UTC) - timedelta(hours=1),
     )
     defaults.update(kwargs)
     with Session(engine) as setup:
@@ -161,6 +166,29 @@ def test_list_returns_newest_first(client):
     listing = client.get("/price-watches/")
     assert listing.status_code == 200
     assert [w["name"] for w in listing.json()] == ["Zweiter", "Erster"]
+
+
+def test_create_seeds_selected_price_and_history(client):
+    """Der im Wizard gewählte Preis wird sofort übernommen (kein 'Wird geprüft…') + Ankerpunkt."""
+    payload = {
+        "name": "Sofortpreis",
+        "url": "https://example.com/p",
+        "locator": {"strategy": "css", "selector": ".price", "value": 44.4},
+        "currency": "EUR",
+        "initial_price": 44.4,
+        "scrape_interval_minutes": 360,
+    }
+    created = client.post("/price-watches/", json=payload)
+    assert created.status_code == 201
+    body = created.json()
+    assert body["last_price"] == 44.4
+    assert body["initial_price"] == 44.4
+
+    history = client.get(f"/price-watches/{body['id']}/history")
+    assert history.status_code == 200
+    points = history.json()
+    assert len(points) == 1
+    assert points[0]["price"] == 44.4
 
 
 def test_create_rejects_invalid_url(client):

@@ -122,6 +122,9 @@ class PriceWatchCreate(SQLModel):
     locator: dict
     currency: str | None = None
     selected_label: str | None = None
+    # Der im Wizard gewählte Preis: wird als Anfangs-/aktueller Preis übernommen, damit die
+    # Card ihn sofort zeigt statt "Wird geprüft…" bis zum ersten Hintergrund-Check.
+    initial_price: float | None = None
     scrape_interval_minutes: int = DEFAULT_PRICE_INTERVAL_MINUTES
     notify_threshold: float | None = None
     is_active: bool = True

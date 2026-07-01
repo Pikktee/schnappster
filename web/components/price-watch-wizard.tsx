@@ -97,6 +97,7 @@ export function PriceWatchWizard({ onCreated, onCancel }: PriceWatchWizardProps)
         locator: selected.locator,
         currency: selected.currency,
         selected_label: selected.label,
+        initial_price: selected.value,
         scrape_interval_minutes: interval,
         notify_threshold: threshold ? Number(threshold) : null,
       })

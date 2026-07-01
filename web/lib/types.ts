@@ -99,6 +99,7 @@ export interface PriceWatchCreate {
   locator: Record<string, unknown>
   currency?: string | null
   selected_label?: string | null
+  initial_price?: number | null
   scrape_interval_minutes?: number
   notify_threshold?: number | null
   is_active?: boolean
