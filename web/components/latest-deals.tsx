@@ -6,6 +6,7 @@ import { Package, ArrowRight, SearchX } from "lucide-react"
 import type { Ad } from "@/lib/types"
 import { formatPrice, timeAgo, getAdImageUrls } from "@/lib/format"
 import { ScoreBadge } from "@/components/score-badge"
+import { CardEmptyState } from "@/components/card-empty-state"
 import { Button } from "@/components/ui/button"
 
 interface LatestDealsProps {
@@ -15,13 +16,13 @@ interface LatestDealsProps {
 export function LatestDeals({ ads }: LatestDealsProps) {
   if (ads.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <SearchX className="size-12 text-muted-foreground/50 mb-4" />
-        <p className="text-sm font-medium text-foreground">Noch keine Schnäppchen gefunden</p>
-        <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-          Sobald deine Suchaufträge aktive Angebote finden, werden die besten Deals hier angezeigt.
-        </p>
-      </div>
+      <CardEmptyState
+        icon={SearchX}
+        title="Noch keine Schnäppchen gefunden"
+        description="Sobald deine Suchaufträge aktive Angebote finden, erscheinen die besten Deals hier."
+        actionLabel="Suchauftrag erstellen"
+        actionHref="/searches/"
+      />
     )
   }
 

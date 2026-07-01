@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard } from "@/components/stat-card"
 import { LatestDeals } from "@/components/latest-deals"
+import { CardEmptyState } from "@/components/card-empty-state"
 import { ContentReveal } from "@/components/content-reveal"
 import {
   fetchSearches,
@@ -119,7 +120,8 @@ export default function DashboardPage() {
     )
   }
 
-  const showWelcome = searches.length === 0 || totalAds === 0
+  // Nur für wirklich neue Nutzer: noch kein Suchauftrag UND kein Preis-Alarm eingerichtet.
+  const showWelcome = searches.length === 0 && priceWatches.length === 0
 
   return (
     <ContentReveal className="flex flex-col gap-6">
@@ -145,22 +147,26 @@ export default function DashboardPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg font-semibold tracking-tight text-foreground">
-                  {searches.length === 0 ? "Willkommen bei Schnappster!" : "Bereit für die erste Suche?"}
+                  Willkommen bei Schnappster!
                 </h2>
                 <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground max-w-xl">
-                  {searches.length === 0
-                    ? "Erstelle deinen ersten Suchauftrag und lass uns automatisch nach Schnäppchen auf Kleinanzeigen suchen."
-                    : "Deine Suchaufträge sind eingerichtet. Die ersten Ergebnisse werden in Kürze erscheinen."}
+                  Zwei Wege zum besten Preis: Wir durchsuchen Kleinanzeigen automatisch nach
+                  Schnäppchen und überwachen beliebige Shop-Seiten auf Preissenkungen. Leg mit
+                  einem der beiden los.
                 </p>
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  {searches.length === 0 && (
-                    <Link href="/searches/">
-                      <Button size="default" className="cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
-                        <Search className="size-4 mr-2" aria-hidden />
-                        Suchauftrag erstellen
-                      </Button>
-                    </Link>
-                  )}
+                  <Link href="/searches/">
+                    <Button size="default" className="cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
+                      <Search className="size-4 mr-2" aria-hidden />
+                      Suchauftrag erstellen
+                    </Button>
+                  </Link>
+                  <Link href="/price-alerts/">
+                    <Button size="default" variant="outline" className="cursor-pointer">
+                      <TrendingDown className="size-4 mr-2" aria-hidden />
+                      Preis-Alarm erstellen
+                    </Button>
+                  </Link>
                   <Link
                     href="/settings/"
                     className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline cursor-pointer"
@@ -214,7 +220,7 @@ export default function DashboardPage() {
         </h2>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card className="gap-0">
-            <CardHeader className="pb-0">
+            <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2">
                 <Zap className="size-5" />
                 Letzte Schnäppchen
@@ -275,16 +281,13 @@ export default function DashboardPage() {
                   })}
                 </ul>
               ) : (
-                <div className="flex flex-col items-center gap-2 py-10 text-center">
-                  <TrendingDown className="size-8 text-muted-foreground/30" aria-hidden />
-                  <p className="text-sm text-muted-foreground">Noch keine Preis-Alarme ausgelöst.</p>
-                  <Link
-                    href="/price-alerts/"
-                    className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-                  >
-                    Preis-Alarm einrichten
-                  </Link>
-                </div>
+                <CardEmptyState
+                  icon={TrendingDown}
+                  title="Noch keine Preis-Alarme ausgelöst"
+                  description="Sobald ein überwachter Preis fällt, erscheint der Alarm hier."
+                  actionLabel="Preis-Alarm einrichten"
+                  actionHref="/price-alerts/"
+                />
               )}
             </CardContent>
           </Card>
