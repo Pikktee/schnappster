@@ -158,6 +158,13 @@ export interface PaginatedAds {
   total: number
 }
 
+/** KI-generierte Verhandlungsnachricht an den Verkäufer + faires Gegenangebot. */
+export interface NegotiationMessage {
+  message: string
+  suggested_offer: number | null
+  reasoning: string | null
+}
+
 export interface AppSetting {
   key: string
   value: string

@@ -21,7 +21,7 @@ from app.models.ad import Ad
 from app.models.adsearch import AdSearch
 from app.models.logs_aianalysis import AIAnalysisLog
 from app.models.logs_error import ErrorLog
-from app.prompts import render_system_prompt, render_user_prompt
+from app.prompts import render_negotiation_prompt, render_system_prompt, render_user_prompt
 from app.scraper.httpclient import fetch_binary
 from app.services.deal_analysis import (
     ComparisonCandidate,
@@ -404,6 +404,48 @@ class AIService:
             "search_url": adsearch.url if adsearch else None,
             "analysis_mode": "gift_category" if is_gift_search else "priced_market",
             "is_gift_category_search": is_gift_search,
+        }
+
+    def generate_negotiation_message(self, ad: Ad) -> dict:
+        """Erzeugt eine Verhandlungsnachricht + faires Gegenangebot aus der Anzeigen-Analyse.
+
+        Gibt ``{"message", "suggested_offer", "reasoning"}`` zurück. Wirft bei API- oder
+        Parsefehlern (die Route übersetzt das in eine klare HTTP-Antwort).
+        """
+        context = self._build_negotiation_context(ad)
+        prompt = render_negotiation_prompt(context)
+        content = self._complete_json(prompt, self.model, max_tokens=600)
+        data = self._parse_json_content(content)
+        if not isinstance(data, dict):
+            raise TypeError("Verhandlungs-Antwort muss ein JSON-Objekt sein")
+
+        message = str(data.get("message") or "").strip()
+        if not message:
+            raise ValueError("Die KI hat keine Nachricht erzeugt")
+        offer_raw = data.get("suggested_offer")
+        suggested_offer = float(offer_raw) if isinstance(offer_raw, int | float) else None
+        reasoning = str(data.get("reasoning") or "").strip() or None
+        return {"message": message, "suggested_offer": suggested_offer, "reasoning": reasoning}
+
+    @staticmethod
+    def _build_negotiation_context(ad: Ad) -> dict:
+        """Baut den Kontext für den Verhandlungs-Prompt aus der Anzeige und ihrer Analyse."""
+        description = (ad.description or "").strip()
+        if len(description) > 400:
+            description = description[:400] + "…"
+        is_priced = ad.price is not None and ad.price > 0
+        price_display = (
+            f"{ad.price:.0f}€" if is_priced else "kein fester Preis (VB / zu verschenken)"
+        )
+        return {
+            "title": ad.title or "",
+            "price_display": price_display,
+            "is_priced": is_priced,
+            "condition": (ad.condition or "").strip() or None,
+            "market_price": ad.estimated_market_price,
+            "delta_percent": ad.price_delta_percent,
+            "comparison_summary": (ad.comparison_summary or "").strip() or None,
+            "description": description or None,
         }
 
     def _complete_final_json(

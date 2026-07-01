@@ -124,3 +124,11 @@ class AdRead(SQLModel):
     def image_url(self) -> str | None:
         """First image URL from comma-separated image_urls, or None if empty."""
         return self.image_urls.split(",")[0] if self.image_urls else None
+
+
+class NegotiationMessage(SQLModel):
+    """Antwort-Schema: KI-Verhandlungsnachricht an den Verkäufer + faires Gegenangebot."""
+
+    message: str
+    suggested_offer: float | None = None
+    reasoning: str | None = None

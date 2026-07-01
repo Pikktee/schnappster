@@ -5,7 +5,8 @@ from sqlmodel import col, func, select
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.db import SessionDep
-from app.models.ad import Ad, AdRead
+from app.models.ad import Ad, AdRead, NegotiationMessage
+from app.services.ai import AIService
 
 router = APIRouter(prefix="/ads", tags=["Ads"])
 
@@ -73,3 +74,30 @@ def get_ad(
     result = AdRead.model_validate(ad)
     session.rollback()
     return result
+
+
+@router.post("/{ad_id}/negotiation-message", response_model=NegotiationMessage)
+def create_negotiation_message(
+    ad_id: int,
+    session: SessionDep,
+    current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
+):
+    """Erzeugt per KI eine Verhandlungsnachricht + faires Gegenangebot für die Anzeige."""
+    ad = session.exec(select(Ad).where(Ad.id == ad_id, Ad.owner_id == current_user.user_id)).first()
+    if not ad:
+        raise HTTPException(status_code=404, detail="Ad not found")
+
+    try:
+        service = AIService(session)
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    try:
+        result = service.generate_negotiation_message(ad)
+    except Exception as exc:  # noqa: BLE001 — als klare HTTP-Antwort weitergeben
+        raise HTTPException(
+            status_code=502,
+            detail=f"Verhandlungsnachricht konnte nicht erzeugt werden: {exc}",
+        ) from exc
+
+    return NegotiationMessage(**result)

@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScoreBadge } from "@/components/score-badge"
 import { SellerRatingTag } from "@/components/seller-rating-tag"
+import { NegotiationDialog } from "@/components/negotiation-dialog"
 import { ExternalLink } from "@/components/external-link"
 import { fetchAd, fetchSearch } from "@/lib/api"
 import type { Ad, AdSearch } from "@/lib/types"
@@ -581,6 +582,9 @@ export function AdDetailPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Verhandlungs-Assistent: KI-Entwurf für die Nachricht an den Verkäufer */}
+            <NegotiationDialog adId={ad.id} />
           </div>
         </div>
       </div>

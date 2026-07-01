@@ -7,6 +7,7 @@ import type {
   AIAnalysisLog,
   AppSetting,
   ErrorLog,
+  NegotiationMessage,
   Notification,
   PaginatedAds,
   PricePoint,
@@ -164,6 +165,13 @@ export const fetchAdsPaginated = (params: {
 export const fetchAd = (id: number) => apiFetch<Ad>(`/ads/${id}`)
 export const deleteAd = (id: number) =>
   apiFetch<void>(`/ads/${id}`, { method: "DELETE" })
+// KI-Verhandlungsnachricht – kann wie andere KI-Aufrufe länger dauern.
+export const generateNegotiationMessage = (id: number) =>
+  apiFetch<NegotiationMessage>(
+    `/ads/${id}/negotiation-message`,
+    { method: "POST" },
+    PROXY_FETCH_TIMEOUT_MS,
+  )
 
 // PriceWatches (Preis-Alarme)
 export const previewPriceWatch = (url: string) =>
