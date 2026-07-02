@@ -6,13 +6,11 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import {
   ChevronsUpDown,
-  Flame,
   Home,
   List,
   LogOut,
   Search,
   Settings,
-  Tag,
   TrendingDown,
   Users,
 } from "lucide-react"
@@ -44,14 +42,11 @@ import {
 import { fetchErrorLogs, fetchMe, fetchVersion } from "@/lib/api"
 import { useAuth } from "@/components/auth-provider"
 
+// Hauptnavigation: nur die drei Kern-Bereiche. Logs/Benutzer (Admin) leben im Konto-Menü unten.
 const navItems = [
   { label: "Start", href: "/dashboard", icon: Home },
-  { label: "Angebote", href: "/ads/", icon: Tag },
   { label: "Suchaufträge", href: "/searches/", icon: Search },
   { label: "Preis-Alarme", href: "/price-alerts/", icon: TrendingDown },
-  { label: "Deal-Alarme", href: "/deal-alarms/", icon: Flame },
-  { label: "Logs", href: "/logs/", icon: List },
-  { label: "Benutzer", href: "/users/", icon: Users },
 ]
 
 function getInitials(name: string): string {
@@ -125,8 +120,6 @@ export function AppSidebar() {
     return path === base || path.startsWith(base + "/")
   }
 
-  const adminOnlyHrefs = new Set(["/logs/", "/users/"])
-  const visibleItems = navItems.filter((item) => !adminOnlyHrefs.has(item.href) || isAdmin)
   const userDisplayName =
     profileDisplayName?.trim() ||
     user?.display_name?.trim() ||
@@ -155,7 +148,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {visibleItems.map((item) => (
+              {navItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
@@ -166,11 +159,6 @@ export function AppSidebar() {
                     <Link href={item.href} className="flex w-full items-center gap-2">
                       <item.icon className="size-4 shrink-0" />
                       <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                      {item.href === "/logs/" && isAdmin && errorCount > 0 && (
-                        <Badge variant="destructive" className="ml-auto size-5 shrink-0 p-0 justify-center text-[10px]">
-                          {errorCount > 99 ? "99+" : errorCount}
-                        </Badge>
-                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -224,6 +212,26 @@ export function AppSidebar() {
                     <Settings />
                     Einstellungen
                   </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem className="cursor-pointer" onSelect={() => router.push("/logs/")}>
+                      <List />
+                      Logs
+                      {errorCount > 0 && (
+                        <Badge
+                          variant="destructive"
+                          className="ml-auto size-5 shrink-0 justify-center p-0 text-[10px]"
+                        >
+                          {errorCount > 99 ? "99+" : errorCount}
+                        </Badge>
+                      )}
+                    </DropdownMenuItem>
+                  )}
+                  {isAdmin && (
+                    <DropdownMenuItem className="cursor-pointer" onSelect={() => router.push("/users/")}>
+                      <Users />
+                      Benutzer
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
