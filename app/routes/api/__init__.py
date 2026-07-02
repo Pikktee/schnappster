@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from app.routes.api.ads import router as ads_router
 from app.routes.api.adsearch import router as adsearch_router
 from app.routes.api.auth import router as auth_router
+from app.routes.api.deal_watches import router as deal_watches_router
 from app.routes.api.logs_aianalysis import router as aianalysislogs_router
 from app.routes.api.logs_error import router as errorlogs_router
 from app.routes.api.logs_scraperun import router as scraperuns_router
@@ -23,6 +24,7 @@ api_router.include_router(aianalysislogs_router)
 api_router.include_router(errorlogs_router)
 api_router.include_router(scraperuns_router)
 api_router.include_router(price_watches_router)
+api_router.include_router(deal_watches_router)
 api_router.include_router(notifications_router)
 api_router.include_router(settings_router)
 api_router.include_router(users_me_router)

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, BellOff, Check, Target, TrendingDown } from "lucide-react"
+import { Bell, BellOff, Check, Flame, Target, TrendingDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
@@ -26,6 +26,13 @@ function NotificationIcon({ type }: { type: string }) {
     return (
       <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
         <Target className="size-4" aria-hidden />
+      </span>
+    )
+  }
+  if (type === "deal_hot") {
+    return (
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-red-600">
+        <Flame className="size-4" aria-hidden />
       </span>
     )
   }

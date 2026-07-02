@@ -74,10 +74,58 @@ class TelegramService:
         except Exception as e:
             logger.warning("Failed to send Telegram price alert: %s", e)
 
+    def send_deal_alert(
+        self,
+        watch_name: str,
+        deal_title: str,
+        url: str,
+        temperature: float | None = None,
+        price: float | None = None,
+        merchant: str | None = None,
+    ) -> None:
+        """Sendet eine Deal-Alarm-Benachrichtigung (MyDealz); no-op wenn nicht konfiguriert."""
+        if not self.is_configured:
+            logger.debug("Telegram is not configured, skipping deal alert")
+            return
+
+        text = self._format_deal_message(watch_name, deal_title, url, temperature, price, merchant)
+        payload = {
+            "chat_id": self.chat_id,
+            "text": text,
+            "parse_mode": "Markdown",
+            "disable_web_page_preview": True,
+        }
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.post(self.api_url, json=payload)
+                if not resp.is_success:
+                    logger.warning("Telegram API error: %s %s", resp.status_code, resp.text)
+                else:
+                    logger.info("Telegram deal alert sent for %s", watch_name)
+        except Exception as e:
+            logger.warning("Failed to send Telegram deal alert: %s", e)
+
     @property
     def is_configured(self) -> bool:
         """True, wenn Bot-Token und Chat-ID gesetzt sind."""
         return bool(self.bot_token and self.chat_id)
+
+    @staticmethod
+    def _format_deal_message(
+        watch_name: str,
+        deal_title: str,
+        url: str,
+        temperature: float | None,
+        price: float | None,
+        merchant: str | None,
+    ) -> str:
+        """Markdown für Telegram: Deal-Titel, Temperatur, Preis, Händler, Link."""
+        temp_str = f"🔥 {temperature:.0f}°" if temperature is not None else ""
+        price_str = f" · {price:.2f} €" if price is not None else ""
+        merch_str = f" @ {merchant}" if merchant else ""
+        meta = f"{temp_str}{price_str}{merch_str}".strip(" ·")
+        meta_line = f"\n{meta}" if meta else ""
+        return f"🏷️ *Neuer Deal: {watch_name}*\n\n*{deal_title}*{meta_line}\n\n🔗 {url}"
 
     @staticmethod
     def _format_price_message(

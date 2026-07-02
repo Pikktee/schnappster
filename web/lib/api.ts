@@ -6,6 +6,9 @@ import type {
   AdSearch,
   AIAnalysisLog,
   AppSetting,
+  Deal,
+  DealWatch,
+  DealWatchCreate,
   ErrorLog,
   NegotiationMessage,
   Notification,
@@ -197,6 +200,30 @@ export const fetchPriceHistory = (id: number) =>
 export const checkPriceWatchNow = (id: number) =>
   apiFetch<PriceWatch>(
     `/price-watches/${id}/check-now`,
+    { method: "POST" },
+    PROXY_FETCH_TIMEOUT_MS,
+  )
+
+// DealWatches (Deal-Alarme, MyDealz-Schlagwort-Watcher)
+export const previewDealWatch = (query: string) =>
+  apiFetch<{ deals: Deal[] }>(
+    "/deal-watches/preview",
+    { method: "POST", body: JSON.stringify({ query }) },
+    PROXY_FETCH_TIMEOUT_MS,
+  )
+export const fetchDealWatches = () => apiFetch<DealWatch[]>("/deal-watches/")
+export const fetchDealWatch = (id: number) => apiFetch<DealWatch>(`/deal-watches/${id}`)
+export const fetchDealWatchDeals = (id: number) =>
+  apiFetch<Deal[]>(`/deal-watches/${id}/deals`)
+export const createDealWatch = (data: DealWatchCreate) =>
+  apiFetch<DealWatch>("/deal-watches/", { method: "POST", body: JSON.stringify(data) })
+export const updateDealWatch = (id: number, data: Partial<DealWatch>) =>
+  apiFetch<DealWatch>(`/deal-watches/${id}`, { method: "PATCH", body: JSON.stringify(data) })
+export const deleteDealWatch = (id: number) =>
+  apiFetch<void>(`/deal-watches/${id}`, { method: "DELETE" })
+export const checkDealWatchNow = (id: number) =>
+  apiFetch<DealWatch>(
+    `/deal-watches/${id}/check-now`,
     { method: "POST" },
     PROXY_FETCH_TIMEOUT_MS,
   )

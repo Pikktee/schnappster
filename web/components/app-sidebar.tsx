@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import {
   ChevronsUpDown,
+  Flame,
   Home,
   List,
   LogOut,
@@ -48,6 +49,7 @@ const navItems = [
   { label: "Angebote", href: "/ads/", icon: Tag },
   { label: "Suchaufträge", href: "/searches/", icon: Search },
   { label: "Preis-Alarme", href: "/price-alerts/", icon: TrendingDown },
+  { label: "Deal-Alarme", href: "/deal-alarms/", icon: Flame },
   { label: "Logs", href: "/logs/", icon: List },
   { label: "Benutzer", href: "/users/", icon: Users },
 ]

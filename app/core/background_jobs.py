@@ -22,6 +22,9 @@ logger = logging.getLogger(__name__)
 ANALYZE_BATCH_SIZE = 10
 ANALYZE_RETRY_DELAY_SECONDS = 60
 ANALYZE_SAFETY_INTERVAL_MINUTES = 5
+# Deal-Alarme ticken seltener als Preis-Checks — Community-Deals ändern sich nicht sekündlich;
+# das per-Watch-Intervall (min. 15 Min) gilt zusätzlich.
+DEAL_CHECK_INTERVAL_MINUTES = 5
 QUEUED_ANALYZE_JOB_ID = "queued_analyze_ads"
 SCHEDULER_MISFIRE_GRACE_SECONDS = 60
 STARTUP_JOB_DELAY_SECONDS = 2
@@ -38,6 +41,7 @@ class BackgroundJobs:
         "scraper": {"type": "threadpool", "max_workers": 1},
         "analyzer": {"type": "threadpool", "max_workers": 1},
         "pricewatch": {"type": "threadpool", "max_workers": 1},
+        "dealwatch": {"type": "threadpool", "max_workers": 1},
     }
 
     def __init__(self) -> None:
@@ -109,6 +113,26 @@ class BackgroundJobs:
             misfire_grace_time=SCHEDULER_MISFIRE_GRACE_SECONDS,
         )
 
+        # Periodischer Deal-Alarm-Check (MyDealz-Schlagwort-Watcher)
+        self._scheduler.add_job(
+            self._run_deal_checks,
+            "interval",
+            minutes=DEAL_CHECK_INTERVAL_MINUTES,
+            id="run_deal_checks",
+            replace_existing=True,
+            executor="dealwatch",
+        )
+
+        # Erster Deal-Alarm-Check (einmalig beim Start)
+        self._scheduler.add_job(
+            self._run_deal_checks,
+            "date",
+            run_date=startup_run_date,
+            id="initial_deal_checks",
+            executor="dealwatch",
+            misfire_grace_time=SCHEDULER_MISFIRE_GRACE_SECONDS,
+        )
+
         # Periodischer Aufräum-Job (alle 24 Stunden)
         self._scheduler.add_job(
             self._run_cleanup_old_ads,
@@ -169,6 +193,19 @@ class BackgroundJobs:
         )
         logger.debug("Queued one-off price check")
 
+    def trigger_deal_check_once(self) -> None:
+        """Stellt einen einmaligen Deal-Check in die Queue (z. B. nach Anlegen eines Alarms)."""
+        self._scheduler.add_job(
+            self._run_deal_checks,
+            "date",
+            run_date=datetime.now(UTC),
+            id="trigger_deal_check_once",
+            replace_existing=True,
+            executor="dealwatch",
+            misfire_grace_time=SCHEDULER_MISFIRE_GRACE_SECONDS,
+        )
+        logger.debug("Queued one-off deal check")
+
     def _queue_analyze_ads(self, delay_seconds: int = 0) -> None:
         """Stellt einen Analyzer-Lauf in die Queue, dedupliziert aber wartende Retries."""
         job_kwargs = {
@@ -203,6 +240,18 @@ class BackgroundJobs:
                     logger.info(f"Triggered {alarms} price alarm(s)")
             except Exception as e:
                 logger.error(f"Price checks failed: {e}")
+
+    def _run_deal_checks(self) -> None:
+        """Job: fällige Deal-Alarme (MyDealz) prüfen und ggf. Benachrichtigungen auslösen."""
+        from app.services.deal_watch import DealWatchService
+
+        with Session(db_engine) as session:
+            try:
+                alarms = DealWatchService(session).check_due_watches()
+                if alarms > 0:
+                    logger.info(f"Triggered {alarms} deal alarm(s)")
+            except Exception as e:
+                logger.error(f"Deal checks failed: {e}")
 
     def _run_analyze_ads(self) -> None:
         """Job: unbearbeitete Anzeigen analysieren; bei Rückstand erneut einplanen."""

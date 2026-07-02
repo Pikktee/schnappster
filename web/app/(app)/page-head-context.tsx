@@ -31,6 +31,10 @@ const defaultTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Preis-Alarme",
     subtitle: "Überwache beliebige Webseiten auf Preisänderungen",
   },
+  "/deal-alarms": {
+    title: "Deal-Alarme",
+    subtitle: "Überwache MyDealz-Suchbegriffe auf neue heiße Deals",
+  },
   "/settings": {
     title: "Einstellungen",
     subtitle: "Globale App-Einstellungen",

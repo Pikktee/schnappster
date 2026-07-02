@@ -2,6 +2,7 @@
 
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch
+from app.models.deal_watch import Deal, DealWatch
 from app.models.logs_aianalysis import AIAnalysisLog
 from app.models.logs_error import ErrorLog
 from app.models.logs_scraperun import ScrapeRun
@@ -23,4 +24,6 @@ __all__ = [
     "Notification",
     "PriceWatch",
     "PricePoint",
+    "DealWatch",
+    "Deal",
 ]

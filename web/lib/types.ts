@@ -167,6 +167,44 @@ export interface NegotiationMessage {
   reasoning: string | null
 }
 
+/** Ein Deal-Alarm: überwacht einen Suchbegriff auf MyDealz auf neue (heiße) Deals. */
+export interface DealWatch {
+  id: number
+  name: string
+  query: string
+  source: string
+  /** Optionale Temperatur-Schwelle (Grad); nur Deals darüber lösen einen Alarm aus. */
+  min_temperature: number | null
+  scrape_interval_minutes: number
+  is_active: boolean
+  last_checked_at: string | null
+  last_error: string | null
+  created_at: string
+}
+
+/** Eingabe zum Anlegen eines Deal-Alarms. */
+export interface DealWatchCreate {
+  name?: string
+  query: string
+  min_temperature?: number | null
+  scrape_interval_minutes?: number
+  is_active?: boolean
+}
+
+/** Ein auf einem Deal-Alarm gefundener Deal (bzw. Vorschau-Deal). */
+export interface Deal {
+  id?: number
+  external_id: string
+  title: string
+  url: string
+  temperature: number | null
+  price: number | null
+  next_best_price: number | null
+  merchant: string | null
+  published_at?: number | null
+  first_seen_at?: string
+}
+
 export interface AppSetting {
   key: string
   value: string

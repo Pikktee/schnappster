@@ -8,6 +8,7 @@ from sqlmodel import Field, SQLModel
 # Bekannte Benachrichtigungstypen (frei erweiterbar).
 NOTIFICATION_PRICE_DROP = "price_drop"
 NOTIFICATION_PRICE_BELOW_THRESHOLD = "price_below_threshold"
+NOTIFICATION_DEAL_HOT = "deal_hot"
 
 
 class Notification(SQLModel, table=True):
