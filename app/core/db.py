@@ -22,6 +22,8 @@ _ADDITIVE_COLUMNS: list[tuple[str, str, str]] = [
     ("ad_searches", "radius_km", "INTEGER"),
     # Quelle/Plattform je Suchauftrag; Default hält bestehende Suchen bei Kleinanzeigen.
     ("ad_searches", "platform", "VARCHAR NOT NULL DEFAULT 'kleinanzeigen'"),
+    # Deal-Alarm: Bild-URL des Deals (aus MyDealz mainImage).
+    ("deals", "image_url", "VARCHAR"),
 ]
 
 _SQLITE_PREFIX = "sqlite:///"

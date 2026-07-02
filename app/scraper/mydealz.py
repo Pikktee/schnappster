@@ -17,6 +17,14 @@ from bs4 import BeautifulSoup
 _BASE_URL = "https://www.mydealz.de"
 _HEADERS = {"Accept-Language": "de-DE,de;q=0.9"}
 
+# MyDealz-Bild-CDN. URL-Format live verifiziert: .../{path}/{name}/re/{größe}/qt/{q}/{name}.jpg
+# liefert ein content-negotiiertes Bild (AVIF/WebP/JPEG). WICHTIG: Das CDN erlaubt nur bestimmte
+# quadratische Größen-Presets (verifiziert 200 OK: 150/200/300/320/768/1024; 404 bei 256/400/600/…)
+# — daher KEINE beliebige Größe raten. 768x768 = retina-scharf auf Deal-Karten (~90 KB AVIF).
+_IMAGE_CDN = "https://static.mydealz.de"
+_IMAGE_SIZE = "768x768"
+_IMAGE_QUALITY = 60
+
 
 @dataclass
 class MydealzDeal:
@@ -30,6 +38,7 @@ class MydealzDeal:
     next_best_price: float | None
     merchant: str | None
     published_at: int | None
+    image_url: str | None = None
 
 
 def build_search_url(query: str) -> str:
@@ -97,6 +106,17 @@ def _merchant_name(thread: dict) -> str | None:
     return None
 
 
+def _image_url(thread: dict) -> str | None:
+    """Baut die CDN-Bild-URL aus ``mainImage`` (path + name); None, wenn kein Bild vorhanden."""
+    image = thread.get("mainImage")
+    if not isinstance(image, dict):
+        return None
+    path, name = image.get("path"), image.get("name")
+    if not path or not name:
+        return None
+    return f"{_IMAGE_CDN}/{path}/{name}/re/{_IMAGE_SIZE}/qt/{_IMAGE_QUALITY}/{name}.jpg"
+
+
 def _extract_threads(html: str) -> list[dict]:
     """Sammelt die ``props.thread``-Objekte aus allen data-vue3-Knoten der Deal-Liste."""
     soup = BeautifulSoup(html, "lxml")
@@ -136,6 +156,7 @@ def parse_deals(html: str) -> list[MydealzDeal]:
                 next_best_price=_as_float(thread.get("nextBestPrice")),
                 merchant=_merchant_name(thread),
                 published_at=thread.get("publishedAt"),
+                image_url=_image_url(thread),
             )
         )
     return deals

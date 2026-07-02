@@ -205,6 +205,7 @@ def _to_deal_row(
         price=deal.price,
         next_best_price=deal.next_best_price,
         merchant=deal.merchant,
+        image_url=deal.image_url,
         published_at=deal.published_at,
         notified=notified,
     )

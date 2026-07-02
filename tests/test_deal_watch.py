@@ -22,6 +22,7 @@ def _deal_node(
     merchant: str = "Amazon",
     type_: str = "Deal",
     expired: bool = False,
+    main_image: dict | None = {"path": "threads/raw/h33IA", "name": "img_1"},  # noqa: B006
 ) -> str:
     """Baut einen data-vue3-Knoten wie auf der echten MyDealz-Seite."""
     thread = {
@@ -36,6 +37,8 @@ def _deal_node(
         "isExpired": expired,
         "publishedAt": 1782900000,
     }
+    if main_image is not None:
+        thread["mainImage"] = main_image
     payload = {"name": "ThreadMainListItemNormalizer", "props": {"thread": thread}}
     return f"<div data-vue3='{json.dumps(payload)}'></div>"
 
@@ -80,6 +83,20 @@ def test_parse_deals_zero_price_becomes_none():
     """MyDealz nutzt 0 für 'kein Preis' → wird als None geparst."""
     deals = mydealz.parse_deals(_deals_html([_deal_node("9", "Gratis", 100, price=0)]))
     assert deals[0].price is None
+
+
+def test_parse_deals_builds_image_url_from_main_image():
+    """Aus mainImage (path + name) wird die CDN-Thumbnail-URL gebaut."""
+    deals = mydealz.parse_deals(_deals_html([_deal_node("5", "Mit Bild", 100)]))
+    assert deals[0].image_url == (
+        "https://static.mydealz.de/threads/raw/h33IA/img_1/re/768x768/qt/60/img_1.jpg"
+    )
+
+
+def test_parse_deals_without_image_yields_none():
+    """Ohne mainImage bleibt image_url None (Karte zeigt den Platzhalter)."""
+    deals = mydealz.parse_deals(_deals_html([_deal_node("6", "Ohne Bild", 100, main_image=None)]))
+    assert deals[0].image_url is None
 
 
 def test_build_search_url_encodes_query():

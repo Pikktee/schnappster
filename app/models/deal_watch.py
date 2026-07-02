@@ -62,6 +62,8 @@ class Deal(SQLModel, table=True):
     price: float | None = None
     next_best_price: float | None = None
     merchant: str | None = None
+    # Fertige CDN-Bild-URL des Deals (aus MyDealz mainImage gebaut).
+    image_url: str | None = None
     # Unix-Zeitstempel der Veröffentlichung auf MyDealz (rein informativ).
     published_at: int | None = None
     # Ob für diesen Deal bereits benachrichtigt wurde (Baseline beim ersten Check → False).
@@ -152,6 +154,7 @@ class DealRead(SQLModel):
     price: float | None
     next_best_price: float | None
     merchant: str | None
+    image_url: str | None
     published_at: int | None
     first_seen_at: datetime
 
@@ -179,6 +182,7 @@ class DealPreview(SQLModel):
     price: float | None
     next_best_price: float | None
     merchant: str | None
+    image_url: str | None
 
 
 class DealWatchPreviewResponse(SQLModel):

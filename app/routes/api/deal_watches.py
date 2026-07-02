@@ -51,6 +51,7 @@ def preview_deal_watch(
             price=d.price,
             next_best_price=d.next_best_price,
             merchant=d.merchant,
+            image_url=d.image_url,
         )
         for d in deals
     ]

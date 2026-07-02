@@ -1,6 +1,7 @@
 "use client"
 
-import { ExternalLink, Flame } from "lucide-react"
+import { useState } from "react"
+import { ExternalLink, Flame, ImageOff } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import type { Deal } from "@/lib/types"
 import { formatPrice } from "@/lib/format"
@@ -15,8 +16,11 @@ function tempTone(temp: number | null): string {
 }
 
 export function DealCard({ deal }: { deal: Deal }) {
+  const [imageFailed, setImageFailed] = useState(false)
+  const showImage = !!deal.image_url && !imageFailed
+
   return (
-    <Card className="group relative flex flex-col gap-2 p-4 transition-shadow hover:shadow-md">
+    <Card className="group relative flex flex-col gap-0 overflow-hidden p-0 transition-shadow hover:shadow-md">
       <a
         href={deal.url}
         target="_blank"
@@ -24,10 +28,27 @@ export function DealCard({ deal }: { deal: Deal }) {
         className="absolute inset-0 z-10 rounded-xl"
         aria-label={`${deal.title} auf MyDealz öffnen`}
       />
-      <div className="flex items-start justify-between gap-3">
+
+      {/* Produktbild mit überlagerter Temperatur */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden border-b border-border/60 bg-muted/40">
+        {showImage ? (
+          // eslint-disable-next-line @next/next/no-img-element -- externe CDN-Bilder, kein Next-Loader
+          <img
+            src={deal.image_url ?? undefined}
+            alt=""
+            loading="lazy"
+            onError={() => setImageFailed(true)}
+            className="size-full object-contain transition-transform duration-200 group-hover:scale-[1.03]"
+          />
+        ) : (
+          <div className="flex size-full items-center justify-center text-muted-foreground/40">
+            <ImageOff className="size-8" aria-hidden />
+          </div>
+        )}
+
         <span
           className={cn(
-            "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
+            "absolute left-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums shadow-sm backdrop-blur-sm",
             tempTone(deal.temperature),
           )}
           title="Community-Temperatur"
@@ -35,29 +56,38 @@ export function DealCard({ deal }: { deal: Deal }) {
           <Flame className="size-3.5" aria-hidden />
           {deal.temperature != null ? `${Math.round(deal.temperature)}°` : "—"}
         </span>
-        <ExternalLink className="size-3.5 shrink-0 text-muted-foreground/50 group-hover:text-muted-foreground" aria-hidden />
+        <ExternalLink
+          className="absolute right-2 top-2 size-3.5 text-muted-foreground/50 group-hover:text-muted-foreground"
+          aria-hidden
+        />
       </div>
 
-      <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground" title={deal.title}>
-        {deal.title}
-      </h3>
+      {/* Titel + Preis */}
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <h3
+          className="line-clamp-2 text-sm font-medium leading-snug text-foreground"
+          title={deal.title}
+        >
+          {deal.title}
+        </h3>
 
-      <div className="mt-auto flex items-center gap-2 pt-1 text-sm">
-        {deal.price != null ? (
-          <span className="font-bold text-foreground">{formatPrice(deal.price)}</span>
-        ) : (
-          <span className="text-xs text-muted-foreground">ohne Preisangabe</span>
-        )}
-        {deal.next_best_price != null && deal.price != null && (
-          <span className="text-xs text-muted-foreground line-through">
-            {formatPrice(deal.next_best_price)}
-          </span>
-        )}
-        {deal.merchant && (
-          <span className="ml-auto truncate text-xs text-muted-foreground" title={deal.merchant}>
-            {deal.merchant}
-          </span>
-        )}
+        <div className="mt-auto flex items-center gap-2 pt-1 text-sm">
+          {deal.price != null ? (
+            <span className="font-bold text-foreground">{formatPrice(deal.price)}</span>
+          ) : (
+            <span className="text-xs text-muted-foreground">ohne Preisangabe</span>
+          )}
+          {deal.next_best_price != null && deal.price != null && (
+            <span className="text-xs text-muted-foreground line-through">
+              {formatPrice(deal.next_best_price)}
+            </span>
+          )}
+          {deal.merchant && (
+            <span className="ml-auto truncate text-xs text-muted-foreground" title={deal.merchant}>
+              {deal.merchant}
+            </span>
+          )}
+        </div>
       </div>
     </Card>
   )

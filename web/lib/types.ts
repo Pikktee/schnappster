@@ -201,6 +201,7 @@ export interface Deal {
   price: number | null
   next_best_price: number | null
   merchant: string | null
+  image_url?: string | null
   published_at?: number | null
   first_seen_at?: string
 }
