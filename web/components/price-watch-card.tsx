@@ -4,19 +4,17 @@ import { useState } from "react"
 import Link from "next/link"
 import {
   AlertTriangle,
-  Clock,
-  ExternalLink,
+  Check,
+  Globe,
   Loader2,
-  RefreshCw,
   Target,
   TrendingDown,
   TrendingUp,
   Trash2,
-  type LucideIcon,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { SearchStatusBadge } from "@/components/search-status-badge"
+import { Switch } from "@/components/ui/switch"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,12 +26,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import type { PriceWatch } from "@/lib/types"
-import { formatPriceWithCurrency, formatScrapeInterval, timeAgo, truncateUrl } from "@/lib/format"
+import { formatPriceWithCurrency, formatScrapeInterval, timeAgo } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 interface PriceWatchCardProps {
   watch: PriceWatch
   onDelete: (id: number) => Promise<void> | void
+  onToggleActive: (watch: PriceWatch, active: boolean) => Promise<void> | void
   isDeleting?: boolean
 }
 
@@ -51,29 +50,41 @@ function computeTrend(watch: PriceWatch): PriceTrend | null {
   return { percent: Math.abs(percent), down: last_price < initial_price }
 }
 
-function MetaItem({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
-  return (
-    <span className="flex min-w-0 items-center gap-2 rounded-lg bg-muted/45 px-2.5 py-2">
-      <Icon className="size-3.5 shrink-0 text-muted-foreground/75" aria-hidden />
-      <span className="min-w-0">
-        <span className="block text-[0.68rem] font-medium uppercase tracking-[0.1em] text-muted-foreground/70">
-          {label}
-        </span>
-        <span className="block truncate text-xs font-medium text-foreground">{value}</span>
-      </span>
-    </span>
-  )
+/** Fortschritt vom Startpreis Richtung Zielpreis (0–1), wenn sinnvoll berechenbar. */
+function computeTargetProgress(watch: PriceWatch): number | null {
+  const { last_price, initial_price, notify_threshold } = watch
+  if (last_price == null || initial_price == null || notify_threshold == null) return null
+  if (initial_price <= notify_threshold) return null // Ziel lag schon beim Start darunter
+  const progress = (initial_price - last_price) / (initial_price - notify_threshold)
+  return Math.min(1, Math.max(0, progress))
 }
 
-export function PriceWatchCard({ watch, onDelete, isDeleting }: PriceWatchCardProps) {
-  const [open, setOpen] = useState(false)
+function hostOf(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "")
+  } catch {
+    return null
+  }
+}
+
+export function PriceWatchCard({ watch, onDelete, onToggleActive, isDeleting }: PriceWatchCardProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [faviconFailed, setFaviconFailed] = useState(false)
   const trend = computeTrend(watch)
   const hasPrice = watch.last_price != null
   const thresholdReached =
     watch.notify_threshold != null && hasPrice && watch.last_price! <= watch.notify_threshold
+  const targetProgress = computeTargetProgress(watch)
+  const host = hostOf(watch.url)
 
   return (
-    <Card className="group relative h-full min-h-[208px] overflow-hidden border-border/80 bg-card/95 py-0 shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
+    <Card
+      className={cn(
+        "group relative h-full overflow-hidden py-0 shadow-sm",
+        "transition-[border-color,box-shadow,transform] duration-200",
+        "hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md",
+      )}
+    >
       <Link
         href={`/price-alerts/${watch.id}`}
         className="absolute inset-0 z-10 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -81,37 +92,43 @@ export function PriceWatchCard({ watch, onDelete, isDeleting }: PriceWatchCardPr
         prefetch={false}
       />
 
-      <CardContent className="pointer-events-none relative z-20 flex h-full flex-col p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <SearchStatusBadge isActive={watch.is_active} className="mb-3" />
-            <h3
-              className="line-clamp-2 text-pretty text-base font-semibold leading-snug text-foreground"
-              title={watch.name}
-            >
-              {watch.name}
-            </h3>
-            <p
-              className="mt-1.5 flex min-w-0 items-center gap-1.5 truncate text-xs text-muted-foreground"
-              title={watch.url}
-            >
-              <ExternalLink className="size-3 shrink-0 opacity-55" aria-hidden />
-              <span className="truncate">{truncateUrl(watch.url, 42)}</span>
-            </p>
-          </div>
+      <CardContent className="pointer-events-none relative z-20 flex h-full flex-col gap-3 p-4 sm:p-5">
+        {/* Kopfzeile: Shop links, Löschen rechts */}
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className={cn(
+              "flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground",
+              !watch.is_active && "opacity-50",
+            )}
+            title={watch.url}
+          >
+            {host && !faviconFailed ? (
+              // eslint-disable-next-line @next/next/no-img-element -- externes Favicon, kein Next-Loader
+              <img
+                src={`https://www.google.com/s2/favicons?domain=${host}&sz=64`}
+                alt=""
+                loading="lazy"
+                onError={() => setFaviconFailed(true)}
+                className="size-4 shrink-0 rounded-sm"
+              />
+            ) : (
+              <Globe className="size-3.5 shrink-0 opacity-55" aria-hidden />
+            )}
+            <span className="truncate">{host ?? watch.url}</span>
+          </span>
 
           <div className="pointer-events-auto shrink-0">
-            <AlertDialog open={open} onOpenChange={setOpen}>
+            <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  setOpen(true)
+                  setConfirmOpen(true)
                 }}
                 disabled={isDeleting}
-                className="size-8 cursor-pointer rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:size-9"
+                className="size-8 cursor-pointer rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                 aria-label="Preis-Alarm löschen"
               >
                 {isDeleting ? (
@@ -134,7 +151,7 @@ export function PriceWatchCard({ watch, onDelete, isDeleting }: PriceWatchCardPr
                     onClick={(e) => {
                       e.preventDefault()
                       onDelete(watch.id)
-                      setOpen(false)
+                      setConfirmOpen(false)
                     }}
                     className="cursor-pointer bg-destructive text-white hover:bg-destructive/90"
                   >
@@ -146,16 +163,27 @@ export function PriceWatchCard({ watch, onDelete, isDeleting }: PriceWatchCardPr
           </div>
         </div>
 
-        {/* Aktueller Preis + Trend */}
-        <div className="mt-4 flex items-end justify-between gap-2">
+        {/* Titel */}
+        <h3
+          className={cn(
+            "line-clamp-2 text-pretty text-base font-semibold leading-snug text-foreground",
+            !watch.is_active && "opacity-50",
+          )}
+          title={watch.name}
+        >
+          {watch.name}
+        </h3>
+
+        {/* Aktueller Preis + Trend seit Beobachtungsbeginn */}
+        <div className={cn("flex items-end justify-between gap-2", !watch.is_active && "opacity-50")}>
           <div className="min-w-0">
-            {watch.last_error && !hasPrice ? (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-amber-600">
-                <AlertTriangle className="size-4 shrink-0" aria-hidden /> Preis nicht gefunden
-              </span>
-            ) : hasPrice ? (
+            {hasPrice ? (
               <span className="block text-2xl font-bold tabular-nums tracking-tight text-foreground">
                 {formatPriceWithCurrency(watch.last_price, watch.currency)}
+              </span>
+            ) : watch.last_error ? (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-amber-600">
+                <AlertTriangle className="size-4 shrink-0" aria-hidden /> Preis nicht gefunden
               </span>
             ) : (
               <span className="text-sm text-muted-foreground">Wird geprüft…</span>
@@ -168,9 +196,7 @@ export function PriceWatchCard({ watch, onDelete, isDeleting }: PriceWatchCardPr
             <span
               className={cn(
                 "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold tabular-nums",
-                trend.down
-                  ? "bg-emerald-500/15 text-emerald-600"
-                  : "bg-red-500/15 text-red-600",
+                trend.down ? "bg-emerald-500/15 text-emerald-600" : "bg-red-500/15 text-red-600",
               )}
               title="Veränderung seit Beobachtungsbeginn"
             >
@@ -185,44 +211,85 @@ export function PriceWatchCard({ watch, onDelete, isDeleting }: PriceWatchCardPr
           )}
         </div>
 
-        <div className="mt-auto grid grid-cols-1 gap-2 border-t border-border/70 pt-4 min-[380px]:grid-cols-2">
-          <MetaItem
-            icon={RefreshCw}
-            label="Intervall"
-            value={formatScrapeInterval(watch.scrape_interval_minutes)}
-          />
-          <MetaItem icon={Clock} label="Zuletzt geprüft" value={timeAgo(watch.last_checked_at)} />
-          {watch.notify_threshold != null && (
-            <div className="min-[380px]:col-span-2">
+        {/* Zielpreis: Fortschritt vom Startpreis Richtung Ziel */}
+        {watch.notify_threshold != null && (
+          <div className={cn("flex flex-col gap-1.5", !watch.is_active && "opacity-50")}>
+            <div className="flex items-center justify-between gap-2 text-xs">
               <span
                 className={cn(
-                  "flex min-w-0 items-center gap-2 rounded-lg px-2.5 py-2",
-                  thresholdReached ? "bg-emerald-500/10" : "bg-muted/45",
+                  "inline-flex items-center gap-1 font-medium",
+                  thresholdReached ? "text-emerald-600" : "text-muted-foreground",
                 )}
               >
-                <Target
-                  className={cn(
-                    "size-3.5 shrink-0",
-                    thresholdReached ? "text-emerald-600" : "text-muted-foreground/75",
-                  )}
-                  aria-hidden
-                />
-                <span className="min-w-0">
-                  <span className="block text-[0.68rem] font-medium uppercase tracking-[0.1em] text-muted-foreground/70">
-                    Zielpreis {thresholdReached ? "· erreicht" : ""}
-                  </span>
-                  <span
-                    className={cn(
-                      "block truncate text-xs font-medium",
-                      thresholdReached ? "text-emerald-700" : "text-foreground",
-                    )}
-                  >
-                    {formatPriceWithCurrency(watch.notify_threshold, watch.currency)}
-                  </span>
-                </span>
+                {thresholdReached ? (
+                  <Check className="size-3.5" aria-hidden />
+                ) : (
+                  <Target className="size-3.5" aria-hidden />
+                )}
+                Zielpreis {formatPriceWithCurrency(watch.notify_threshold, watch.currency)}
               </span>
+              {thresholdReached && (
+                <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-600">
+                  erreicht
+                </span>
+              )}
             </div>
-          )}
+            {targetProgress != null && !thresholdReached && (
+              <div
+                className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-valuenow={Math.round(targetProgress * 100)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Fortschritt zum Zielpreis"
+                title={`${Math.round(targetProgress * 100)} % des Wegs zum Zielpreis`}
+              >
+                <div
+                  className="h-full rounded-full bg-emerald-500/70 transition-[width] duration-500"
+                  style={{ width: `${Math.max(4, Math.round(targetProgress * 100))}%` }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Fußzeile: Prüf-Rhythmus links, Aktiv-Schalter rechts */}
+        <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/70 pt-3">
+          <p
+            className={cn(
+              "flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground",
+              !watch.is_active && "opacity-60",
+            )}
+          >
+            {watch.is_active ? (
+              <>
+                <span>{formatScrapeInterval(watch.scrape_interval_minutes)}</span>
+                <span aria-hidden>·</span>
+                <span title="Zuletzt geprüft">{timeAgo(watch.last_checked_at)}</span>
+              </>
+            ) : (
+              <span>pausiert</span>
+            )}
+            {watch.last_error && hasPrice && (
+              <span className="inline-flex" title={`Letzte Prüfung fehlgeschlagen: ${watch.last_error}`}>
+                <AlertTriangle
+                  className="size-3.5 shrink-0 text-amber-500"
+                  aria-label="Letzte Prüfung fehlgeschlagen"
+                />
+              </span>
+            )}
+          </p>
+          <span
+            className="pointer-events-auto inline-flex shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Switch
+              checked={watch.is_active}
+              onCheckedChange={(checked) => onToggleActive(watch, checked)}
+              className="cursor-pointer"
+              aria-label={watch.is_active ? "Preis-Alarm pausieren" : "Preis-Alarm aktivieren"}
+            />
+          </span>
         </div>
       </CardContent>
     </Card>

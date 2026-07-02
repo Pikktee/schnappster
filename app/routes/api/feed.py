@@ -1,9 +1,10 @@
 """API-Route für den Ergebnis-Stream der Startseite.
 
 Mischt die drei Quellen (Anzeigen von Kleinanzeigen/eBay, MyDealz-Deals, Preisänderungen der
-Preis-Alarme) chronologisch. Übernimmt die Filter der früheren "Angebote"-Seite (Mindest-Score,
-Suchauftrag, Sortierung) — Score-basierte Ansichten liefern nur Anzeigen, weil nur diese einen
-KI-Score haben.
+Preis-Alarme) chronologisch. ``min_score`` filtert nur die KI-bewerteten Anzeigen — Deals und
+Preis-Ereignisse bleiben sichtbar, sie haben eigene Relevanzkriterien. Von den Preis-Alarmen
+erscheinen nur Preisänderungen, die deren Alarm-Kriterien erfüllen (Preisrückgang; mit Zielpreis
+erst ab dessen Erreichen) — der Basis-Messpunkt beim Anlegen und Preisanstiege sind kein Ergebnis.
 """
 
 from datetime import UTC, datetime
@@ -49,8 +50,9 @@ def get_feed(
         sort = "date"
     owner = current_user.user_id
     fetch_n = offset + limit
-    # Score-Filter und Score-Sortierung existieren nur für KI-bewertete Anzeigen.
-    ads_only = (min_score or 0) > 0 or sort == "score-desc"
+    # Nur die Score-Sortierung ist anzeigen-exklusiv (Deals/Preise haben keinen KI-Score);
+    # der Mindest-Score filtert Anzeigen, lässt die anderen Quellen aber im Stream.
+    ads_only = sort == "score-desc"
 
     want_ads = source in ("all", "kleinanzeigen", "ebay")
     want_deals = source in ("all", "mydealz") and not ads_only
@@ -154,57 +156,59 @@ def _load_deals(
 def _load_price_events(
     session: Session, owner: str, fetch_n: int, sort: str
 ) -> tuple[list[FeedItem], int]:
-    filters = [PricePoint.owner_id == owner]
-    order = {
-        "date": col(PricePoint.recorded_at).desc(),
-        "price-asc": col(PricePoint.price).asc(),
-        "price-desc": col(PricePoint.price).desc(),
-        "score-desc": col(PricePoint.recorded_at).desc(),  # unerreichbar (ads_only)
-    }[sort]
-    total = session.exec(select(func.count(col(PricePoint.id))).where(*filters)).one()
+    """Nur Preisänderungen, die die Alarm-Kriterien ihrer Überwachung erfüllen.
+
+    Lädt die komplette Historie des Nutzers, weil "qualifiziert" vom jeweils vorherigen
+    Messpunkt abhängt — die Historie speichert ohnehin nur Änderungen und bleibt klein.
+    """
     rows = session.exec(
         select(PricePoint, PriceWatch)
         .join(PriceWatch, col(PricePoint.pricewatch_id) == col(PriceWatch.id))
-        .where(*filters)
-        .order_by(order)
-        .limit(fetch_n)
+        .where(PricePoint.owner_id == owner)
+        .order_by(col(PricePoint.pricewatch_id), col(PricePoint.id))
     ).all()
 
-    items = []
+    items: list[FeedItem] = []
+    previous_by_watch: dict[int, float] = {}
     for point, watch in rows:
+        watch_id: int = point.pricewatch_id
+        previous = previous_by_watch.get(watch_id)
+        previous_by_watch[watch_id] = point.price
+        if not _price_event_qualifies(point.price, previous, watch.notify_threshold):
+            continue
         items.append(
             FeedItem(
                 type=FEED_TYPE_PRICE,
                 occurred_at=point.recorded_at,
                 price_event=FeedPriceEvent(
-                    watch_id=watch.id,  # type: ignore[arg-type]
+                    watch_id=watch_id,
                     watch_name=watch.name,
                     url=watch.url,
                     price=point.price,
-                    previous_price=_previous_price(session, point),
+                    previous_price=previous,
                     currency=point.currency or watch.currency,
                     recorded_at=point.recorded_at,
                 ),
             )
         )
-    return items, total
+
+    items.sort(key=lambda item: _sort_key(item, sort))
+    return items[:fetch_n], len(items)
 
 
 # -----------------------
 # --- Hilfsfunktionen ---
 # -----------------------
-def _previous_price(session: Session, point: PricePoint) -> float | None:
-    """Der Preis-Datenpunkt davor derselben Überwachung (None beim ersten Messpunkt)."""
-    previous = session.exec(
-        select(PricePoint.price)
-        .where(
-            PricePoint.pricewatch_id == point.pricewatch_id,
-            col(PricePoint.id) < point.id,
-        )
-        .order_by(col(PricePoint.id).desc())
-        .limit(1)
-    ).first()
-    return previous
+def _price_event_qualifies(
+    price: float, previous: float | None, threshold: float | None
+) -> bool:
+    """Alarm-Kriterien eines Preis-Alarms: Preisrückgang, mit Zielpreis erst ab Erreichen.
+
+    Der erste Messpunkt (Baseline beim Anlegen) und Preisanstiege sind kein Ergebnis.
+    """
+    if previous is None or price >= previous:
+        return False
+    return threshold is None or price <= threshold
 
 
 def _deal_time(deal: Deal) -> datetime:

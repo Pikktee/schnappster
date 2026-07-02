@@ -386,7 +386,7 @@ export default function SettingsPage() {
               <div className="flex flex-col gap-2">
                 <Label htmlFor="notify-min-score" className="flex items-center gap-1.5">
                   <span>Mindest-Score</span>
-                  <HelpTip text="Nur Angebote ab diesem KI-Score lösen Benachrichtigungen aus." />
+                  <HelpTip text="Nur Angebote ab diesem KI-Score erscheinen auf der Startseite und lösen Benachrichtigungen aus." />
                 </Label>
                 <Select value={notifyMinScore} onValueChange={setNotifyMinScore}>
                   <SelectTrigger id="notify-min-score" className="w-full max-w-xs">

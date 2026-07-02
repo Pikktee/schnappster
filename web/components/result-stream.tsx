@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   Flame,
@@ -8,11 +9,11 @@ import {
   Loader2,
   RotateCcw,
   SearchX,
+  SlidersHorizontal,
   TableIcon,
   TrendingDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -33,8 +34,8 @@ import { DealCard } from "@/components/deal-card"
 import { PriceEventCard } from "@/components/price-event-card"
 import { ScoreBadge } from "@/components/score-badge"
 import { EmptyState } from "@/components/empty-state"
-import { fetchFeed, fetchSearchOrders } from "@/lib/api"
-import type { FeedItem, SearchOrder } from "@/lib/types"
+import { fetchFeed } from "@/lib/api"
+import type { FeedItem } from "@/lib/types"
 import { formatPrice, getAdSource, timeAgo } from "@/lib/format"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -56,8 +57,6 @@ const SOURCE_CHIPS: { key: string; label: string }[] = [
 
 interface StoredFilters {
   source: string
-  minScore: string
-  searchId: string
   sortBy: SortOption
   viewMode: ViewMode
 }
@@ -98,20 +97,22 @@ interface ResultStreamProps {
   searchOrderId?: number
   /** localStorage-Schlüssel für Filter-Persistenz (nur auf der Startseite gesetzt). */
   storageKey?: string
+  /**
+   * Serverseitiger Mindest-Score für Anzeigen (aus den Einstellungen).
+   * Deals und Preis-Ereignisse haben eigene Kriterien und bleiben sichtbar.
+   */
+  minScore?: number
 }
 
-export function ResultStream({ searchOrderId, storageKey }: ResultStreamProps) {
+export function ResultStream({ searchOrderId, storageKey, minScore }: ResultStreamProps) {
   const router = useRouter()
   const [items, setItems] = useState<FeedItem[]>([])
   const [total, setTotal] = useState(0)
-  const [orders, setOrders] = useState<SearchOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [source, setSource] = useState("all")
-  const [minScore, setMinScore] = useState("0")
-  const [searchId, setSearchId] = useState("all")
   const [sortBy, setSortBy] = useState<SortOption>("date")
   const [viewMode, setViewMode] = useState<ViewMode>("cards")
   const [restored, setRestored] = useState(!storageKey)
@@ -121,31 +122,22 @@ export function ResultStream({ searchOrderId, storageKey }: ResultStreamProps) {
     [searchOrderId],
   )
 
-  const effectiveOrderId =
-    searchOrderId ?? (searchId !== "all" ? Number(searchId) : undefined)
-
   const load = useCallback(
     async (opts: { offset: number; append: boolean; silent?: boolean }) => {
       if (!opts.append && !opts.silent) setLoading(true)
       if (opts.append) setLoadingMore(true)
       setError(null)
       try {
-        const [page, orderList] = await Promise.all([
-          fetchFeed({
-            limit: PAGE_SIZE,
-            offset: opts.offset,
-            source,
-            min_score: Number(minScore) || undefined,
-            search_order_id: effectiveOrderId,
-            sort: sortBy,
-          }),
-          searchOrderId === undefined && !opts.append
-            ? fetchSearchOrders().catch(() => [] as SearchOrder[])
-            : Promise.resolve(null),
-        ])
+        const page = await fetchFeed({
+          limit: PAGE_SIZE,
+          offset: opts.offset,
+          source,
+          min_score: minScore || undefined,
+          search_order_id: searchOrderId,
+          sort: sortBy,
+        })
         setItems((prev) => (opts.append ? [...prev, ...page.items] : page.items))
         setTotal(page.total)
-        if (orderList) setOrders(orderList)
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Der Stream konnte nicht geladen werden."
         if (!opts.silent) {
@@ -157,7 +149,7 @@ export function ResultStream({ searchOrderId, storageKey }: ResultStreamProps) {
         setLoadingMore(false)
       }
     },
-    [source, minScore, sortBy, effectiveOrderId, searchOrderId],
+    [source, sortBy, minScore, searchOrderId],
   )
 
   // Persistierte Filter einmalig wiederherstellen, dann normal laden.
@@ -166,8 +158,6 @@ export function ResultStream({ searchOrderId, storageKey }: ResultStreamProps) {
     const stored = loadStored(storageKey)
     if (stored) {
       if (stored.source) setSource(stored.source)
-      if (stored.minScore) setMinScore(stored.minScore)
-      if (stored.searchId) setSearchId(stored.searchId)
       if (stored.sortBy) setSortBy(stored.sortBy)
       if (stored.viewMode) setViewMode(stored.viewMode)
     }
@@ -177,10 +167,7 @@ export function ResultStream({ searchOrderId, storageKey }: ResultStreamProps) {
   useEffect(() => {
     if (!restored) return
     if (storageKey && typeof window !== "undefined") {
-      window.localStorage.setItem(
-        storageKey,
-        JSON.stringify({ source, minScore, searchId, sortBy, viewMode }),
-      )
+      window.localStorage.setItem(storageKey, JSON.stringify({ source, sortBy, viewMode }))
     }
     load({ offset: 0, append: false })
   }, [restored, load]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -189,13 +176,10 @@ export function ResultStream({ searchOrderId, storageKey }: ResultStreamProps) {
     load({ offset: 0, append: false, silent: true }),
   )
 
-  const hasActiveFilters =
-    source !== "all" || minScore !== "0" || searchId !== "all" || sortBy !== "date"
+  const hasActiveFilters = source !== "all" || sortBy !== "date"
 
   function resetFilters() {
     setSource("all")
-    setMinScore("0")
-    setSearchId("all")
     setSortBy("date")
   }
 
@@ -271,36 +255,6 @@ export function ResultStream({ searchOrderId, storageKey }: ResultStreamProps) {
         </div>
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Select value={minScore} onValueChange={setMinScore}>
-            <SelectTrigger className="h-8 w-[7.5rem] text-xs" aria-label="Mindest-Score">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">Score: Alle</SelectItem>
-              {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  Score {"≥"} {n}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {searchOrderId === undefined && orders.length > 0 && (
-            <Select value={searchId} onValueChange={setSearchId}>
-              <SelectTrigger className="h-8 w-40 text-xs" aria-label="Suchauftrag filtern">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Suchaufträge</SelectItem>
-                {orders.map((order) => (
-                  <SelectItem key={order.id} value={String(order.id)}>
-                    {order.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
           <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
             <SelectTrigger className="h-8 w-40 text-xs" aria-label="Sortierung">
               <SelectValue />
@@ -348,13 +302,32 @@ export function ResultStream({ searchOrderId, storageKey }: ResultStreamProps) {
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        {total} {total === 1 ? "Ergebnis" : "Ergebnisse"}
+      <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+        <span>
+          {total} {total === 1 ? "Ergebnis" : "Ergebnisse"}
+        </span>
+        {(minScore ?? 0) > 0 && (
+          <>
+            <span aria-hidden>·</span>
+            <Link
+              href="/settings"
+              className="inline-flex items-center gap-1 underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              title="Mindest-Score in den Einstellungen ändern"
+            >
+              <SlidersHorizontal className="size-3" aria-hidden />
+              Angebote ab Score {minScore}
+            </Link>
+          </>
+        )}
       </p>
 
       {items.length === 0 ? (
         <EmptyState
-          message="Noch keine Ergebnisse — sobald deine Suchaufträge und Alarme fündig werden, erscheint hier alles Neue."
+          message={
+            (minScore ?? 0) > 0
+              ? `Noch nichts Relevantes — Angebote erscheinen hier ab Score ${minScore}, dazu neue Deals und ausgelöste Preis-Alarme.`
+              : "Noch keine Ergebnisse — sobald deine Suchaufträge und Alarme fündig werden, erscheint hier alles Neue."
+          }
           icon={<SearchX className="size-12 text-muted-foreground/50" />}
         />
       ) : viewMode === "cards" ? (

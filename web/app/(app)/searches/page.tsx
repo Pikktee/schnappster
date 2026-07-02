@@ -13,7 +13,13 @@ import { SearchOrderCard } from "@/components/search-order-card"
 import { SearchOrderForm } from "@/components/search-order-form"
 import { EmptyState } from "@/components/empty-state"
 import { ContentReveal } from "@/components/content-reveal"
-import { fetchSearchOrders, createSearchOrder, deleteSearchOrder } from "@/lib/api"
+import {
+  fetchSearchOrders,
+  createSearchOrder,
+  deleteSearchOrder,
+  updateSearchOrder,
+  checkSearchOrderNow,
+} from "@/lib/api"
 import type { SearchOrder, SearchOrderCreate } from "@/lib/types"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -27,6 +33,7 @@ export default function SearchesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [checkingId, setCheckingId] = useState<number | null>(null)
   const { setHeaderActions } = usePageHead()
 
   async function loadOrders(opts?: { silent?: boolean }) {
@@ -94,6 +101,33 @@ export default function SearchesPage() {
     }
   }
 
+  async function handleToggleActive(order: SearchOrder, active: boolean) {
+    // Optimistisch schalten; bei Fehlern den alten Zustand wiederherstellen.
+    setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, is_active: active } : o)))
+    try {
+      const updated = await updateSearchOrder(order.id, { is_active: active })
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)))
+      toast.success(active ? "Suchauftrag aktiviert" : "Suchauftrag pausiert")
+    } catch (e) {
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? order : o)))
+      toast.error(e instanceof Error ? e.message : "Umschalten fehlgeschlagen.")
+    }
+  }
+
+  async function handleCheckNow(order: SearchOrder) {
+    setCheckingId(order.id)
+    try {
+      await checkSearchOrderNow(order.id)
+      toast.success("Prüfung gestartet — neue Funde erscheinen gleich im Stream.")
+      // Der Check läuft im Hintergrund; "Zuletzt geprüft" kurz darauf still nachziehen.
+      setTimeout(() => loadOrders({ silent: true }), 5000)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Prüfung konnte nicht gestartet werden.")
+    } finally {
+      setCheckingId(null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
@@ -133,7 +167,10 @@ export default function SearchesPage() {
               <SearchOrderCard
                 order={order}
                 onDelete={handleDelete}
+                onToggleActive={handleToggleActive}
+                onCheckNow={handleCheckNow}
                 isDeleting={deletingId === order.id}
+                isChecking={checkingId === order.id}
               />
             </li>
           ))}

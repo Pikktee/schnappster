@@ -9,7 +9,12 @@ import { PriceWatchWizard } from "@/components/price-watch-wizard"
 import { EmptyState } from "@/components/empty-state"
 import { ContentReveal } from "@/components/content-reveal"
 import { Skeleton } from "@/components/ui/skeleton"
-import { deletePriceWatch, fetchPriceWatch, fetchPriceWatches } from "@/lib/api"
+import {
+  deletePriceWatch,
+  fetchPriceWatch,
+  fetchPriceWatches,
+  updatePriceWatch,
+} from "@/lib/api"
 import type { PriceWatch } from "@/lib/types"
 import { toast } from "sonner"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
@@ -99,6 +104,19 @@ export default function PriceAlertsPage() {
     }
   }
 
+  async function handleToggleActive(watch: PriceWatch, active: boolean) {
+    // Optimistisch schalten; bei Fehlern den alten Zustand wiederherstellen.
+    setWatches((prev) => prev.map((w) => (w.id === watch.id ? { ...w, is_active: active } : w)))
+    try {
+      const updated = await updatePriceWatch(watch.id, { is_active: active })
+      setWatches((prev) => prev.map((w) => (w.id === watch.id ? updated : w)))
+      toast.success(active ? "Preis-Alarm aktiviert" : "Preis-Alarm pausiert")
+    } catch (e) {
+      setWatches((prev) => prev.map((w) => (w.id === watch.id ? watch : w)))
+      toast.error(e instanceof Error ? e.message : "Umschalten fehlgeschlagen.")
+    }
+  }
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 2xl:grid-cols-4">
@@ -138,6 +156,7 @@ export default function PriceAlertsPage() {
               <PriceWatchCard
                 watch={watch}
                 onDelete={handleDelete}
+                onToggleActive={handleToggleActive}
                 isDeleting={deletingId === watch.id}
               />
             </li>

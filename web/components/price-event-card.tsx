@@ -58,20 +58,27 @@ export function PriceEventCard({ event }: { event: FeedPriceEvent }) {
         {event.watch_name}
       </h3>
 
-      <div className="mt-auto flex items-baseline gap-2 text-sm">
-        <span className={cn("font-bold", dropped ? "text-emerald-600" : "text-foreground")}>
-          {formatPriceWithCurrency(event.price, event.currency)}
-        </span>
+      {/* Alt → Neu direkt unter dem Titel; Leerraum fällt ans Karten-Ende */}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
         {prev != null && (
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="line-through">{formatPriceWithCurrency(prev, event.currency)}</span>
             <ArrowRight className="size-3 opacity-50" aria-hidden />
           </span>
         )}
-        <span className="ml-auto text-[11px] uppercase tracking-wide text-muted-foreground/70">
-          Preis-Alarm
+        <span
+          className={cn(
+            "text-base font-bold tabular-nums",
+            dropped ? "text-emerald-600" : "text-foreground",
+          )}
+        >
+          {formatPriceWithCurrency(event.price, event.currency)}
         </span>
       </div>
+
+      <span className="mt-auto text-[11px] uppercase tracking-wide text-muted-foreground/70">
+        Preis-Alarm
+      </span>
     </Card>
   )
 }

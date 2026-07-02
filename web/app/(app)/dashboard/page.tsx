@@ -13,6 +13,7 @@ import {
   fetchAdsPaginated,
   fetchPriceWatches,
   fetchNotifications,
+  fetchMySettings,
 } from "@/lib/api"
 import type { Ad, Notification, PriceWatch, SearchOrder } from "@/lib/types"
 import { timeAgo } from "@/lib/format"
@@ -24,8 +25,8 @@ const WELCOME_DISMISSED_KEY = "schnappster-welcome-dismissed"
 const LAST_VISIT_KEY = "schnappster-last-visit"
 const STREAM_FILTERS_KEY = "schnappster-stream-filters"
 
-/** Ab diesem Score gilt eine Anzeige als "Schnäppchen" (für die Begrüßungszeile). */
-const SCHNAEPPCHEN_MIN_SCORE = 8
+/** Fallback für den Mindest-Score, falls die Einstellungen nicht ladbar sind. */
+const DEFAULT_MIN_SCORE = 8
 /** So viele aktuelle Schnäppchen für die "seit letztem Besuch"-Zählung laden. */
 const DEALS_FETCH_LIMIT = 24
 
@@ -68,6 +69,7 @@ export default function DashboardPage() {
   const [deals, setDeals] = useState<Ad[]>([])
   const [priceWatches, setPriceWatches] = useState<PriceWatch[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [minScore, setMinScore] = useState(DEFAULT_MIN_SCORE)
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
   const [greeting, setGreeting] = useState("")
   const [previousVisitMs, setPreviousVisitMs] = useState<number | null>(null)
@@ -88,16 +90,20 @@ export default function DashboardPage() {
 
   const load = useCallback(async () => {
     try {
+      // Erst die Einstellungen: der Mindest-Score steuert Stream und Schnäppchen-Zählung.
+      const settings = await fetchMySettings().catch(() => null)
+      const score = settings?.notify_min_score ?? DEFAULT_MIN_SCORE
       const [orderList, dealsRes, watches, notes] = await Promise.all([
         fetchSearchOrders().catch(() => [] as SearchOrder[]),
         fetchAdsPaginated({
-          min_score: SCHNAEPPCHEN_MIN_SCORE,
+          min_score: score,
           sort: "date",
           limit: DEALS_FETCH_LIMIT,
         }).catch(() => ({ items: [] as Ad[], total: 0 })),
         fetchPriceWatches().catch(() => [] as PriceWatch[]),
         fetchNotifications().catch(() => [] as Notification[]),
       ])
+      setMinScore(score)
       setOrders(orderList)
       setDeals(dealsRes.items)
       setPriceWatches(watches)
@@ -233,8 +239,8 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Der Ergebnis-Stream: alle Quellen, chronologisch */}
-      <ResultStream storageKey={STREAM_FILTERS_KEY} />
+      {/* Der Ergebnis-Stream: alle Quellen chronologisch, Anzeigen ab dem Settings-Score */}
+      <ResultStream storageKey={STREAM_FILTERS_KEY} minScore={minScore} />
 
       {/* Betriebs-Status – bewusst dezent in der Fußzeile */}
       {!showWelcome && (
