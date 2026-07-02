@@ -142,6 +142,8 @@ class AdSearchRead(SQLModel):
     scrape_interval_minutes: int
     created_at: datetime
     last_scraped_at: datetime | None
+    # Nur vom Suchauftrags-Endpoint befüllt (Funde dieser Quelle); sonst None.
+    ad_count: int | None = None
 
 
 class AdSearchUpdate(SQLModel):

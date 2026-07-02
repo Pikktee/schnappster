@@ -87,15 +87,21 @@ export function SearchOrderCard({
             className={cn("flex flex-wrap gap-1.5", !order.is_active && "opacity-50")}
             aria-label="Quellen"
           >
-            {SOURCES.filter((s) => order[s.key]).map((s) => (
-              <span
-                key={s.key}
-                className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary/90 ring-1 ring-inset ring-primary/15"
-              >
-                <s.icon className="size-3" aria-hidden />
-                {s.label}
-              </span>
-            ))}
+            {SOURCES.filter((s) => order[s.key]).map((s) => {
+              const count =
+                s.key === "mydealz" ? order.deal_count : (order[s.key]?.ad_count ?? 0)
+              return (
+                <span
+                  key={s.key}
+                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary/90 ring-1 ring-inset ring-primary/15"
+                  title={`${s.label}: ${count} ${count === 1 ? "Fund" : "Funde"}`}
+                >
+                  <s.icon className="size-3" aria-hidden />
+                  {s.label}
+                  {count > 0 && <span className="tabular-nums opacity-75">{count}</span>}
+                </span>
+              )
+            })}
           </div>
 
           <div className="pointer-events-auto flex shrink-0 items-center gap-0.5">

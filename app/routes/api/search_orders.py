@@ -396,18 +396,21 @@ def _adopt_orphans(session: Session, owner_id: str) -> None:
     session.commit()
 
 
+def _ad_count_for(session: Session, adsearch_id: int | None) -> int:
+    """Anzahl der Funde eines Quellen-Kinds (für die Pro-Quelle-Anzeige im Frontend)."""
+    if adsearch_id is None:
+        return 0
+    return session.exec(
+        select(func.count(col(Ad.id))).where(Ad.adsearch_id == adsearch_id)
+    ).one()
+
+
 def _build_read(session: Session, order: SearchOrder) -> SearchOrderRead:
-    """Baut die API-Ausgabe mit Kindern, Fund-Zählern und letzter Prüfzeit."""
+    """Baut die API-Ausgabe mit Kindern, Fund-Zählern (auch pro Quelle) und letzter Prüfzeit."""
     assert order.id is not None
     ad_children = _get_ad_children(session, order.id)
     watch = _get_deal_child(session, order.id)
 
-    child_ids = [child.id for child in ad_children.values() if child.id is not None]
-    ad_count = 0
-    if child_ids:
-        ad_count = session.exec(
-            select(func.count(col(Ad.id))).where(col(Ad.adsearch_id).in_(child_ids))
-        ).one()
     deal_count = 0
     if watch is not None:
         deal_count = session.exec(
@@ -426,7 +429,13 @@ def _build_read(session: Session, order: SearchOrder) -> SearchOrderRead:
     read.kleinanzeigen = AdSearchRead.model_validate(ka_child) if ka_child else None
     read.ebay = AdSearchRead.model_validate(ebay_child) if ebay_child else None
     read.mydealz = DealWatchRead.model_validate(watch) if watch else None
-    read.ad_count = ad_count
+    if read.kleinanzeigen is not None and ka_child is not None:
+        read.kleinanzeigen.ad_count = _ad_count_for(session, ka_child.id)
+    if read.ebay is not None and ebay_child is not None:
+        read.ebay.ad_count = _ad_count_for(session, ebay_child.id)
+    read.ad_count = (read.kleinanzeigen.ad_count or 0 if read.kleinanzeigen else 0) + (
+        read.ebay.ad_count or 0 if read.ebay else 0
+    )
     read.deal_count = deal_count
     read.last_checked_at = max(known) if known else None
     return read

@@ -17,6 +17,8 @@ export interface AdSearch {
   scrape_interval_minutes: number
   created_at: string
   last_scraped_at: string | null
+  /** Funde dieser Quelle; nur im Suchauftrags-Kontext befüllt. */
+  ad_count?: number | null
 }
 
 /**

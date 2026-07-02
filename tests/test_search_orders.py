@@ -147,6 +147,32 @@ def test_list_serializes_children(client):
     assert orders[0]["mydealz"] is not None
 
 
+def test_read_carries_per_source_ad_counts(client, session):
+    """Die Kinder tragen ihre eigenen Fund-Zähler; die Summe bleibt ad_count."""
+    order_id = client.post("/search-orders/", json=_create_payload()).json()["id"]
+    ka = session.exec(
+        select(AdSearch).where(
+            AdSearch.search_order_id == order_id, AdSearch.platform == "kleinanzeigen"
+        )
+    ).first()
+    for i in range(2):
+        session.add(
+            Ad(
+                owner_id=TEST_USER_ID,
+                adsearch_id=ka.id,
+                external_id=f"k{i}",
+                title="Fund",
+                url=f"https://www.kleinanzeigen.de/s-anzeige/x/{i}",
+            )
+        )
+    session.commit()
+
+    body = client.get(f"/search-orders/{order_id}").json()
+    assert body["kleinanzeigen"]["ad_count"] == 2
+    assert body["ebay"]["ad_count"] == 0
+    assert body["ad_count"] == 2
+
+
 def test_orphans_are_adopted_on_list(client, session):
     """Alt-/Extension-Suchen ohne Eltern bekommen beim Listen-Abruf einen Suchauftrag."""
     session.add(

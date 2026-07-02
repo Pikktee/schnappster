@@ -7,6 +7,7 @@ import {
   ChevronUp,
   Flame,
   HelpCircle,
+  Search,
   ShoppingBag,
   Store,
   X,
@@ -31,6 +32,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { SearchOrder, SearchOrderCreate } from "@/lib/types"
+import { formatScrapeInterval } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 const RADIUS_PRESETS = [5, 10, 25, 50, 100, 200]
@@ -153,6 +155,28 @@ export function SearchOrderForm({
 
   const usedAdSource = useKleinanzeigen || useEbay
   const anySource = usedAdSource || useMydealz
+
+  // Klartext-Vorschau, was der Auftrag tun wird — gibt vor dem Speichern Sicherheit.
+  const summary = (() => {
+    const term = query.trim()
+    if (!anySource || (!term && !isUrlLegacy)) return null
+    const parts: string[] = []
+    if (usedAdSource) {
+      const names = [useKleinanzeigen && "Kleinanzeigen", useEbay && "eBay"]
+        .filter(Boolean)
+        .join(" & ")
+      const range =
+        minPrice || maxPrice
+          ? ` (${minPrice || "0"} – ${maxPrice ? `${maxPrice} €` : "beliebig"})`
+          : ""
+      parts.push(`${names}${range}`)
+    }
+    if (useMydealz) {
+      parts.push(`MyDealz${mydealzMaxPrice ? ` (bis ${mydealzMaxPrice} €)` : ""}`)
+    }
+    const target = term ? `nach „${term}“` : "über die hinterlegte URL"
+    return `Sucht ${formatScrapeInterval(interval)} auf ${parts.join(" und auf ")} ${target}.`
+  })()
 
   function toggleSource(key: SourceOption["key"]) {
     markDirty()
@@ -481,38 +505,37 @@ export function SearchOrderForm({
         </div>
       </div>
 
-      {/* Name */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="order-name" className="font-normal">
-          Name (optional)
-        </Label>
-        <Input
-          id="order-name"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value)
-            markDirty()
-          }}
-          placeholder="Wird aus dem Suchbegriff übernommen."
-        />
-      </div>
-
-      {/* Erweiterte Optionen (nur für Gebraucht-Quellen relevant) */}
-      {usedAdSource && (
-        <div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setAdvancedOpen((v) => !v)}
-            aria-expanded={advancedOpen}
-            className="-mx-2 w-full cursor-pointer justify-between text-muted-foreground hover:text-foreground"
-          >
-            <span className="text-sm">Erweiterte Optionen</span>
-            {advancedOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-          </Button>
-          {advancedOpen && (
-            <div className="mt-2 flex flex-col gap-4 rounded-xl border border-border bg-muted/40 p-4">
+      {/* Erweiterte Optionen: Name immer, KI-/Filter-Felder nur für Gebraucht-Quellen */}
+      <div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          aria-expanded={advancedOpen}
+          className="-mx-2 w-full cursor-pointer justify-between text-muted-foreground hover:text-foreground"
+        >
+          <span className="text-sm">Erweiterte Optionen</span>
+          {advancedOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        </Button>
+        {advancedOpen && (
+          <div className="mt-2 flex flex-col gap-4 rounded-xl border border-border bg-muted/40 p-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="order-name" className="font-normal">
+                Eigener Name
+              </Label>
+              <Input
+                id="order-name"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  markDirty()
+                }}
+                placeholder="Wird sonst aus dem Suchbegriff übernommen."
+              />
+            </div>
+            {usedAdSource && (
+              <>
               <div className="flex flex-col gap-1.5">
                 <Label className="flex items-center gap-1.5 font-normal">
                   <span>Ausschluss-Keywords</span>
@@ -583,22 +606,31 @@ export function SearchOrderForm({
                   Anzeigen-Bilder nicht an die KI senden
                 </Label>
               </div>
-            </div>
-          )}
-        </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Klartext-Vorschau des Auftrags */}
+      {summary && (
+        <p className="flex items-start gap-2 rounded-lg border border-primary/15 bg-primary/[0.05] px-3 py-2.5 text-xs leading-relaxed text-foreground/85">
+          <Search className="mt-0.5 size-3.5 shrink-0 text-primary/70" aria-hidden />
+          <span>{summary}</span>
+        </p>
       )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
       <div className="flex justify-end gap-2 pt-1">
         <Button type="button" variant="outline" onClick={onCancel} className="cursor-pointer">
           Abbrechen
         </Button>
-        <Button
-          type="submit"
-          disabled={isLoading || !anySource || (!query.trim() && !isUrlLegacy)}
-          className="cursor-pointer"
-        >
+        <Button type="submit" disabled={isLoading} className="cursor-pointer">
           {isLoading ? "Speichern..." : isEdit ? "Aktualisieren" : "Erstellen"}
         </Button>
       </div>

@@ -1,12 +1,10 @@
 "use client"
 
-import { useCallback, useEffect, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import {
   AlertTriangle,
   ArrowLeft,
-  Clock,
-  Euro,
   Flame,
   Loader2,
   Pencil,
@@ -53,40 +51,63 @@ import { formatDealAlarmThreshold, formatPrice, formatScrapeInterval, timeAgo } 
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
-import { cn } from "@/lib/utils"
 import { usePageHead } from "../../page-head-context"
 
-function DetailField({
+/** Eine Zeile der Quellen-Übersicht: Icon, Name, Konfiguration, Fundzahl, optionaler Fehler. */
+function SourceRow({
   icon: Icon,
   label,
-  children,
-  className,
+  config,
+  count,
+  countLabel,
+  error,
 }: {
   icon: LucideIcon
   label: string
-  children: ReactNode
-  className?: string
+  config: string
+  count: number
+  countLabel: [string, string]
+  error?: string | null
 }) {
   return (
-    <div className={cn("rounded-xl border border-border/70 bg-muted/30 p-4", className)}>
-      <div className="mb-2 flex items-center gap-2">
-        <Icon className="size-3.5 text-muted-foreground" aria-hidden />
-        <span className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-          {label}
-        </span>
+    <li className="flex items-center gap-3 px-4 py-3 sm:px-5">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="size-4" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="truncate text-xs text-muted-foreground" title={config}>
+          {config}
+        </p>
+        {error && (
+          <p className="mt-0.5 flex items-start gap-1 text-xs text-amber-600" title={error}>
+            <AlertTriangle className="mt-px size-3 shrink-0" aria-hidden />
+            <span className="line-clamp-2">Letzte Prüfung fehlgeschlagen: {error}</span>
+          </p>
+        )}
       </div>
-      <div className="min-w-0 text-sm font-medium leading-relaxed text-foreground">{children}</div>
-    </div>
+      <p className="shrink-0 text-right">
+        <span className="block text-sm font-semibold tabular-nums text-foreground">{count}</span>
+        <span className="block text-[11px] text-muted-foreground">
+          {count === 1 ? countLabel[0] : countLabel[1]}
+        </span>
+      </p>
+    </li>
   )
 }
 
-function SourcePill({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background px-2.5 py-1 text-xs font-medium text-foreground">
-      <Icon className="size-3.5 text-primary" aria-hidden />
-      {label}
-    </span>
-  )
+/** Baut die Konfigurations-Kurzbeschreibung einer Gebraucht-Quelle ("50 € – 400 € · PLZ …"). */
+function usedConfigLine(
+  child: { min_price: number | null; max_price: number | null },
+  location: string,
+): string {
+  const hasRange = child.min_price != null || child.max_price != null
+  const range = hasRange
+    ? `${child.min_price != null ? formatPrice(child.min_price) : "0 €"} – ${
+        child.max_price != null ? formatPrice(child.max_price) : "beliebig"
+      }`
+    : "Preis beliebig"
+  return `${range} · ${location}`
 }
 
 export function SearchDetailPage() {
@@ -222,14 +243,22 @@ export function SearchDetailPage() {
     order.ebay?.scrape_interval_minutes ??
     order.mydealz?.scrape_interval_minutes ??
     null
-  const anyAd = order.kleinanzeigen ?? order.ebay
-  const usedRange =
-    anyAd && (anyAd.min_price != null || anyAd.max_price != null)
-      ? `${anyAd.min_price != null ? formatPrice(anyAd.min_price) : "0 €"} – ${
-          anyAd.max_price != null ? formatPrice(anyAd.max_price) : "beliebig"
-        }`
-      : "beliebig"
   const lastError = order.mydealz?.last_error
+  const kaLocation = order.kleinanzeigen?.postal_code
+    ? `PLZ ${order.kleinanzeigen.postal_code}${
+        order.kleinanzeigen.radius_km ? ` (${order.kleinanzeigen.radius_km} km)` : ""
+      }`
+    : "deutschlandweit"
+  const mydealzConfig = order.mydealz
+    ? [
+        order.mydealz.max_price != null ? `bis ${formatPrice(order.mydealz.max_price)}` : null,
+        formatDealAlarmThreshold(order.mydealz),
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : ""
+  // Der Suchbegriff steht meist schon als Titel im Seitenkopf — nur zeigen, wenn er abweicht.
+  const showQueryLine = !order.query || order.query.trim() !== order.name.trim()
 
   return (
     <ContentReveal className="flex flex-col gap-6">
@@ -282,13 +311,19 @@ export function SearchDetailPage() {
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm" disabled={isDeleting} className="cursor-pointer">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={isDeleting}
+                className="cursor-pointer text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                aria-label="Suchauftrag löschen"
+                title="Suchauftrag löschen"
+              >
                 {isDeleting ? (
-                  <Loader2 className="size-3.5 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" />
                 ) : (
-                  <Trash2 className="size-3.5" />
+                  <Trash2 className="size-4" />
                 )}
-                Löschen
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -313,54 +348,64 @@ export function SearchDetailPage() {
         </div>
       </div>
 
-      {lastError && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" aria-hidden />
-          <span>Bei der letzten MyDealz-Prüfung gab es ein Problem: {lastError}</span>
-        </div>
-      )}
-
-      {/* Übersicht */}
+      {/* Übersicht: eine Zeile pro Quelle + Prüf-Rhythmus in der Fußzeile */}
       <Card className="border-border/80 bg-card/95 py-0 shadow-sm">
-        <CardContent className="grid grid-cols-1 gap-3 p-4 sm:p-5 md:grid-cols-2 lg:grid-cols-4">
-          <DetailField icon={Search} label="Suchbegriff" className="md:col-span-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span>{order.query ? `„${order.query}“` : "Alt-Suche über URL"}</span>
-              <span className="flex flex-wrap gap-1.5">
-                {order.kleinanzeigen && <SourcePill icon={Store} label="Kleinanzeigen" />}
-                {order.ebay && <SourcePill icon={ShoppingBag} label="eBay" />}
-                {order.mydealz && <SourcePill icon={Flame} label="MyDealz" />}
-              </span>
-            </div>
-          </DetailField>
-          <DetailField icon={Euro} label="Gebraucht-Preis">
-            {anyAd ? usedRange : "—"}
-          </DetailField>
-          <DetailField icon={Flame} label="MyDealz-Alarm">
-            {order.mydealz
-              ? [
-                  formatDealAlarmThreshold(order.mydealz),
-                  order.mydealz.max_price != null
-                    ? `bis ${formatPrice(order.mydealz.max_price)}`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
-              : "—"}
-          </DetailField>
-          <DetailField icon={RefreshCw} label="Intervall" className="md:col-span-2">
-            {interval != null ? formatScrapeInterval(interval) : "—"}
-          </DetailField>
-          <DetailField icon={Clock} label="Zuletzt geprüft" className="md:col-span-2">
-            {timeAgo(order.last_checked_at)}
-          </DetailField>
+        <CardContent className="p-0">
+          {showQueryLine && (
+            <p className="flex items-center gap-2 border-b border-border/70 px-4 py-3 text-sm text-muted-foreground sm:px-5">
+              <Search className="size-3.5 shrink-0 opacity-60" aria-hidden />
+              {order.query ? (
+                <span className="truncate" title={order.query}>
+                  Sucht nach {`„${order.query}“`}
+                </span>
+              ) : (
+                <span>Alt-Suche über Kleinanzeigen-URL</span>
+              )}
+            </p>
+          )}
+          <ul className="m-0 flex list-none flex-col divide-y divide-border/70 p-0">
+            {order.kleinanzeigen && (
+              <SourceRow
+                icon={Store}
+                label="Kleinanzeigen"
+                config={usedConfigLine(order.kleinanzeigen, kaLocation)}
+                count={order.kleinanzeigen.ad_count ?? 0}
+                countLabel={["Fund", "Funde"]}
+              />
+            )}
+            {order.ebay && (
+              <SourceRow
+                icon={ShoppingBag}
+                label="eBay"
+                config={usedConfigLine(order.ebay, "bundesweit")}
+                count={order.ebay.ad_count ?? 0}
+                countLabel={["Fund", "Funde"]}
+              />
+            )}
+            {order.mydealz && (
+              <SourceRow
+                icon={Flame}
+                label="MyDealz"
+                config={mydealzConfig}
+                count={order.deal_count}
+                countLabel={["Deal", "Deals"]}
+                error={lastError}
+              />
+            )}
+          </ul>
+          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-t border-border/70 px-4 py-3 text-xs text-muted-foreground sm:px-5">
+            <RefreshCw className="size-3 opacity-60" aria-hidden />
+            <span>{interval != null ? `Geprüft ${formatScrapeInterval(interval)}` : "—"}</span>
+            <span aria-hidden>·</span>
+            <span>zuletzt {timeAgo(order.last_checked_at)}</span>
+          </p>
         </CardContent>
       </Card>
 
       {/* Ergebnisse aller Quellen, chronologisch gemischt */}
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Ergebnisse ({order.ad_count + order.deal_count})
+          Ergebnisse
         </h2>
         <ResultStream key={streamEpoch} searchOrderId={id} />
       </div>
