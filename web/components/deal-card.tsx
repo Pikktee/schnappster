@@ -1,16 +1,29 @@
 "use client"
 
 import { useState } from "react"
-import { ExternalLink, Flame, ImageOff, Zap } from "lucide-react"
+import {
+  ArrowUpRight,
+  ExternalLink,
+  Flame,
+  Hourglass,
+  ImageOff,
+  Rocket,
+  TrendingUp,
+  type LucideIcon,
+} from "lucide-react"
 import { Card } from "@/components/ui/card"
 import type { Deal } from "@/lib/types"
-import { formatHeatingVelocity, formatPrice, timeToHot } from "@/lib/format"
+import { formatHeatingVelocity, formatPrice, heatSpeedTier, timeToHot } from "@/lib/format"
+import type { HeatSpeedTier } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
-/** Bis zu dieser Zeit-bis-heiß gilt ein Deal als schneller Aufsteiger (Hervorhebung). */
-const FAST_RISER_MINUTES = 120
-/** Ab dieser gemessenen Erhitzung (°/h) gilt ein Deal als schneller Aufsteiger. */
-const FAST_RISER_VELOCITY = 50
+/** Symbol, Wort und Farbe je Aufheiz-Stufe (statt der technischen °/h-Zahl). */
+const TIER_STYLE: Record<HeatSpeedTier, { icon: LucideIcon; label: string; className: string; fill?: boolean }> = {
+  fast: { icon: Rocket, label: "rasant", className: "bg-violet-600/90 text-white", fill: true },
+  medium: { icon: TrendingUp, label: "zügig", className: "bg-amber-500/20 text-amber-700" },
+  slow: { icon: ArrowUpRight, label: "langsam", className: "bg-background/80 text-muted-foreground" },
+  unknown: { icon: Hourglass, label: "neu", className: "bg-background/70 text-muted-foreground/70" },
+}
 
 /** Farbe der Temperatur je Hitze (MyDealz: >300° = heiß, >150° = warm). */
 function tempTone(temp: number | null): string {
@@ -23,16 +36,13 @@ function tempTone(temp: number | null): string {
 export function DealCard({ deal }: { deal: Deal }) {
   const [imageFailed, setImageFailed] = useState(false)
   const showImage = !!deal.image_url && !imageFailed
-  // Bevorzugt die selbst gemessene Erhitzung (°/h); sonst Fallback auf MyDealz "Zeit bis heiß".
-  const velocityLabel = formatHeatingVelocity(deal.heating_velocity)
-  const heatSpeed = timeToHot(deal.published_at, deal.hot_date)
-  const speedLabel = velocityLabel ?? heatSpeed?.label ?? null
-  const isFastRiser = velocityLabel
-    ? (deal.heating_velocity ?? 0) >= FAST_RISER_VELOCITY
-    : heatSpeed != null && heatSpeed.minutes <= FAST_RISER_MINUTES
-  const speedTitle = velocityLabel
-    ? "Gemessene Erhitzung: Temperaturanstieg pro Stunde"
-    : "Aufheiz-Tempo: Zeit von der Veröffentlichung bis „heiß\""
+  // Grobe Aufheiz-Stufe statt technischer °/h; die genaue Zahl steckt im Tooltip.
+  const tier = heatSpeedTier(deal)
+  const tierStyle = TIER_STYLE[tier]
+  const TierIcon = tierStyle.icon
+  const speedDetail = formatHeatingVelocity(deal.heating_velocity) ?? timeToHot(deal.published_at, deal.hot_date)?.label
+  const speedTitle =
+    tier === "unknown" ? "Aufheiz-Tempo wird noch gemessen" : `Aufheiz-Tempo: ${speedDetail}`
 
   return (
     <Card className="group relative flex flex-col gap-0 overflow-hidden p-0 transition-shadow hover:shadow-md">
@@ -76,20 +86,16 @@ export function DealCard({ deal }: { deal: Deal }) {
           aria-hidden
         />
 
-        {speedLabel && (
-          <span
-            className={cn(
-              "absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium shadow-sm backdrop-blur-sm",
-              isFastRiser
-                ? "bg-violet-600/90 text-white"
-                : "bg-background/80 text-muted-foreground",
-            )}
-            title={speedTitle}
-          >
-            <Zap className={cn("size-3", isFastRiser && "fill-current")} aria-hidden />
-            {speedLabel}
-          </span>
-        )}
+        <span
+          className={cn(
+            "absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium shadow-sm backdrop-blur-sm",
+            tierStyle.className,
+          )}
+          title={speedTitle}
+        >
+          <TierIcon className={cn("size-3", tierStyle.fill && "fill-current")} aria-hidden />
+          {tierStyle.label}
+        </span>
       </div>
 
       {/* Titel + Preis */}

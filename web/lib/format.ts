@@ -37,6 +37,39 @@ export function formatHeatingVelocity(velocity?: number | null): string | null {
   return `+${Math.round(velocity)} °/h`
 }
 
+/** Grobe Aufheiz-Stufe für die Anzeige (statt der technischen °/h). */
+export type HeatSpeedTier = "unknown" | "slow" | "medium" | "fast"
+
+// Schwellen der gemessenen Geschwindigkeit (°/h) bzw. der MyDealz-Zeit-bis-heiß (Stunden).
+const FAST_VELOCITY = 120
+const MEDIUM_VELOCITY = 40
+const FAST_HOURS_TO_HOT = 1.5
+const MEDIUM_HOURS_TO_HOT = 4
+
+/**
+ * Stuft das Aufheiz-Tempo grob ein: bevorzugt die selbst gemessene °/h; solange noch keine
+ * Messung vorliegt, als Näherung die MyDealz-"Zeit bis heiß"; sonst "unknown".
+ */
+export function heatSpeedTier(deal: {
+  heating_velocity?: number | null
+  published_at?: number | null
+  hot_date?: number | null
+}): HeatSpeedTier {
+  const velocity = deal.heating_velocity
+  if (velocity != null) {
+    if (velocity >= FAST_VELOCITY) return "fast"
+    if (velocity >= MEDIUM_VELOCITY) return "medium"
+    return "slow"
+  }
+  if (deal.published_at && deal.hot_date && deal.hot_date > deal.published_at) {
+    const hoursToHot = (deal.hot_date - deal.published_at) / 3600
+    if (hoursToHot < FAST_HOURS_TO_HOT) return "fast"
+    if (hoursToHot < MEDIUM_HOURS_TO_HOT) return "medium"
+    return "slow"
+  }
+  return "unknown"
+}
+
 /** Beschreibt, wann ein Deal-Alarm auslöst (Temperatur-Schwelle + optional Aufheiz-Tempo). */
 export function formatDealAlarmThreshold(watch: {
   min_temperature: number | null
