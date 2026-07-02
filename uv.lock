@@ -1213,7 +1213,7 @@ wheels = [
 
 [[package]]
 name = "schnappster"
-version = "0.8.21"
+version = "0.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "apscheduler" },
