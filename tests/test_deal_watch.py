@@ -1,13 +1,14 @@
 """Tests für den Deal-Alarm: MyDealz-Parser, DealWatchService (Baseline/Schwelle), API."""
 
 import json
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from sqlmodel import select
 
 from app.models.deal_watch import Deal, DealWatch
 from app.scraper import mydealz
-from app.services.deal_watch import DealWatchService
+from app.services.deal_watch import DealWatchService, compute_heating_velocity
 from app.services.notification import NotificationService
 
 TEST_USER_ID = "00000000-0000-0000-0000-000000000001"
@@ -125,12 +126,13 @@ def test_build_search_url_encodes_query():
 # --- Service: Baseline + Schwelle + Benachrichtigung ---
 
 
-def _make_watch(session, *, min_temperature=None):
+def _make_watch(session, *, min_temperature=None, min_heating_velocity=None):
     watch = DealWatch(
         owner_id=TEST_USER_ID,
         name="LEGO",
         query="lego",
         min_temperature=min_temperature,
+        min_heating_velocity=min_heating_velocity,
         is_active=True,
     )
     session.add(watch)
@@ -261,16 +263,37 @@ def test_list_and_get_deals_for_watch(client, session):
     assert len(deals) == 1 and deals[0]["external_id"] == "42"
 
 
-def test_deals_sorted_by_time_to_hot(client, session):
-    """Schnellste Aufsteiger (kleinste Zeit bis heiß) zuerst; ohne hot_date danach."""
+def test_compute_heating_velocity():
+    """°/h aus aktueller vs. vorheriger Messung; None mit < 2 Messpunkten."""
+    now = datetime.now(UTC)
+    deal = Deal(
+        owner_id=TEST_USER_ID,
+        deal_watch_id=1,
+        external_id="x",
+        title="x",
+        url="u",
+        temperature=200.0,
+        temperature_updated_at=now,
+        previous_temperature=50.0,
+        previous_temperature_at=now - timedelta(hours=1),
+    )
+    assert compute_heating_velocity(deal) == 150.0  # +150° in 1 h
+    deal.previous_temperature = None
+    assert compute_heating_velocity(deal) is None
+
+
+def test_deals_sorted_by_heating_velocity(client, session):
+    """Steilste Aufsteiger (gemessene °/h) zuerst; ohne Messung danach nach Temperatur."""
     watch = _make_watch(session)
+    now = datetime.now(UTC)
+    earlier = now - timedelta(minutes=30)
     rows = [
-        # (external_id, temperature, published_at, hot_date)
-        ("slow", 200.0, 1000, 1000 + 7200),  # 2 h bis heiß
-        ("fast", 300.0, 1000, 1000 + 1800),  # 0,5 h bis heiß → zuerst
-        ("hottest", 900.0, 1000, 0),  # nie heiß geworden → trotz Top-Temp ans Ende
+        # (external_id, temperature, previous_temperature) → °/h über 0,5 h
+        ("slow", 300.0, 280.0),  # +20 / 0,5 h = 40°/h (heißer, aber langsam)
+        ("fast", 200.0, 50.0),  # +150 / 0,5 h = 300°/h → zuerst
+        ("flat", 900.0, None),  # keine Vormessung → trotz Top-Temp ans Ende
     ]
-    for ext, temp, pub, hot in rows:
+    for ext, temp, prev in rows:
         session.add(
             Deal(
                 owner_id=TEST_USER_ID,
@@ -279,11 +302,42 @@ def test_deals_sorted_by_time_to_hot(client, session):
                 title=ext,
                 url=f"https://www.mydealz.de/deals/x-{ext}",
                 temperature=temp,
-                published_at=pub,
-                hot_date=hot or None,
+                temperature_updated_at=now,
+                previous_temperature=prev,
+                previous_temperature_at=earlier if prev is not None else None,
             )
         )
     session.commit()
 
     deals = client.get(f"/deal-watches/{watch.id}/deals").json()
-    assert [d["external_id"] for d in deals] == ["fast", "slow", "hottest"]
+    assert [d["external_id"] for d in deals] == ["fast", "slow", "flat"]
+    fast = next(d for d in deals if d["external_id"] == "fast")
+    assert fast["heating_velocity"] == 300.0
+
+
+def test_fast_riser_triggers_velocity_alarm(session):
+    """Steigt ein bekannter Deal schneller als die Aufheiz-Schwelle, wird einmalig alarmiert."""
+    watch = _make_watch(session, min_heating_velocity=100)  # nur Aufheiz-Alarm, keine Temp-Schwelle
+    watch_id = watch.id
+    baseline = _deals_html([_deal_node("1", "Steigt", 50)])
+    hotter = _deals_html([_deal_node("1", "Steigt", 250)])  # +200°
+
+    service = DealWatchService(session)
+    with patch("app.services.deal_watch.mydealz.fetch_deals_html", return_value=(200, baseline)):
+        service.check_watch(watch)
+
+    # 30 Min vergangene Zeit simulieren: erste Messung zurückdatieren
+    deal = session.exec(select(Deal).where(Deal.external_id == "1")).first()
+    deal.temperature_updated_at = datetime.now(UTC) - timedelta(minutes=30)
+    session.add(deal)
+    session.commit()
+
+    reloaded = session.get(DealWatch, watch_id)
+    with patch("app.services.deal_watch.mydealz.fetch_deals_html", return_value=(200, hotter)):
+        result = service.check_watch(reloaded)
+
+    assert result.alarms == 1  # +200° in 0,5 h = 400°/h ≥ 100
+    d = session.exec(select(Deal).where(Deal.external_id == "1")).first()
+    assert d.notified is True
+    assert d.previous_temperature == 50.0 and d.temperature == 250.0
+    assert NotificationService(session).unread_count(TEST_USER_ID) == 1

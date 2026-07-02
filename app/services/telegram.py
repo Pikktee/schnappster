@@ -82,13 +82,16 @@ class TelegramService:
         temperature: float | None = None,
         price: float | None = None,
         merchant: str | None = None,
+        heating_velocity: float | None = None,
     ) -> None:
         """Sendet eine Deal-Alarm-Benachrichtigung (MyDealz); no-op wenn nicht konfiguriert."""
         if not self.is_configured:
             logger.debug("Telegram is not configured, skipping deal alert")
             return
 
-        text = self._format_deal_message(watch_name, deal_title, url, temperature, price, merchant)
+        text = self._format_deal_message(
+            watch_name, deal_title, url, temperature, price, merchant, heating_velocity
+        )
         payload = {
             "chat_id": self.chat_id,
             "text": text,
@@ -118,12 +121,14 @@ class TelegramService:
         temperature: float | None,
         price: float | None,
         merchant: str | None,
+        heating_velocity: float | None = None,
     ) -> str:
-        """Markdown für Telegram: Deal-Titel, Temperatur, Preis, Händler, Link."""
+        """Markdown für Telegram: Deal-Titel, Temperatur/Aufheiz-Tempo, Preis, Händler, Link."""
+        lead = f"🚀 +{heating_velocity:.0f}°/h" if heating_velocity is not None else ""
         temp_str = f"🔥 {temperature:.0f}°" if temperature is not None else ""
         price_str = f" · {price:.2f} €" if price is not None else ""
         merch_str = f" @ {merchant}" if merchant else ""
-        meta = f"{temp_str}{price_str}{merch_str}".strip(" ·")
+        meta = f"{lead} {temp_str}{price_str}{merch_str}".strip(" ·")
         meta_line = f"\n{meta}" if meta else ""
         return f"🏷️ *Neuer Deal: {watch_name}*\n\n*{deal_title}*{meta_line}\n\n🔗 {url}"
 

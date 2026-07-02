@@ -31,6 +31,28 @@ export function timeToHot(
   return { label: `in ${rounded} h heiß`, minutes }
 }
 
+/** Gemessene Erhitzungsgeschwindigkeit, z. B. "+120 °/h". null, wenn nicht (mehr) steigend. */
+export function formatHeatingVelocity(velocity?: number | null): string | null {
+  if (velocity == null || velocity <= 0) return null
+  return `+${Math.round(velocity)} °/h`
+}
+
+/** Beschreibt, wann ein Deal-Alarm auslöst (Temperatur-Schwelle + optional Aufheiz-Tempo). */
+export function formatDealAlarmThreshold(watch: {
+  min_temperature: number | null
+  min_heating_velocity: number | null
+}): string {
+  const parts = [
+    watch.min_temperature != null
+      ? `ab ${Math.round(watch.min_temperature)}°`
+      : "alle neuen Deals",
+  ]
+  if (watch.min_heating_velocity != null) {
+    parts.push(`schnelle Aufsteiger ≥ ${Math.round(watch.min_heating_velocity)}°/h`)
+  }
+  return parts.join(" · ")
+}
+
 export function formatPrice(price: number | null): string {
   if (price === null || price === undefined) return "Preis n.v."
   return new Intl.NumberFormat("de-DE", {

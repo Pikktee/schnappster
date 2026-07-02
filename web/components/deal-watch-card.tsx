@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import type { DealWatch } from "@/lib/types"
-import { formatScrapeInterval, timeAgo } from "@/lib/format"
+import { formatDealAlarmThreshold, formatScrapeInterval, timeAgo } from "@/lib/format"
 
 interface DealWatchCardProps {
   watch: DealWatch
@@ -50,8 +50,7 @@ function MetaItem({ icon: Icon, label, value }: { icon: LucideIcon; label: strin
 
 export function DealWatchCard({ watch, onDelete, isDeleting }: DealWatchCardProps) {
   const [open, setOpen] = useState(false)
-  const thresholdLabel =
-    watch.min_temperature != null ? `ab ${Math.round(watch.min_temperature)}°` : "alle neuen Deals"
+  const thresholdLabel = formatDealAlarmThreshold(watch)
 
   return (
     <Card className="group relative h-full min-h-[208px] overflow-hidden border-border/80 bg-card/95 py-0 shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">

@@ -175,6 +175,8 @@ export interface DealWatch {
   source: string
   /** Optionale Temperatur-Schwelle (Grad); nur Deals darüber lösen einen Alarm aus. */
   min_temperature: number | null
+  /** Optionale Aufheiz-Schwelle (Grad/Stunde); schnell steigende Deals lösen einen Alarm aus. */
+  min_heating_velocity: number | null
   scrape_interval_minutes: number
   is_active: boolean
   last_checked_at: string | null
@@ -187,6 +189,7 @@ export interface DealWatchCreate {
   name?: string
   query: string
   min_temperature?: number | null
+  min_heating_velocity?: number | null
   scrape_interval_minutes?: number
   is_active?: boolean
 }
@@ -205,6 +208,8 @@ export interface Deal {
   published_at?: number | null
   /** Unix-Zeitstempel, zu dem der Deal heiß wurde; mit published_at = Zeit bis heiß. */
   hot_date?: number | null
+  /** Selbst gemessene Erhitzungsgeschwindigkeit in Grad/Stunde (null bei < 2 Messungen). */
+  heating_velocity?: number | null
   first_seen_at?: string
 }
 

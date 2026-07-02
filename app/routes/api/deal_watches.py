@@ -19,7 +19,7 @@ from app.models.deal_watch import (
     DealWatchUpdate,
 )
 from app.scraper import mydealz
-from app.services.deal_watch import DealWatchService
+from app.services.deal_watch import DealWatchService, compute_heating_velocity
 
 router = APIRouter(prefix="/deal-watches", tags=["DealWatches"])
 
@@ -93,10 +93,10 @@ def get_deal_watch_deals(
     session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
-    """Gibt die Deals eines Alarms zurück — schnellste Aufsteiger (Zeit bis heiß) zuerst."""
+    """Gibt die Deals eines Alarms zurück — steilste Aufsteiger (gemessene °/h) zuerst."""
     _get_owned_watch(session, watch_id, current_user.user_id)
     deals = session.exec(select(Deal).where(Deal.deal_watch_id == watch_id)).all()
-    result = [DealRead.model_validate(deal) for deal in sorted(deals, key=_relevance_sort_key)]
+    result = [_deal_to_read(deal) for deal in sorted(deals, key=_relevance_sort_key)]
     session.rollback()
     return result
 
@@ -172,20 +172,20 @@ def delete_deal_watch(
 # -----------------------
 # --- Hilfsfunktionen ---
 # -----------------------
-def _time_to_hot_seconds(deal: Deal) -> int | None:
-    """Sekunden von Veröffentlichung bis 'heiß'; None, wenn (noch) nicht heiß geworden."""
-    if deal.hot_date and deal.published_at and deal.hot_date > deal.published_at:
-        return deal.hot_date - deal.published_at
-    return None
+def _deal_to_read(deal: Deal) -> DealRead:
+    """Baut die API-Ausgabe inkl. der gemessenen Erhitzungsgeschwindigkeit (°/h)."""
+    read = DealRead.model_validate(deal)
+    read.heating_velocity = compute_heating_velocity(deal)
+    return read
 
 
-def _relevance_sort_key(deal: Deal) -> tuple[int, int, float]:
-    """Schnellste Aufsteiger zuerst (kleinste Zeit bis heiß), Rest danach nach Hitze."""
-    time_to_hot = _time_to_hot_seconds(deal)
+def _relevance_sort_key(deal: Deal) -> tuple[int, float, float]:
+    """Steilste Aufsteiger (gemessene °/h) zuerst; ohne Messung danach nach Temperatur."""
+    velocity = compute_heating_velocity(deal)
     temperature = deal.temperature or 0.0
-    if time_to_hot is not None:
-        return (0, time_to_hot, -temperature)
-    return (1, 0, -temperature)
+    if velocity is not None and velocity > 0:
+        return (0, -velocity, -temperature)
+    return (1, 0.0, -temperature)
 
 
 def _get_owned_watch(session: SessionDep, watch_id: int, owner_id: str) -> DealWatch:

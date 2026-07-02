@@ -4,11 +4,13 @@ import { useState } from "react"
 import { ExternalLink, Flame, ImageOff, Zap } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import type { Deal } from "@/lib/types"
-import { formatPrice, timeToHot } from "@/lib/format"
+import { formatHeatingVelocity, formatPrice, timeToHot } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 /** Bis zu dieser Zeit-bis-heiß gilt ein Deal als schneller Aufsteiger (Hervorhebung). */
 const FAST_RISER_MINUTES = 120
+/** Ab dieser gemessenen Erhitzung (°/h) gilt ein Deal als schneller Aufsteiger. */
+const FAST_RISER_VELOCITY = 50
 
 /** Farbe der Temperatur je Hitze (MyDealz: >300° = heiß, >150° = warm). */
 function tempTone(temp: number | null): string {
@@ -21,8 +23,16 @@ function tempTone(temp: number | null): string {
 export function DealCard({ deal }: { deal: Deal }) {
   const [imageFailed, setImageFailed] = useState(false)
   const showImage = !!deal.image_url && !imageFailed
+  // Bevorzugt die selbst gemessene Erhitzung (°/h); sonst Fallback auf MyDealz "Zeit bis heiß".
+  const velocityLabel = formatHeatingVelocity(deal.heating_velocity)
   const heatSpeed = timeToHot(deal.published_at, deal.hot_date)
-  const isFastRiser = heatSpeed != null && heatSpeed.minutes <= FAST_RISER_MINUTES
+  const speedLabel = velocityLabel ?? heatSpeed?.label ?? null
+  const isFastRiser = velocityLabel
+    ? (deal.heating_velocity ?? 0) >= FAST_RISER_VELOCITY
+    : heatSpeed != null && heatSpeed.minutes <= FAST_RISER_MINUTES
+  const speedTitle = velocityLabel
+    ? "Gemessene Erhitzung: Temperaturanstieg pro Stunde"
+    : "Aufheiz-Tempo: Zeit von der Veröffentlichung bis „heiß\""
 
   return (
     <Card className="group relative flex flex-col gap-0 overflow-hidden p-0 transition-shadow hover:shadow-md">
@@ -66,7 +76,7 @@ export function DealCard({ deal }: { deal: Deal }) {
           aria-hidden
         />
 
-        {heatSpeed && (
+        {speedLabel && (
           <span
             className={cn(
               "absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium shadow-sm backdrop-blur-sm",
@@ -74,10 +84,10 @@ export function DealCard({ deal }: { deal: Deal }) {
                 ? "bg-violet-600/90 text-white"
                 : "bg-background/80 text-muted-foreground",
             )}
-            title={'Aufheiz-Tempo: Zeit von der Veröffentlichung bis „heiß"'}
+            title={speedTitle}
           >
             <Zap className={cn("size-3", isFastRiser && "fill-current")} aria-hidden />
-            {heatSpeed.label}
+            {speedLabel}
           </span>
         )}
       </div>

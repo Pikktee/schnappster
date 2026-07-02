@@ -33,6 +33,8 @@ class DealWatch(SQLModel, table=True):
     source: str = Field(default=DEFAULT_DEAL_SOURCE)
     # Optionale Temperatur-Schwelle (Grad): nur Deals darüber lösen einen Alarm aus.
     min_temperature: float | None = None
+    # Optionale Aufheiz-Schwelle (Grad/Stunde): Deals, die schneller steigen, lösen einen Alarm aus.
+    min_heating_velocity: float | None = None
     scrape_interval_minutes: int = DEFAULT_DEAL_INTERVAL_MINUTES
     is_active: bool = True
     last_checked_at: datetime | None = None
@@ -68,6 +70,11 @@ class Deal(SQLModel, table=True):
     published_at: int | None = None
     # Unix-Zeitstempel, zu dem der Deal heiß wurde; published_at→hot_date = Zeit bis heiß.
     hot_date: int | None = None
+    # Selbst gemessene Aufheizung: aktuelle Temperatur + Vormessung mit Zeitstempeln.
+    # Erhitzungsgeschwindigkeit (°/h) = (temperature − previous_temperature) / Δt.
+    temperature_updated_at: datetime | None = None
+    previous_temperature: float | None = None
+    previous_temperature_at: datetime | None = None
     # Ob für diesen Deal bereits benachrichtigt wurde (Baseline beim ersten Check → False).
     notified: bool = False
     first_seen_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
@@ -84,6 +91,7 @@ class DealWatchCreate(SQLModel):
     name: str = ""
     query: str
     min_temperature: float | None = None
+    min_heating_velocity: float | None = None
     scrape_interval_minutes: int = DEFAULT_DEAL_INTERVAL_MINUTES
     is_active: bool = True
 
@@ -93,6 +101,13 @@ class DealWatchCreate(SQLModel):
         if not (v or "").strip():
             raise ValueError("Bitte einen Suchbegriff für den Deal-Alarm angeben.")
         return v.strip()
+
+    @field_validator("min_heating_velocity")
+    @classmethod
+    def validate_velocity(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError("Die Aufheiz-Schwelle darf nicht negativ sein.")
+        return v
 
     @field_validator("scrape_interval_minutes")
     @classmethod
@@ -120,6 +135,7 @@ class DealWatchRead(SQLModel):
     query: str
     source: str
     min_temperature: float | None
+    min_heating_velocity: float | None
     scrape_interval_minutes: int
     is_active: bool
     last_checked_at: datetime | None
@@ -132,6 +148,7 @@ class DealWatchUpdate(SQLModel):
 
     name: str | None = None
     min_temperature: float | None = None
+    min_heating_velocity: float | None = None
     scrape_interval_minutes: int | None = None
     is_active: bool | None = None
 
@@ -159,6 +176,8 @@ class DealRead(SQLModel):
     image_url: str | None
     published_at: int | None
     hot_date: int | None
+    # Gemessene Erhitzungsgeschwindigkeit in Grad/Stunde (im Route-Handler berechnet).
+    heating_velocity: float | None = None
     first_seen_at: datetime
 
 

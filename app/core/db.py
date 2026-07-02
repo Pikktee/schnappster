@@ -26,6 +26,12 @@ _ADDITIVE_COLUMNS: list[tuple[str, str, str]] = [
     ("deals", "image_url", "VARCHAR"),
     # Deal-Alarm: Zeitpunkt "heiß geworden" (published_at→hot_date = Zeit bis heiß).
     ("deals", "hot_date", "INTEGER"),
+    # Deal-Alarm: selbst gemessene Aufheizung (aktuelle + vorherige Temperatur → °/h).
+    ("deals", "temperature_updated_at", "DATETIME"),
+    ("deals", "previous_temperature", "FLOAT"),
+    ("deals", "previous_temperature_at", "DATETIME"),
+    # Deal-Alarm: Aufheiz-Schwelle (°/h) pro Alarm.
+    ("deal_watches", "min_heating_velocity", "FLOAT"),
 ]
 
 _SQLITE_PREFIX = "sqlite:///"

@@ -34,6 +34,7 @@ class DealWatchSnapshot:
     name: str
     query: str
     min_temperature: float | None
+    min_heating_velocity: float | None
     last_checked_at: datetime | None
     scrape_interval_minutes: int
 
@@ -118,36 +119,68 @@ class DealWatchService:
     def _process_deals(
         self, snap: DealWatchSnapshot, deals: list[mydealz.MydealzDeal]
     ) -> DealCheckResult:
-        """Speichert neue Deals; benachrichtigt (außer beim Erst-Check) über der Schwelle."""
+        """Speichert neue Deals, aktualisiert bekannte (Aufheiz-Messung) und benachrichtigt."""
         watch = self.session.get(DealWatch, snap.id)
         if watch is None:
             return DealCheckResult(status="gone")
-        watch.last_checked_at = datetime.now(UTC)
+        now = datetime.now(UTC)
+        watch.last_checked_at = now
         watch.last_error = None
         watch.consecutive_failures = 0
 
         is_first_check = snap.last_checked_at is None
-        existing = set(
-            self.session.exec(select(Deal.external_id).where(Deal.deal_watch_id == snap.id)).all()
-        )
+        existing = {
+            row.external_id: row
+            for row in self.session.exec(
+                select(Deal).where(Deal.deal_watch_id == snap.id)
+            ).all()
+        }
 
-        to_notify: list[mydealz.MydealzDeal] = []
+        alarms: list[tuple[mydealz.MydealzDeal, float | None]] = []
         for deal in deals:
-            if deal.external_id in existing:
-                continue
-            notify = (not is_first_check) and _meets_threshold(deal, snap.min_temperature)
-            self.session.add(_to_deal_row(snap.owner_id, snap.id, deal, notified=notify))
-            if notify:
-                to_notify.append(deal)
+            row = existing.get(deal.external_id)
+            if row is None:
+                alarms += self._add_new_deal(snap, deal, now, is_first_check)
+            else:
+                alarms += self._refresh_deal(snap, row, deal, now, is_first_check)
         self.session.commit()
 
-        for deal in to_notify:
-            self._dispatch_alarm(snap, deal)
-        return DealCheckResult(status="ok", new_deals=len(to_notify), alarms=len(to_notify))
+        for deal, velocity in alarms:
+            self._dispatch_alarm(snap, deal, velocity)
+        return DealCheckResult(status="ok", new_deals=len(alarms), alarms=len(alarms))
 
-    def _dispatch_alarm(self, snap: DealWatchSnapshot, deal: mydealz.MydealzDeal) -> None:
+    def _add_new_deal(
+        self, snap: DealWatchSnapshot, deal: mydealz.MydealzDeal, now: datetime, first: bool
+    ) -> list[tuple[mydealz.MydealzDeal, float | None]]:
+        """Legt einen neu gefundenen Deal an; benachrichtigt bei erfüllter Temperatur-Schwelle."""
+        notify = (not first) and _meets_threshold(deal, snap.min_temperature)
+        self.session.add(_to_deal_row(snap.owner_id, snap.id, deal, now, notified=notify))
+        return [(deal, None)] if notify else []
+
+    def _refresh_deal(
+        self,
+        snap: DealWatchSnapshot,
+        row: Deal,
+        deal: mydealz.MydealzDeal,
+        now: datetime,
+        first: bool,
+    ) -> list[tuple[mydealz.MydealzDeal, float | None]]:
+        """Aktualisiert einen bekannten Deal; alarmiert einmalig bei schnellem Aufheizen."""
+        _update_deal_row(row, deal, now)
+        self.session.add(row)
+        if first or row.notified:
+            return []
+        velocity = compute_heating_velocity(row)
+        if _meets_velocity(velocity, snap.min_heating_velocity):
+            row.notified = True
+            return [(deal, velocity)]
+        return []
+
+    def _dispatch_alarm(
+        self, snap: DealWatchSnapshot, deal: mydealz.MydealzDeal, velocity: float | None = None
+    ) -> None:
         """Erzeugt die In-App-Benachrichtigung und sendet optional Telegram."""
-        title, body = _build_alarm_content(deal)
+        title, body = _build_alarm_content(deal, velocity)
         NotificationService(self.session).create(
             snap.owner_id, NOTIFICATION_DEAL_HOT, title, body, f"/deal-alarms/{snap.id}"
         )
@@ -156,7 +189,13 @@ class DealWatchService:
         if settings.notify_price_telegram and settings.telegram_chat_id:
             telegram = TelegramService(app_config.telegram_bot_token, settings.telegram_chat_id)
             telegram.send_deal_alert(
-                snap.name, deal.title, deal.url, deal.temperature, deal.price, deal.merchant
+                snap.name,
+                deal.title,
+                deal.url,
+                deal.temperature,
+                deal.price,
+                deal.merchant,
+                velocity,
             )
 
     def _log_error(self, watch_id: int, message: str, details: str) -> None:
@@ -191,10 +230,38 @@ def _meets_threshold(deal: mydealz.MydealzDeal, min_temperature: float | None) -
     return deal.temperature is not None and deal.temperature >= min_temperature
 
 
+def _meets_velocity(velocity: float | None, threshold: float | None) -> bool:
+    """True, wenn eine Aufheiz-Schwelle gesetzt und die gemessene °/h sie erreicht."""
+    if threshold is None or velocity is None:
+        return False
+    return velocity >= threshold
+
+
+def _naive(value: datetime) -> datetime:
+    """Entfernt die Zeitzone (SQLite liefert naive, frisch gesetzte Werte sind aware)."""
+    return value.replace(tzinfo=None) if value.tzinfo else value
+
+
+def compute_heating_velocity(deal: Deal) -> float | None:
+    """Gemessene Erhitzung in Grad/Stunde (aktuell vs. vorherige Messung); None mit < 2 Werten."""
+    if (
+        deal.temperature is None
+        or deal.previous_temperature is None
+        or deal.temperature_updated_at is None
+        or deal.previous_temperature_at is None
+    ):
+        return None
+    elapsed = _naive(deal.temperature_updated_at) - _naive(deal.previous_temperature_at)
+    hours = elapsed.total_seconds() / 3600
+    if hours <= 0:
+        return None
+    return round((deal.temperature - deal.previous_temperature) / hours, 1)
+
+
 def _to_deal_row(
-    owner_id: str, watch_id: int, deal: mydealz.MydealzDeal, *, notified: bool
+    owner_id: str, watch_id: int, deal: mydealz.MydealzDeal, now: datetime, *, notified: bool
 ) -> Deal:
-    """Baut eine Deal-Zeile aus einem geparsten MyDealz-Deal."""
+    """Baut eine Deal-Zeile aus einem geparsten MyDealz-Deal (erste Aufheiz-Messung = now)."""
     return Deal(
         owner_id=owner_id,
         deal_watch_id=watch_id,
@@ -202,6 +269,7 @@ def _to_deal_row(
         title=deal.title,
         url=deal.url,
         temperature=deal.temperature,
+        temperature_updated_at=now,
         price=deal.price,
         next_best_price=deal.next_best_price,
         merchant=deal.merchant,
@@ -212,10 +280,31 @@ def _to_deal_row(
     )
 
 
-def _build_alarm_content(deal: mydealz.MydealzDeal) -> tuple[str, str]:
-    """Baut Titel und Text für die In-App-Benachrichtigung eines Deals."""
-    temp = f"{deal.temperature:.0f}° " if deal.temperature is not None else ""
-    title = f"🔥 {temp}Neuer Deal: {deal.title}".strip()
+def _update_deal_row(row: Deal, deal: mydealz.MydealzDeal, now: datetime) -> None:
+    """Aktualisiert einen bekannten Deal: Vormessung rollen + aktuelle MyDealz-Werte übernehmen."""
+    row.previous_temperature = row.temperature
+    row.previous_temperature_at = row.temperature_updated_at
+    if deal.temperature is not None:
+        row.temperature = deal.temperature
+    row.temperature_updated_at = now
+    row.price = deal.price
+    row.next_best_price = deal.next_best_price
+    row.hot_date = deal.hot_date or row.hot_date  # backfillt hot_date, sobald der Deal heiß wird
+    if deal.image_url:
+        row.image_url = deal.image_url
+
+
+def _build_alarm_content(
+    deal: mydealz.MydealzDeal, velocity: float | None = None
+) -> tuple[str, str]:
+    """Baut Titel und Text für die In-App-Benachrichtigung (Aufheiz-Alarm zeigt °/h)."""
+    if velocity is not None:
+        prefix = f"🚀 +{velocity:.0f}°/h"
+    elif deal.temperature is not None:
+        prefix = f"🔥 {deal.temperature:.0f}°"
+    else:
+        prefix = "🔥"
+    title = f"{prefix} Neuer Deal: {deal.title}".strip()
     parts = []
     if deal.price is not None:
         parts.append(f"{deal.price:.2f} €")
@@ -237,6 +326,7 @@ def _snapshot_watch(watch: DealWatch | DealWatchSnapshot) -> DealWatchSnapshot:
         name=watch.name,
         query=watch.query,
         min_temperature=watch.min_temperature,
+        min_heating_velocity=watch.min_heating_velocity,
         last_checked_at=watch.last_checked_at,
         scrape_interval_minutes=watch.scrape_interval_minutes,
     )

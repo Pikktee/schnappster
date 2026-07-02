@@ -39,7 +39,7 @@ import {
   updateDealWatch,
 } from "@/lib/api"
 import type { Deal, DealWatch } from "@/lib/types"
-import { formatScrapeInterval, timeAgo } from "@/lib/format"
+import { formatDealAlarmThreshold, formatScrapeInterval, timeAgo } from "@/lib/format"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ContentReveal } from "@/components/content-reveal"
@@ -191,8 +191,7 @@ export function DealAlarmDetailPage() {
     )
   }
 
-  const thresholdLabel =
-    watch.min_temperature != null ? `ab ${Math.round(watch.min_temperature)}°` : "alle neuen Deals"
+  const thresholdLabel = formatDealAlarmThreshold(watch)
 
   return (
     <ContentReveal className="flex flex-col gap-6">

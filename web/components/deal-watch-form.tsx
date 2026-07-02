@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Flame } from "lucide-react"
+import { Flame, Zap } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -24,6 +24,13 @@ const INTERVAL_PRESETS = [
   { label: "Täglich", value: 1440 },
 ]
 
+const VELOCITY_PRESETS: { label: string; value: number | null }[] = [
+  { label: "Aus", value: null },
+  { label: "50°/h", value: 50 },
+  { label: "100°/h", value: 100 },
+  { label: "200°/h", value: 200 },
+]
+
 interface DealWatchFormProps {
   onCreated: (watch: DealWatch) => void
   onCancel: () => void
@@ -33,6 +40,7 @@ export function DealWatchForm({ onCreated, onCancel }: DealWatchFormProps) {
   const [name, setName] = useState("")
   const [query, setQuery] = useState("")
   const [minTemperature, setMinTemperature] = useState<number | null>(200)
+  const [minHeatingVelocity, setMinHeatingVelocity] = useState<number | null>(null)
   const [interval, setInterval] = useState(30)
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -50,6 +58,7 @@ export function DealWatchForm({ onCreated, onCancel }: DealWatchFormProps) {
         name: name.trim() || undefined,
         query: query.trim(),
         min_temperature: minTemperature,
+        min_heating_velocity: minHeatingVelocity,
         scrape_interval_minutes: interval,
       })
       onCreated(watch)
@@ -98,6 +107,31 @@ export function DealWatchForm({ onCreated, onCancel }: DealWatchFormProps) {
         </div>
         <p className="text-xs text-muted-foreground">
           {`Die Community-Temperatur (Grad) zeigt, wie gut ein Deal ankommt. „Alle" meldet jeden neuen Deal.`}
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label className="flex items-center gap-1.5">
+          <Zap className="size-3.5 text-muted-foreground/70" aria-hidden />
+          Bei schnellem Aufheizen alarmieren?
+        </Label>
+        <div className="grid grid-cols-4 gap-1.5">
+          {VELOCITY_PRESETS.map((preset) => (
+            <Button
+              key={preset.label}
+              type="button"
+              variant={minHeatingVelocity === preset.value ? "default" : "outline"}
+              size="sm"
+              onClick={() => setMinHeatingVelocity(preset.value)}
+              className="cursor-pointer text-xs px-2"
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Meldet Deals, die schnell an Temperatur gewinnen — noch bevor sie „heiß“ sind. Die
+          Steigung wird zwischen zwei Prüfungen gemessen.
         </p>
       </div>
 
