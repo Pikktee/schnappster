@@ -13,7 +13,7 @@ import {
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import type { Deal } from "@/lib/types"
-import { formatHeatingVelocity, formatPrice, heatSpeedTier, timeToHot } from "@/lib/format"
+import { formatHeatingVelocity, formatPrice, heatSpeedTier, timeAgo, timeToHot } from "@/lib/format"
 import type { HeatSpeedTier } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -106,6 +106,12 @@ export function DealCard({ deal }: { deal: Deal }) {
         >
           {deal.title}
         </h3>
+
+        {deal.published_at && (
+          <p className="text-[11px] text-muted-foreground" title="Auf MyDealz veröffentlicht">
+            {timeAgo(new Date(deal.published_at * 1000).toISOString())} · MyDealz
+          </p>
+        )}
 
         <div className="mt-auto flex items-center gap-2 pt-1 text-sm">
           {deal.price != null ? (

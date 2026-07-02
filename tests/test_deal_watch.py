@@ -282,18 +282,18 @@ def test_compute_heating_velocity():
     assert compute_heating_velocity(deal) is None
 
 
-def test_deals_sorted_by_heating_velocity(client, session):
-    """Steilste Aufsteiger (gemessene °/h) zuerst; ohne Messung danach nach Temperatur."""
+def test_deals_sorted_chronologically_with_velocity_in_payload(client, session):
+    """Deals kommen chronologisch (published_at, neueste zuerst); °/h bleibt im Payload."""
     watch = _make_watch(session)
     now = datetime.now(UTC)
     earlier = now - timedelta(minutes=30)
     rows = [
-        # (external_id, temperature, previous_temperature) → °/h über 0,5 h
-        ("slow", 300.0, 280.0),  # +20 / 0,5 h = 40°/h (heißer, aber langsam)
-        ("fast", 200.0, 50.0),  # +150 / 0,5 h = 300°/h → zuerst
-        ("flat", 900.0, None),  # keine Vormessung → trotz Top-Temp ans Ende
+        # (external_id, published_at) — "newest" ist am jüngsten und muss zuerst kommen.
+        ("oldest", 1782900000),
+        ("newest", 1782990000),
+        ("middle", 1782950000),
     ]
-    for ext, temp, prev in rows:
+    for ext, published in rows:
         session.add(
             Deal(
                 owner_id=TEST_USER_ID,
@@ -301,18 +301,35 @@ def test_deals_sorted_by_heating_velocity(client, session):
                 external_id=ext,
                 title=ext,
                 url=f"https://www.mydealz.de/deals/x-{ext}",
-                temperature=temp,
+                temperature=200.0,
                 temperature_updated_at=now,
-                previous_temperature=prev,
-                previous_temperature_at=earlier if prev is not None else None,
+                previous_temperature=100.0,
+                previous_temperature_at=earlier,
+                published_at=published,
             )
         )
     session.commit()
 
     deals = client.get(f"/deal-watches/{watch.id}/deals").json()
-    assert [d["external_id"] for d in deals] == ["fast", "slow", "flat"]
-    fast = next(d for d in deals if d["external_id"] == "fast")
-    assert fast["heating_velocity"] == 300.0
+    assert [d["external_id"] for d in deals] == ["newest", "middle", "oldest"]
+    assert deals[0]["heating_velocity"] == 200.0  # +100° in 0,5 h
+
+
+def test_deal_above_max_price_not_saved(session):
+    """Deals über der Preis-Obergrenze werden gar nicht erst gespeichert (wie AdSearch-Filter)."""
+    watch = _make_watch(session)
+    watch.max_price = 100.0
+    session.add(watch)
+    session.commit()
+    watch_id = watch.id
+    html = _deals_html(
+        [_deal_node("1", "Billig", 300, price=50), _deal_node("2", "Teuer", 500, price=250)]
+    )
+    with patch("app.services.deal_watch.mydealz.fetch_deals_html", return_value=(200, html)):
+        DealWatchService(session).check_watch(session.get(DealWatch, watch_id))
+
+    saved = session.exec(select(Deal).where(Deal.deal_watch_id == watch_id)).all()
+    assert [d.external_id for d in saved] == ["1"]
 
 
 def test_fast_riser_triggers_velocity_alarm(session):

@@ -93,10 +93,17 @@ def get_deal_watch_deals(
     session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
-    """Gibt die Deals eines Alarms zurück — steilste Aufsteiger (gemessene °/h) zuerst."""
+    """Gibt die Deals eines Alarms zurück — chronologisch nach Veröffentlichung, neueste zuerst."""
     _get_owned_watch(session, watch_id, current_user.user_id)
-    deals = session.exec(select(Deal).where(Deal.deal_watch_id == watch_id)).all()
-    result = [_deal_to_read(deal) for deal in sorted(deals, key=_relevance_sort_key)]
+    deals = session.exec(
+        select(Deal)
+        .where(Deal.deal_watch_id == watch_id)
+        .order_by(
+            col(Deal.published_at).desc().nullslast(),
+            col(Deal.first_seen_at).desc(),
+        )
+    ).all()
+    result = [_deal_to_read(deal) for deal in deals]
     session.rollback()
     return result
 
@@ -177,15 +184,6 @@ def _deal_to_read(deal: Deal) -> DealRead:
     read = DealRead.model_validate(deal)
     read.heating_velocity = compute_heating_velocity(deal)
     return read
-
-
-def _relevance_sort_key(deal: Deal) -> tuple[int, float, float]:
-    """Steilste Aufsteiger (gemessene °/h) zuerst; ohne Messung danach nach Temperatur."""
-    velocity = compute_heating_velocity(deal)
-    temperature = deal.temperature or 0.0
-    if velocity is not None and velocity > 0:
-        return (0, -velocity, -temperature)
-    return (1, 0.0, -temperature)
 
 
 def _get_owned_watch(session: SessionDep, watch_id: int, owner_id: str) -> DealWatch:

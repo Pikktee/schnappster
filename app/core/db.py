@@ -32,6 +32,11 @@ _ADDITIVE_COLUMNS: list[tuple[str, str, str]] = [
     ("deals", "previous_temperature_at", "DATETIME"),
     # Deal-Alarm: Aufheiz-Schwelle (°/h) pro Alarm.
     ("deal_watches", "min_heating_velocity", "FLOAT"),
+    # Vereinheitlichte Suchaufträge: Eltern-Verknüpfung der Quellen-Kinder (Adoption beim
+    # Listen-Abruf verhindert Datenverlust bei Alt-Beständen) + MyDealz-Preis-Obergrenze.
+    ("ad_searches", "search_order_id", "INTEGER"),
+    ("deal_watches", "search_order_id", "INTEGER"),
+    ("deal_watches", "max_price", "FLOAT"),
 ]
 
 _SQLITE_PREFIX = "sqlite:///"

@@ -19,6 +19,70 @@ export interface AdSearch {
   last_scraped_at: string | null
 }
 
+/**
+ * Vereinheitlichter Suchauftrag: EIN Suchbegriff über die Quellen Kleinanzeigen/eBay/MyDealz.
+ * Die Quellen-Kinder tragen die quellenspezifische Konfiguration.
+ */
+export interface SearchOrder {
+  id: number
+  name: string
+  query: string
+  is_active: boolean
+  created_at: string
+  kleinanzeigen: AdSearch | null
+  ebay: AdSearch | null
+  mydealz: DealWatch | null
+  ad_count: number
+  deal_count: number
+  last_checked_at: string | null
+}
+
+/** Anlegen/Bearbeiten eines Suchauftrags (flaches Formular-Abbild). */
+export interface SearchOrderCreate {
+  name?: string
+  query: string
+  scrape_interval_minutes?: number
+  use_kleinanzeigen: boolean
+  use_ebay: boolean
+  use_mydealz: boolean
+  postal_code?: string | null
+  radius_km?: number | null
+  min_price?: number | null
+  max_price?: number | null
+  blacklist_keywords?: string | null
+  prompt_addition?: string | null
+  is_exclude_images?: boolean
+  mydealz_max_price?: number | null
+  mydealz_min_temperature?: number | null
+  mydealz_min_heating_velocity?: number | null
+}
+
+export type SearchOrderUpdate = Partial<SearchOrderCreate> & { is_active?: boolean }
+
+/** Ein Element des Ergebnis-Streams (Start-Feed). */
+export interface FeedPriceEvent {
+  watch_id: number
+  watch_name: string
+  url: string
+  price: number
+  previous_price: number | null
+  currency: string | null
+  recorded_at: string
+}
+
+export interface FeedItem {
+  type: "ad" | "deal" | "price"
+  occurred_at: string
+  ad?: Ad | null
+  deal?: Deal | null
+  price_event?: FeedPriceEvent | null
+}
+
+export interface FeedPage {
+  items: FeedItem[]
+  total: number
+}
+
 export interface Ad {
   id: number
   external_id: string
@@ -173,6 +237,8 @@ export interface DealWatch {
   name: string
   query: string
   source: string
+  /** Optionale Preis-Obergrenze; teurere Deals werden nicht gespeichert (Neuware-Budget). */
+  max_price?: number | null
   /** Optionale Temperatur-Schwelle (Grad); nur Deals darüber lösen einen Alarm aus. */
   min_temperature: number | null
   /** Optionale Aufheiz-Schwelle (Grad/Stunde); schnell steigende Deals lösen einen Alarm aus. */

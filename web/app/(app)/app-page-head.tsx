@@ -36,11 +36,8 @@ export function AppPageHead() {
             <>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {pathSegments.length === 1 ? (
-                  <BreadcrumbPage>Angebote</BreadcrumbPage>
-                ) : (
-                  <BreadcrumbLink href="/ads">Angebote</BreadcrumbLink>
-                )}
+                {/* Die Angebote-Liste ist im Start-Stream aufgegangen — zurück geht es dorthin. */}
+                <BreadcrumbLink href="/dashboard">Angebote</BreadcrumbLink>
               </BreadcrumbItem>
             </>
           )}
@@ -64,18 +61,6 @@ export function AppPageHead() {
                   <BreadcrumbPage>Preis-Alarme</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink href="/price-alerts">Preis-Alarme</BreadcrumbLink>
-                )}
-              </BreadcrumbItem>
-            </>
-          )}
-          {pathSegments.length >= 1 && pathSegments[0] === "deal-alarms" && (
-            <>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                {pathSegments.length === 1 ? (
-                  <BreadcrumbPage>Deal-Alarme</BreadcrumbPage>
-                ) : (
-                  <BreadcrumbLink href="/deal-alarms">Deal-Alarme</BreadcrumbLink>
                 )}
               </BreadcrumbItem>
             </>

@@ -2,37 +2,32 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react"
 import Link from "next/link"
-import { Search, Package, Clock, Sparkles, Settings, TrendingDown, X, ArrowRight, SearchX } from "lucide-react"
+import { Search, Package, Clock, Sparkles, Settings, TrendingDown, X } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { DealHero } from "@/components/deal-hero"
-import { AdCard } from "@/components/ad-card"
-import { CardEmptyState } from "@/components/card-empty-state"
+import { ResultStream } from "@/components/result-stream"
 import { ContentReveal } from "@/components/content-reveal"
 import {
-  fetchSearches,
+  fetchSearchOrders,
   fetchAdsPaginated,
-  fetchScrapeRuns,
   fetchPriceWatches,
   fetchNotifications,
 } from "@/lib/api"
-import type { Ad, AdSearch, Notification, PriceWatch, ScrapeRun } from "@/lib/types"
+import type { Ad, Notification, PriceWatch, SearchOrder } from "@/lib/types"
 import { timeAgo } from "@/lib/format"
-import { toast } from "sonner"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
 import { useAuth } from "@/components/auth-provider"
 import { usePageHead } from "../page-head-context"
 
 const WELCOME_DISMISSED_KEY = "schnappster-welcome-dismissed"
 const LAST_VISIT_KEY = "schnappster-last-visit"
+const STREAM_FILTERS_KEY = "schnappster-stream-filters"
 
-/** Ab diesem Score gilt eine Anzeige als "Schnäppchen". */
+/** Ab diesem Score gilt eine Anzeige als "Schnäppchen" (für die Begrüßungszeile). */
 const SCHNAEPPCHEN_MIN_SCORE = 8
-/** So viele aktuelle Schnäppchen laden (für Hero, Galerie und "seit letztem Besuch"). */
+/** So viele aktuelle Schnäppchen für die "seit letztem Besuch"-Zählung laden. */
 const DEALS_FETCH_LIMIT = 24
-/** So viele Karten in der Galerie unter dem Top-Fund zeigen. */
-const GALLERY_SIZE = 8
 
 /** Benachrichtigungstypen, die einen Preis-Alarm darstellen. */
 const PRICE_ALERT_TYPES = new Set(["price_drop", "price_below_threshold"])
@@ -69,26 +64,20 @@ export default function DashboardPage() {
   const { user } = useAuth()
   const { setTitle } = usePageHead()
 
-  const [searches, setSearches] = useState<AdSearch[]>([])
-  const [totalAds, setTotalAds] = useState<number>(0)
+  const [orders, setOrders] = useState<SearchOrder[]>([])
   const [deals, setDeals] = useState<Ad[]>([])
-  const [scraperuns, setScraperuns] = useState<ScrapeRun[]>([])
   const [priceWatches, setPriceWatches] = useState<PriceWatch[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
   const [greeting, setGreeting] = useState("")
   const [previousVisitMs, setPreviousVisitMs] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  // Einmal beim Öffnen: Begrüßung, letzter Besuch (Baseline für "seit letztem Besuch"),
-  // dann sofort die neue Baseline setzen. Bewusst getrennt von load(), damit ein
-  // Refetch bei Fokuswechsel die Zählung nicht auf null zurücksetzt.
+  // Einmal beim Öffnen: Begrüßung + Baseline "letzter Besuch" (siehe Kommentar oben).
   useEffect(() => {
     if (typeof window === "undefined") return
     setGreeting(greetingForHour(new Date().getHours()))
     setWelcomeDismissed(localStorage.getItem(WELCOME_DISMISSED_KEY) === "true")
-    // Baseline nur einmal pro Seitenladen erfassen und sofort auf "jetzt" fortschreiben.
     if (capturedPreviousVisitMs === undefined) {
       const previous = localStorage.getItem(LAST_VISIT_KEY)
       capturedPreviousVisitMs = previous ? toMs(previous) : null
@@ -98,28 +87,21 @@ export default function DashboardPage() {
   }, [])
 
   const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
     try {
-      const [s, countRes, dealsRes, r, watches, notes] = await Promise.all([
-        fetchSearches(),
-        fetchAdsPaginated({ limit: 1 }),
-        fetchAdsPaginated({ min_score: SCHNAEPPCHEN_MIN_SCORE, sort: "date", limit: DEALS_FETCH_LIMIT }),
-        fetchScrapeRuns({ limit: 100 }),
-        // Neue Bereiche dürfen das Dashboard bei Fehlern nicht blockieren.
+      const [orderList, dealsRes, watches, notes] = await Promise.all([
+        fetchSearchOrders().catch(() => [] as SearchOrder[]),
+        fetchAdsPaginated({
+          min_score: SCHNAEPPCHEN_MIN_SCORE,
+          sort: "date",
+          limit: DEALS_FETCH_LIMIT,
+        }).catch(() => ({ items: [] as Ad[], total: 0 })),
         fetchPriceWatches().catch(() => [] as PriceWatch[]),
         fetchNotifications().catch(() => [] as Notification[]),
       ])
-      setSearches(s)
-      setTotalAds(countRes.total)
+      setOrders(orderList)
       setDeals(dealsRes.items)
-      setScraperuns(r)
       setPriceWatches(watches)
       setNotifications(notes)
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Daten konnten nicht geladen werden."
-      setError(msg)
-      toast.error(msg)
     } finally {
       setLoading(false)
     }
@@ -131,26 +113,19 @@ export default function DashboardPage() {
 
   useRefetchOnFocus(load)
 
-  const activeSearches = useMemo(() => searches.filter((s) => s.is_active).length, [searches])
-  const activePriceWatches = useMemo(() => priceWatches.filter((w) => w.is_active).length, [priceWatches])
-
+  const activeOrders = useMemo(() => orders.filter((o) => o.is_active).length, [orders])
+  const activePriceWatches = useMemo(
+    () => priceWatches.filter((w) => w.is_active).length,
+    [priceWatches],
+  )
+  const totalFinds = useMemo(
+    () => orders.reduce((sum, o) => sum + o.ad_count + o.deal_count, 0),
+    [orders],
+  )
   const lastUpdate = useMemo(() => {
-    const finished = scraperuns
-      .filter((r) => r.finished_at)
-      .sort((a, b) => toMs(b.finished_at) - toMs(a.finished_at))
-    return finished.length > 0 ? finished[0].finished_at : null
-  }, [scraperuns])
-
-  // Bester aktueller Fund = höchster Score (Gleichstand: größere Ersparnis).
-  const { hero, galleryDeals } = useMemo(() => {
-    if (deals.length === 0) return { hero: null as Ad | null, galleryDeals: [] as Ad[] }
-    const best = [...deals].sort((a, b) => {
-      const byScore = (b.bargain_score ?? 0) - (a.bargain_score ?? 0)
-      if (byScore !== 0) return byScore
-      return (b.price_delta_percent ?? 0) - (a.price_delta_percent ?? 0)
-    })[0]
-    return { hero: best, galleryDeals: deals.filter((d) => d.id !== best.id).slice(0, GALLERY_SIZE) }
-  }, [deals])
+    const known = orders.map((o) => o.last_checked_at).filter(Boolean) as string[]
+    return known.sort((a, b) => toMs(b) - toMs(a))[0] ?? null
+  }, [orders])
 
   // "Seit deinem letzten Besuch": neue Schnäppchen + ausgelöste Preis-Alarme.
   const { newDealCount, newDropCount } = useMemo(() => {
@@ -163,7 +138,7 @@ export default function DashboardPage() {
   }, [deals, notifications, previousVisitMs])
 
   const substance = useMemo(() => {
-    if (previousVisitMs === null) return "Schön, dass du da bist — hier sind deine besten Funde."
+    if (previousVisitMs === null) return "Alle neuen Funde deiner Suchen und Alarme auf einen Blick."
     if (newDealCount === 0 && newDropCount === 0) {
       return "Seit deinem letzten Besuch nichts Neues — deine Suchen und Alarme laufen weiter."
     }
@@ -179,7 +154,6 @@ export default function DashboardPage() {
     return firstName ? `${greeting}, ${firstName}` : greeting
   }, [greeting, user])
 
-  // Begrüßung + Substanz-Satz ersetzen den generischen "Dashboard"-Seitentitel.
   useEffect(() => {
     if (loading || !greetingTitle) return
     setTitle(greetingTitle, substance)
@@ -188,7 +162,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-9 w-full max-w-xl" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
@@ -199,21 +173,7 @@ export default function DashboardPage() {
     )
   }
 
-  if (error) {
-    return (
-      <ContentReveal className="flex flex-col gap-6">
-        <div className="flex flex-col items-center gap-4 py-12">
-          <p className="text-destructive">{error}</p>
-          <Button variant="outline" onClick={() => window.location.reload()} className="cursor-pointer">
-            Erneut laden
-          </Button>
-        </div>
-      </ContentReveal>
-    )
-  }
-
-  // Nur für wirklich neue Nutzer: noch kein Suchauftrag UND kein Preis-Alarm eingerichtet.
-  const showWelcome = searches.length === 0 && priceWatches.length === 0
+  const showWelcome = orders.length === 0 && priceWatches.length === 0
 
   return (
     <ContentReveal className="flex flex-col gap-6">
@@ -223,7 +183,7 @@ export default function DashboardPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-2 right-2 size-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-primary/10 cursor-pointer"
+            className="absolute top-2 right-2 size-8 shrink-0 cursor-pointer rounded-full text-muted-foreground hover:bg-primary/10 hover:text-foreground"
             onClick={() => {
               setWelcomeDismissed(true)
               if (typeof window !== "undefined") localStorage.setItem(WELCOME_DISMISSED_KEY, "true")
@@ -233,35 +193,35 @@ export default function DashboardPage() {
             <X className="size-4" aria-hidden />
           </Button>
           <CardContent className="pt-5 pb-5">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-4 pr-8">
+            <div className="flex flex-col gap-4 pr-8 sm:flex-row sm:items-start">
               <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/20">
                 <Sparkles className="size-6" aria-hidden />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-semibold tracking-tight text-foreground">
                   Willkommen bei Schnappster!
                 </h2>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground max-w-xl">
-                  Zwei Wege zum besten Preis: Wir durchsuchen Kleinanzeigen automatisch nach
-                  Schnäppchen und überwachen beliebige Shop-Seiten auf Preissenkungen. Leg mit
-                  einem der beiden los.
+                <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                  Ein Suchauftrag durchsucht Kleinanzeigen, eBay und MyDealz gleichzeitig nach
+                  Schnäppchen; Preis-Alarme überwachen beliebige Shop-Seiten auf Preissenkungen.
+                  Alles Neue läuft hier auf der Startseite zusammen.
                 </p>
                 <div className="mt-4 flex flex-wrap items-center gap-3">
                   <Link href="/searches/">
-                    <Button size="default" className="cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
-                      <Search className="size-4 mr-2" aria-hidden />
+                    <Button size="default" className="cursor-pointer bg-primary text-primary-foreground shadow-sm hover:bg-primary/90">
+                      <Search className="mr-2 size-4" aria-hidden />
                       Suchauftrag erstellen
                     </Button>
                   </Link>
                   <Link href="/price-alerts/">
                     <Button size="default" variant="outline" className="cursor-pointer">
-                      <TrendingDown className="size-4 mr-2" aria-hidden />
+                      <TrendingDown className="mr-2 size-4" aria-hidden />
                       Preis-Alarm erstellen
                     </Button>
                   </Link>
                   <Link
                     href="/settings/"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline cursor-pointer"
+                    className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
                   >
                     <Settings className="size-4 shrink-0" aria-hidden />
                     Einstellungen
@@ -273,54 +233,15 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Top-Fund: das beste aktuelle Schnäppchen */}
-      {hero && <DealHero ad={hero} />}
+      {/* Der Ergebnis-Stream: alle Quellen, chronologisch */}
+      <ResultStream storageKey={STREAM_FILTERS_KEY} />
 
-      {/* Schnäppchen-Galerie mit Bildern zum Stöbern */}
-      {galleryDeals.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Sparkles className="size-4 text-primary" aria-hidden />
-              Weitere Schnäppchen
-            </h2>
-            <Link
-              href="/ads/"
-              className="group inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Alle Angebote
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 reveal-stagger">
-            {galleryDeals.map((ad) => (
-              <AdCard key={ad.id} ad={ad} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Noch keine Schnäppchen, aber schon Suchen/Alarme eingerichtet */}
-      {!hero && !showWelcome && (
-        <Card className="gap-0">
-          <CardContent className="pt-6">
-            <CardEmptyState
-              icon={SearchX}
-              title="Noch keine Schnäppchen gefunden"
-              description="Sobald deine Suchaufträge Angebote mit hohem Score finden, erscheinen die besten hier."
-              actionLabel="Suchauftrag anlegen"
-              actionHref="/searches/"
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Betriebs-Status – bewusst dezent in der Fußzeile statt als KPI-Kacheln */}
+      {/* Betriebs-Status – bewusst dezent in der Fußzeile */}
       {!showWelcome && (
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t pt-4 text-xs text-muted-foreground">
           <Link href="/searches/" className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
             <Search className="size-3.5" aria-hidden />
-            {countPart(activeSearches, "aktiver Suchauftrag", "aktive Suchaufträge")}
+            {countPart(activeOrders, "aktiver Suchauftrag", "aktive Suchaufträge")}
           </Link>
           <span className="text-muted-foreground/40">·</span>
           <Link href="/price-alerts/" className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
@@ -330,7 +251,7 @@ export default function DashboardPage() {
           <span className="text-muted-foreground/40">·</span>
           <span className="inline-flex items-center gap-1.5">
             <Package className="size-3.5" aria-hidden />
-            {countPart(totalAds, "Anzeige erfasst", "Anzeigen erfasst")}
+            {countPart(totalFinds, "Fund erfasst", "Funde erfasst")}
           </span>
           <span className="text-muted-foreground/40">·</span>
           <span className="inline-flex items-center gap-1.5">

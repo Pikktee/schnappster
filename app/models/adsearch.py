@@ -47,6 +47,9 @@ class AdSearch(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     owner_id: str = Field(index=True)
+    # Eltern-Suchauftrag (SearchOrder); None nur bei frisch angelegten Alt-/Extension-Suchen,
+    # die beim nächsten Listen-Abruf adoptiert werden.
+    search_order_id: int | None = Field(default=None, foreign_key="search_orders.id", index=True)
     name: str
     # Quelle/Plattform des Suchauftrags (Registry-Name); Default hält Altbestand bei Kleinanzeigen.
     platform: str = Field(default="kleinanzeigen")
@@ -123,6 +126,7 @@ class AdSearchRead(SQLModel):
 
     id: int
     owner_id: str
+    search_order_id: int | None = None
     name: str
     platform: str
     url: str

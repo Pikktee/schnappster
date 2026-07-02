@@ -10,6 +10,7 @@ import type {
   DealWatch,
   DealWatchCreate,
   ErrorLog,
+  FeedPage,
   NegotiationMessage,
   Notification,
   PaginatedAds,
@@ -18,6 +19,9 @@ import type {
   PriceWatchCreate,
   PriceWatchPreview,
   ScrapeRun,
+  SearchOrder,
+  SearchOrderCreate,
+  SearchOrderUpdate,
   UserProfile,
   UserSettings,
 } from "./types"
@@ -203,6 +207,38 @@ export const checkPriceWatchNow = (id: number) =>
     { method: "POST" },
     PROXY_FETCH_TIMEOUT_MS,
   )
+
+// SearchOrders (vereinheitlichte Suchaufträge über Kleinanzeigen/eBay/MyDealz)
+export const fetchSearchOrders = () => apiFetch<SearchOrder[]>("/search-orders/")
+export const fetchSearchOrder = (id: number) => apiFetch<SearchOrder>(`/search-orders/${id}`)
+export const createSearchOrder = (data: SearchOrderCreate) =>
+  apiFetch<SearchOrder>("/search-orders/", { method: "POST", body: JSON.stringify(data) })
+export const updateSearchOrder = (id: number, data: SearchOrderUpdate) =>
+  apiFetch<SearchOrder>(`/search-orders/${id}`, { method: "PATCH", body: JSON.stringify(data) })
+export const deleteSearchOrder = (id: number) =>
+  apiFetch<void>(`/search-orders/${id}`, { method: "DELETE" })
+export const checkSearchOrderNow = (id: number) =>
+  apiFetch<SearchOrder>(`/search-orders/${id}/check-now`, { method: "POST" })
+
+// Feed (Ergebnis-Stream der Startseite)
+export const fetchFeed = (params: {
+  limit?: number
+  offset?: number
+  source?: string
+  min_score?: number
+  search_order_id?: number
+  sort?: string
+}) => {
+  const sp = new URLSearchParams()
+  if (params.limit) sp.set("limit", String(params.limit))
+  if (params.offset) sp.set("offset", String(params.offset))
+  if (params.source && params.source !== "all") sp.set("source", params.source)
+  if (params.min_score && params.min_score > 0) sp.set("min_score", String(params.min_score))
+  if (params.search_order_id) sp.set("search_order_id", String(params.search_order_id))
+  if (params.sort && params.sort !== "date") sp.set("sort", params.sort)
+  const qs = sp.toString()
+  return apiFetch<FeedPage>(`/feed/${qs ? `?${qs}` : ""}`)
+}
 
 // DealWatches (Deal-Alarme, MyDealz-Schlagwort-Watcher)
 export const previewDealWatch = (query: string) =>

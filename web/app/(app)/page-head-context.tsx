@@ -18,22 +18,14 @@ type PageHeadState = {
 }
 
 const defaultTitles: Record<string, { title: string; subtitle: string }> = {
-  "/dashboard": { title: "Dashboard", subtitle: "Übersicht über deine Angebots-Suchergebnisse" },
-  "/ads": {
-    title: "Angebote",
-    subtitle: "Von der KI bewertete Angebote aus deinen Suchen",
-  },
+  "/dashboard": { title: "Dashboard", subtitle: "Alle neuen Funde deiner Suchen und Alarme" },
   "/searches": {
     title: "Suchaufträge",
-    subtitle: "Verwalte deine Kleinanzeigen-Suchen",
+    subtitle: "Ein Suchbegriff — auf Wunsch über Kleinanzeigen, eBay und MyDealz gleichzeitig",
   },
   "/price-alerts": {
     title: "Preis-Alarme",
     subtitle: "Überwache beliebige Webseiten auf Preisänderungen",
-  },
-  "/deal-alarms": {
-    title: "Deal-Alarme",
-    subtitle: "Überwache MyDealz-Suchbegriffe auf neue heiße Deals",
   },
   "/settings": {
     title: "Einstellungen",

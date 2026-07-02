@@ -26,11 +26,16 @@ class DealWatch(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     owner_id: str = Field(index=True)
+    # Eltern-Suchauftrag (SearchOrder); None nur bei Alt-Beständen bis zur Adoption.
+    search_order_id: int | None = Field(default=None, foreign_key="search_orders.id", index=True)
     name: str
     # Suchbegriff, auf den überwacht wird (z. B. "lego millennium falcon").
     query: str
     # Quelle/Community-Seite; aktuell nur MyDealz, aber erweiterbar gehalten.
     source: str = Field(default=DEFAULT_DEAL_SOURCE)
+    # Optionale Preis-Obergrenze: teurere Deals werden gar nicht erst gespeichert (wie bei
+    # AdSearch wirkt der Preisfilter vor der Speicherung, nicht nur auf den Alarm).
+    max_price: float | None = None
     # Optionale Temperatur-Schwelle (Grad): nur Deals darüber lösen einen Alarm aus.
     min_temperature: float | None = None
     # Optionale Aufheiz-Schwelle (Grad/Stunde): Deals, die schneller steigen, lösen einen Alarm aus.
@@ -131,9 +136,11 @@ class DealWatchRead(SQLModel):
 
     id: int
     owner_id: str
+    search_order_id: int | None = None
     name: str
     query: str
     source: str
+    max_price: float | None = None
     min_temperature: float | None
     min_heating_velocity: float | None
     scrape_interval_minutes: int

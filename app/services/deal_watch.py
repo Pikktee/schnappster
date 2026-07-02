@@ -31,8 +31,10 @@ class DealWatchSnapshot:
 
     id: int
     owner_id: str
+    search_order_id: int | None
     name: str
     query: str
+    max_price: float | None
     min_temperature: float | None
     min_heating_velocity: float | None
     last_checked_at: datetime | None
@@ -153,6 +155,9 @@ class DealWatchService:
         self, snap: DealWatchSnapshot, deal: mydealz.MydealzDeal, now: datetime, first: bool
     ) -> list[tuple[mydealz.MydealzDeal, float | None]]:
         """Legt einen neu gefundenen Deal an; benachrichtigt bei erfüllter Temperatur-Schwelle."""
+        # Preis-Obergrenze wirkt wie bei AdSearch vor der Speicherung (zu teure Deals raus).
+        if snap.max_price is not None and deal.price is not None and deal.price > snap.max_price:
+            return []
         notify = (not first) and _meets_threshold(deal, snap.min_temperature)
         self.session.add(_to_deal_row(snap.owner_id, snap.id, deal, now, notified=notify))
         return [(deal, None)] if notify else []
@@ -181,8 +186,10 @@ class DealWatchService:
     ) -> None:
         """Erzeugt die In-App-Benachrichtigung und sendet optional Telegram."""
         title, body = _build_alarm_content(deal, velocity)
+        # Deal-Alarme leben im vereinheitlichten Suchauftrag; Fallback auf die Liste.
+        link = f"/searches/{snap.search_order_id}" if snap.search_order_id else "/searches"
         NotificationService(self.session).create(
-            snap.owner_id, NOTIFICATION_DEAL_HOT, title, body, f"/deal-alarms/{snap.id}"
+            snap.owner_id, NOTIFICATION_DEAL_HOT, title, body, link
         )
 
         settings = SettingsService(self.session).get_user_settings(snap.owner_id)
@@ -323,8 +330,10 @@ def _snapshot_watch(watch: DealWatch | DealWatchSnapshot) -> DealWatchSnapshot:
     return DealWatchSnapshot(
         id=watch.id,  # type: ignore[arg-type]
         owner_id=watch.owner_id,
+        search_order_id=watch.search_order_id,
         name=watch.name,
         query=watch.query,
+        max_price=watch.max_price,
         min_temperature=watch.min_temperature,
         min_heating_velocity=watch.min_heating_velocity,
         last_checked_at=watch.last_checked_at,
