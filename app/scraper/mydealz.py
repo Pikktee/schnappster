@@ -38,6 +38,9 @@ class MydealzDeal:
     next_best_price: float | None
     merchant: str | None
     published_at: int | None
+    # Unix-Zeitstempel, zu dem der Deal "heiß" wurde (MyDealz hotDate; 0 → None, noch nicht heiß).
+    # published_at → hot_date ergibt die "Zeit bis heiß" (Aufheiz-Tempo).
+    hot_date: int | None = None
     image_url: str | None = None
 
 
@@ -99,6 +102,13 @@ def _as_float(value: object) -> float | None:
     return None
 
 
+def _as_timestamp(value: object) -> int | None:
+    """Wandelt einen Unix-Zeitstempel robust in int; 0/None → None (MyDealz nutzt 0 für 'nie')."""
+    if isinstance(value, int) and value > 0:
+        return value
+    return None
+
+
 def _merchant_name(thread: dict) -> str | None:
     merchant = thread.get("merchant")
     if isinstance(merchant, dict):
@@ -155,7 +165,8 @@ def parse_deals(html: str) -> list[MydealzDeal]:
                 price=_as_float(thread.get("price")),
                 next_best_price=_as_float(thread.get("nextBestPrice")),
                 merchant=_merchant_name(thread),
-                published_at=thread.get("publishedAt"),
+                published_at=_as_timestamp(thread.get("publishedAt")),
+                hot_date=_as_timestamp(thread.get("hotDate")),
                 image_url=_image_url(thread),
             )
         )

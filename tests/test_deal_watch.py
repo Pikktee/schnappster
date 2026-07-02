@@ -23,6 +23,8 @@ def _deal_node(
     type_: str = "Deal",
     expired: bool = False,
     main_image: dict | None = {"path": "threads/raw/h33IA", "name": "img_1"},  # noqa: B006
+    published_at: int = 1782900000,
+    hot_date: int = 0,
 ) -> str:
     """Baut einen data-vue3-Knoten wie auf der echten MyDealz-Seite."""
     thread = {
@@ -35,7 +37,8 @@ def _deal_node(
         "merchant": {"merchantName": merchant},
         "type": type_,
         "isExpired": expired,
-        "publishedAt": 1782900000,
+        "publishedAt": published_at,
+        "hotDate": hot_date,
     }
     if main_image is not None:
         thread["mainImage"] = main_image
@@ -97,6 +100,20 @@ def test_parse_deals_without_image_yields_none():
     """Ohne mainImage bleibt image_url None (Karte zeigt den Platzhalter)."""
     deals = mydealz.parse_deals(_deals_html([_deal_node("6", "Ohne Bild", 100, main_image=None)]))
     assert deals[0].image_url is None
+
+
+def test_parse_deals_extracts_hot_date_and_published_at():
+    """hotDate/publishedAt werden übernommen (Basis für die Zeit bis heiß)."""
+    node = _deal_node("7", "Aufsteiger", 250, published_at=1782900000, hot_date=1782903600)
+    deal = mydealz.parse_deals(_deals_html([node]))[0]
+    assert deal.published_at == 1782900000
+    assert deal.hot_date == 1782903600  # 1 Stunde bis heiß
+
+
+def test_parse_deals_hot_date_zero_becomes_none():
+    """MyDealz nutzt hotDate 0 für 'noch nicht heiß' → wird als None geparst."""
+    deal = mydealz.parse_deals(_deals_html([_deal_node("8", "Neu", 90, hot_date=0)]))[0]
+    assert deal.hot_date is None
 
 
 def test_build_search_url_encodes_query():
@@ -242,3 +259,31 @@ def test_list_and_get_deals_for_watch(client, session):
     assert response.status_code == 200
     deals = response.json()
     assert len(deals) == 1 and deals[0]["external_id"] == "42"
+
+
+def test_deals_sorted_by_time_to_hot(client, session):
+    """Schnellste Aufsteiger (kleinste Zeit bis heiß) zuerst; ohne hot_date danach."""
+    watch = _make_watch(session)
+    rows = [
+        # (external_id, temperature, published_at, hot_date)
+        ("slow", 200.0, 1000, 1000 + 7200),  # 2 h bis heiß
+        ("fast", 300.0, 1000, 1000 + 1800),  # 0,5 h bis heiß → zuerst
+        ("hottest", 900.0, 1000, 0),  # nie heiß geworden → trotz Top-Temp ans Ende
+    ]
+    for ext, temp, pub, hot in rows:
+        session.add(
+            Deal(
+                owner_id=TEST_USER_ID,
+                deal_watch_id=watch.id,
+                external_id=ext,
+                title=ext,
+                url=f"https://www.mydealz.de/deals/x-{ext}",
+                temperature=temp,
+                published_at=pub,
+                hot_date=hot or None,
+            )
+        )
+    session.commit()
+
+    deals = client.get(f"/deal-watches/{watch.id}/deals").json()
+    assert [d["external_id"] for d in deals] == ["fast", "slow", "hottest"]

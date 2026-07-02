@@ -203,6 +203,8 @@ export interface Deal {
   merchant: string | null
   image_url?: string | null
   published_at?: number | null
+  /** Unix-Zeitstempel, zu dem der Deal heiß wurde; mit published_at = Zeit bis heiß. */
+  hot_date?: number | null
   first_seen_at?: string
 }
 

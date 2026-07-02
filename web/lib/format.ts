@@ -15,6 +15,22 @@ export function timeAgo(dateStr: string | null): string {
   }
 }
 
+/**
+ * Aufheiz-Tempo: Zeit von der Veröffentlichung bis der Deal "heiß" wurde.
+ * null, wenn (noch) nicht heiß. Kleine Werte = explosiver Aufsteiger = relevanter.
+ */
+export function timeToHot(
+  publishedAt?: number | null,
+  hotDate?: number | null,
+): { label: string; minutes: number } | null {
+  if (!publishedAt || !hotDate || hotDate <= publishedAt) return null
+  const minutes = Math.round((hotDate - publishedAt) / 60)
+  if (minutes < 60) return { label: `in ${minutes} Min heiß`, minutes }
+  const hours = (hotDate - publishedAt) / 3600
+  const rounded = hours < 10 ? hours.toFixed(1).replace(".", ",") : Math.round(hours).toString()
+  return { label: `in ${rounded} h heiß`, minutes }
+}
+
 export function formatPrice(price: number | null): string {
   if (price === null || price === undefined) return "Preis n.v."
   return new Intl.NumberFormat("de-DE", {

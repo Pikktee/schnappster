@@ -93,14 +93,10 @@ def get_deal_watch_deals(
     session: SessionDep,
     current_user: CurrentUser = Depends(get_current_user),  # noqa: B008
 ):
-    """Gibt die gefundenen Deals eines Alarms zurück (heißeste zuerst)."""
+    """Gibt die Deals eines Alarms zurück — schnellste Aufsteiger (Zeit bis heiß) zuerst."""
     _get_owned_watch(session, watch_id, current_user.user_id)
-    deals = session.exec(
-        select(Deal)
-        .where(Deal.deal_watch_id == watch_id)
-        .order_by(col(Deal.temperature).desc().nullslast())
-    ).all()
-    result = [DealRead.model_validate(deal) for deal in deals]
+    deals = session.exec(select(Deal).where(Deal.deal_watch_id == watch_id)).all()
+    result = [DealRead.model_validate(deal) for deal in sorted(deals, key=_relevance_sort_key)]
     session.rollback()
     return result
 
@@ -176,6 +172,22 @@ def delete_deal_watch(
 # -----------------------
 # --- Hilfsfunktionen ---
 # -----------------------
+def _time_to_hot_seconds(deal: Deal) -> int | None:
+    """Sekunden von Veröffentlichung bis 'heiß'; None, wenn (noch) nicht heiß geworden."""
+    if deal.hot_date and deal.published_at and deal.hot_date > deal.published_at:
+        return deal.hot_date - deal.published_at
+    return None
+
+
+def _relevance_sort_key(deal: Deal) -> tuple[int, int, float]:
+    """Schnellste Aufsteiger zuerst (kleinste Zeit bis heiß), Rest danach nach Hitze."""
+    time_to_hot = _time_to_hot_seconds(deal)
+    temperature = deal.temperature or 0.0
+    if time_to_hot is not None:
+        return (0, time_to_hot, -temperature)
+    return (1, 0, -temperature)
+
+
 def _get_owned_watch(session: SessionDep, watch_id: int, owner_id: str) -> DealWatch:
     """Lädt einen Deal-Alarm des Nutzers oder wirft 404."""
     watch = session.exec(

@@ -24,6 +24,8 @@ _ADDITIVE_COLUMNS: list[tuple[str, str, str]] = [
     ("ad_searches", "platform", "VARCHAR NOT NULL DEFAULT 'kleinanzeigen'"),
     # Deal-Alarm: Bild-URL des Deals (aus MyDealz mainImage).
     ("deals", "image_url", "VARCHAR"),
+    # Deal-Alarm: Zeitpunkt "heiß geworden" (published_at→hot_date = Zeit bis heiß).
+    ("deals", "hot_date", "INTEGER"),
 ]
 
 _SQLITE_PREFIX = "sqlite:///"

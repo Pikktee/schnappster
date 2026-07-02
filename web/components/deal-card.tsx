@@ -1,11 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { ExternalLink, Flame, ImageOff } from "lucide-react"
+import { ExternalLink, Flame, ImageOff, Zap } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import type { Deal } from "@/lib/types"
-import { formatPrice } from "@/lib/format"
+import { formatPrice, timeToHot } from "@/lib/format"
 import { cn } from "@/lib/utils"
+
+/** Bis zu dieser Zeit-bis-heiß gilt ein Deal als schneller Aufsteiger (Hervorhebung). */
+const FAST_RISER_MINUTES = 120
 
 /** Farbe der Temperatur je Hitze (MyDealz: >300° = heiß, >150° = warm). */
 function tempTone(temp: number | null): string {
@@ -18,6 +21,8 @@ function tempTone(temp: number | null): string {
 export function DealCard({ deal }: { deal: Deal }) {
   const [imageFailed, setImageFailed] = useState(false)
   const showImage = !!deal.image_url && !imageFailed
+  const heatSpeed = timeToHot(deal.published_at, deal.hot_date)
+  const isFastRiser = heatSpeed != null && heatSpeed.minutes <= FAST_RISER_MINUTES
 
   return (
     <Card className="group relative flex flex-col gap-0 overflow-hidden p-0 transition-shadow hover:shadow-md">
@@ -60,6 +65,21 @@ export function DealCard({ deal }: { deal: Deal }) {
           className="absolute right-2 top-2 size-3.5 text-muted-foreground/50 group-hover:text-muted-foreground"
           aria-hidden
         />
+
+        {heatSpeed && (
+          <span
+            className={cn(
+              "absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium shadow-sm backdrop-blur-sm",
+              isFastRiser
+                ? "bg-violet-600/90 text-white"
+                : "bg-background/80 text-muted-foreground",
+            )}
+            title={'Aufheiz-Tempo: Zeit von der Veröffentlichung bis „heiß"'}
+          >
+            <Zap className={cn("size-3", isFastRiser && "fill-current")} aria-hidden />
+            {heatSpeed.label}
+          </span>
+        )}
       </div>
 
       {/* Titel + Preis */}

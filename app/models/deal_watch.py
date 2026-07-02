@@ -64,8 +64,10 @@ class Deal(SQLModel, table=True):
     merchant: str | None = None
     # Fertige CDN-Bild-URL des Deals (aus MyDealz mainImage gebaut).
     image_url: str | None = None
-    # Unix-Zeitstempel der Veröffentlichung auf MyDealz (rein informativ).
+    # Unix-Zeitstempel der Veröffentlichung auf MyDealz.
     published_at: int | None = None
+    # Unix-Zeitstempel, zu dem der Deal heiß wurde; published_at→hot_date = Zeit bis heiß.
+    hot_date: int | None = None
     # Ob für diesen Deal bereits benachrichtigt wurde (Baseline beim ersten Check → False).
     notified: bool = False
     first_seen_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
@@ -156,6 +158,7 @@ class DealRead(SQLModel):
     merchant: str | None
     image_url: str | None
     published_at: int | None
+    hot_date: int | None
     first_seen_at: datetime
 
 
