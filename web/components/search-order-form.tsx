@@ -7,7 +7,6 @@ import {
   ChevronUp,
   Flame,
   HelpCircle,
-  Search,
   ShoppingBag,
   Store,
   X,
@@ -32,7 +31,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { SearchOrder, SearchOrderCreate } from "@/lib/types"
-import { formatScrapeInterval } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 const RADIUS_PRESETS = [5, 10, 25, 50, 100, 200]
@@ -155,28 +153,6 @@ export function SearchOrderForm({
 
   const usedAdSource = useKleinanzeigen || useEbay
   const anySource = usedAdSource || useMydealz
-
-  // Klartext-Vorschau, was der Auftrag tun wird — gibt vor dem Speichern Sicherheit.
-  const summary = (() => {
-    const term = query.trim()
-    if (!anySource || (!term && !isUrlLegacy)) return null
-    const parts: string[] = []
-    if (usedAdSource) {
-      const names = [useKleinanzeigen && "Kleinanzeigen", useEbay && "eBay"]
-        .filter(Boolean)
-        .join(" & ")
-      const range =
-        minPrice || maxPrice
-          ? ` (${minPrice || "0"} – ${maxPrice ? `${maxPrice} €` : "beliebig"})`
-          : ""
-      parts.push(`${names}${range}`)
-    }
-    if (useMydealz) {
-      parts.push(`MyDealz${mydealzMaxPrice ? ` (bis ${mydealzMaxPrice} €)` : ""}`)
-    }
-    const target = term ? `nach „${term}“` : "über die hinterlegte URL"
-    return `Sucht ${formatScrapeInterval(interval)} auf ${parts.join(" und auf ")} ${target}.`
-  })()
 
   function toggleSource(key: SourceOption["key"]) {
     markDirty()
@@ -530,8 +506,8 @@ export function SearchOrderForm({
           {advancedOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </Button>
         {advancedOpen && (
-          <div className="mt-2 flex flex-col gap-4 rounded-xl border border-border bg-muted/40 p-4">
-            <div className="flex flex-col gap-1.5">
+          <div className="mt-2 grid gap-4 rounded-xl border border-border bg-muted/40 p-4 md:grid-cols-2">
+            <div className="flex flex-col gap-1.5 md:col-span-2">
               <Label htmlFor="order-name" className="font-normal">
                 Eigener Name
               </Label>
@@ -601,10 +577,10 @@ export function SearchOrderForm({
                     markDirty()
                   }}
                   placeholder="z.B. Bevorzuge unbenutzte Artikel mit Originalverpackung"
-                  rows={3}
+                  rows={2}
                 />
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 md:col-span-2">
                 <Switch
                   id="order-exclude-images"
                   checked={excludeImages}
@@ -622,14 +598,6 @@ export function SearchOrderForm({
           </div>
         )}
       </div>
-
-      {/* Klartext-Vorschau des Auftrags */}
-      {summary && (
-        <p className="flex items-start gap-2 rounded-lg border border-primary/15 bg-primary/[0.05] px-3 py-2.5 text-xs leading-relaxed text-foreground/85 md:col-span-2">
-          <Search className="mt-0.5 size-3.5 shrink-0 text-primary/70" aria-hidden />
-          <span>{summary}</span>
-        </p>
-      )}
 
       {error && (
         <p role="alert" className="text-sm text-destructive md:col-span-2">
