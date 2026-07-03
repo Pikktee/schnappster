@@ -15,6 +15,7 @@ from app.models.logs_scraperun import ScrapeRun
 from app.platforms import DEFAULT_PLATFORM, get_platform
 from app.scraper.parser import ScrapedAdDetail
 from app.services.deal_analysis import is_gift_category_search_url
+from app.services.relevance import title_matches_query
 from app.services.settings import SettingsService
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ class AdSearchSnapshot:
     name: str
     url: str
     platform: str
+    search_query: str | None
     min_price: float | None
     max_price: float | None
     blacklist_keywords: str | None
@@ -210,6 +212,12 @@ class ScraperService:
         min_rating: int,
     ) -> str | None:
         """Kurzer Grund-String, wenn die Anzeige aussortiert werden soll, sonst None."""
+        # Relevanz: eBay/MyDealz füllen die Trefferliste bei seltenen Begriffen mit lose
+        # passenden Angeboten auf. Nur behalten, wenn alle Suchbegriff-Tokens im Titel stehen
+        # (ohne Suchbegriff, d.h. rein URL-basierte Suche, wird nicht gefiltert).
+        if not title_matches_query(detail.title, adsearch.search_query):
+            return f"Titel passt nicht zum Suchbegriff '{adsearch.search_query}'"
+
         # Nur Anzeigen mit ausschließlich VB (ohne angegebenen Preis) aussortieren.
         # "VB + Preis" (z.B. "1.999 € VB") soll gespeichert werden; nur reines VB nicht.
         is_vb = (detail.price_type == "NEGOTIABLE") or ("vb" in (detail.price_raw or "").lower())
@@ -322,6 +330,7 @@ def _snapshot_adsearch(adsearch: AdSearch | AdSearchSnapshot) -> AdSearchSnapsho
         name=adsearch.name,
         url=adsearch.url,
         platform=adsearch.platform or DEFAULT_PLATFORM,
+        search_query=adsearch.search_query,
         min_price=adsearch.min_price,
         max_price=adsearch.max_price,
         blacklist_keywords=adsearch.blacklist_keywords,

@@ -19,6 +19,7 @@ from app.models.logs_error import ErrorLog
 from app.models.notification import NOTIFICATION_DEAL_HOT
 from app.scraper import mydealz
 from app.services.notification import NotificationService
+from app.services.relevance import title_matches_query
 from app.services.settings import SettingsService
 from app.services.telegram import TelegramService
 
@@ -102,6 +103,9 @@ class DealWatchService:
             return self._handle_failure(snap.id, status)
 
         deals = mydealz.parse_deals(html)
+        # Relevanz: MyDealz liefert bei seltenen Begriffen unscharfe Treffer. Nur Deals behalten,
+        # deren Titel alle Suchbegriff-Tokens enthält.
+        deals = [deal for deal in deals if title_matches_query(deal.title, snap.query)]
         return self._process_deals(snap, deals)
 
     def _handle_failure(self, watch_id: int, status: int) -> DealCheckResult:

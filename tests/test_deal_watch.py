@@ -145,7 +145,7 @@ def test_first_check_is_silent_baseline(session):
     """Erster Check speichert vorhandene Deals, benachrichtigt aber nicht (Baseline)."""
     watch = _make_watch(session)
     watch_id = watch.id  # vor dem Check festhalten (Service schließt die Session)
-    html = _deals_html([_deal_node("1", "A", 500), _deal_node("2", "B", 120)])
+    html = _deals_html([_deal_node("1", "LEGO A", 500), _deal_node("2", "LEGO B", 120)])
     with patch("app.services.deal_watch.mydealz.fetch_deals_html", return_value=(200, html)):
         result = DealWatchService(session).check_watch(watch)
 
@@ -160,8 +160,10 @@ def test_new_hot_deal_notifies_after_baseline(session):
     """Nach der Baseline löst ein neuer Deal über der Schwelle einen Alarm aus."""
     watch = _make_watch(session, min_temperature=300)
     watch_id = watch.id
-    baseline = _deals_html([_deal_node("1", "A", 500)])
-    later = _deals_html([_deal_node("1", "A", 500), _deal_node("2", "Neu heiß", 600, price=9.99)])
+    baseline = _deals_html([_deal_node("1", "LEGO A", 500)])
+    later = _deals_html(
+        [_deal_node("1", "LEGO A", 500), _deal_node("2", "LEGO Neu heiß", 600, price=9.99)]
+    )
 
     service = DealWatchService(session)
     with patch("app.services.deal_watch.mydealz.fetch_deals_html", return_value=(200, baseline)):
@@ -180,8 +182,8 @@ def test_new_deal_below_threshold_saved_but_not_notified(session):
     """Ein neuer Deal unter der Schwelle wird gespeichert, aber löst keinen Alarm aus."""
     watch = _make_watch(session, min_temperature=300)
     watch_id = watch.id
-    baseline = _deals_html([_deal_node("1", "A", 500)])
-    later = _deals_html([_deal_node("1", "A", 500), _deal_node("2", "Lauwarm", 150)])
+    baseline = _deals_html([_deal_node("1", "LEGO A", 500)])
+    later = _deals_html([_deal_node("1", "LEGO A", 500), _deal_node("2", "LEGO Lauwarm", 150)])
 
     service = DealWatchService(session)
     with patch("app.services.deal_watch.mydealz.fetch_deals_html", return_value=(200, baseline)):
@@ -231,9 +233,7 @@ def test_create_deal_watch_rejects_empty_query(client):
 def test_preview_deal_watch(client):
     """POST /deal-watches/preview liefert die aktuell gefundenen Deals (gemockter Abruf)."""
     html = _deals_html([_deal_node("1", "LEGO Deal", 420, price=19.99)])
-    with patch(
-        "app.routes.api.deal_watches.mydealz.fetch_deals_html", return_value=(200, html)
-    ):
+    with patch("app.routes.api.deal_watches.mydealz.fetch_deals_html", return_value=(200, html)):
         response = client.post("/deal-watches/preview", json={"query": "lego"})
     assert response.status_code == 200
     deals = response.json()["deals"]
@@ -323,7 +323,10 @@ def test_deal_above_max_price_not_saved(session):
     session.commit()
     watch_id = watch.id
     html = _deals_html(
-        [_deal_node("1", "Billig", 300, price=50), _deal_node("2", "Teuer", 500, price=250)]
+        [
+            _deal_node("1", "LEGO Billig", 300, price=50),
+            _deal_node("2", "LEGO Teuer", 500, price=250),
+        ]
     )
     with patch("app.services.deal_watch.mydealz.fetch_deals_html", return_value=(200, html)):
         DealWatchService(session).check_watch(session.get(DealWatch, watch_id))
@@ -336,8 +339,8 @@ def test_fast_riser_triggers_velocity_alarm(session):
     """Steigt ein bekannter Deal schneller als die Aufheiz-Schwelle, wird einmalig alarmiert."""
     watch = _make_watch(session, min_heating_velocity=100)  # nur Aufheiz-Alarm, keine Temp-Schwelle
     watch_id = watch.id
-    baseline = _deals_html([_deal_node("1", "Steigt", 50)])
-    hotter = _deals_html([_deal_node("1", "Steigt", 250)])  # +200°
+    baseline = _deals_html([_deal_node("1", "LEGO Steigt", 50)])
+    hotter = _deals_html([_deal_node("1", "LEGO Steigt", 250)])  # +200°
 
     service = DealWatchService(session)
     with patch("app.services.deal_watch.mydealz.fetch_deals_html", return_value=(200, baseline)):
