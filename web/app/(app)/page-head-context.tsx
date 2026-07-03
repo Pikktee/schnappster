@@ -23,10 +23,6 @@ const defaultTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Suchaufträge",
     subtitle: "Ein Suchbegriff — auf Wunsch über Kleinanzeigen, eBay und MyDealz gleichzeitig",
   },
-  "/searches/new": {
-    title: "Neuer Suchauftrag",
-    subtitle: "Ein Suchbegriff — auf Wunsch über Kleinanzeigen, eBay und MyDealz gleichzeitig",
-  },
   "/price-alerts": {
     title: "Preis-Alarme",
     subtitle: "Überwache beliebige Webseiten auf Preisänderungen",

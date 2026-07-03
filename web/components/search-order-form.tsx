@@ -117,20 +117,14 @@ function parseKeywords(str: string): string[] {
 }
 
 interface SearchOrderFormProps {
+  /** id des <form>, damit ein externer Submit-Button (Sheet-Footer) via `form={id}` auslöst. */
+  id: string
   initial?: SearchOrder
   onSubmit: (data: SearchOrderCreate) => Promise<void> | void
-  onCancel: () => void
-  isLoading?: boolean
   onDirtyChange?: (dirty: boolean) => void
 }
 
-export function SearchOrderForm({
-  initial,
-  onSubmit,
-  onCancel,
-  isLoading,
-  onDirtyChange,
-}: SearchOrderFormProps) {
+export function SearchOrderForm({ id, initial, onSubmit, onDirtyChange }: SearchOrderFormProps) {
   const anyAdChild = initial?.kleinanzeigen ?? initial?.ebay ?? null
   const isEdit = !!initial?.id
   // Adoptierte URL-Alt-Suchen haben keinen Suchbegriff; der bleibt dann leer (URL läuft weiter).
@@ -261,7 +255,7 @@ export function SearchOrderForm({
   const section = "mt-6 border-t border-border/60 pt-6"
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col">
+    <form id={id} onSubmit={handleSubmit} className="flex flex-col">
       {/* Kopf: Suchbegriff + Quellenauswahl — das „Was & Wo“ */}
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
@@ -644,22 +638,10 @@ export function SearchOrderForm({
       </section>
 
       {error && (
-        <p role="alert" className="mt-4 text-sm text-destructive">
+        <p role="alert" className="mt-6 text-sm text-destructive">
           {error}
         </p>
       )}
-
-      {/* Aktionsleiste bleibt beim Scrollen sichtbar. Der Seiten-Scrollbereich (main.main-scroll)
-          hat unten p-6 / lg:p-8 Padding; der solide box-shadow füllt genau dieses Padding mit
-          Hintergrundfarbe, sodass kein Inhalt unter der Leiste durchscheint. */}
-      <div className="sticky bottom-0 z-10 mt-8 flex justify-end gap-2 border-t bg-background py-4 shadow-[0_1.5rem_0_0_var(--background)] lg:shadow-[0_2rem_0_0_var(--background)]">
-        <Button type="button" variant="outline" onClick={onCancel} className="cursor-pointer">
-          Abbrechen
-        </Button>
-        <Button type="submit" disabled={isLoading} className="cursor-pointer">
-          {isLoading ? "Speichern..." : isEdit ? "Aktualisieren" : "Erstellen"}
-        </Button>
-      </div>
     </form>
   )
 }

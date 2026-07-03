@@ -31,6 +31,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { SearchStatusBadge } from "@/components/search-status-badge"
+import { SearchOrderSheet } from "@/components/search-order-sheet"
 import { ResultStream } from "@/components/result-stream"
 import { ContentReveal } from "@/components/content-reveal"
 import {
@@ -39,7 +40,7 @@ import {
   fetchSearchOrder,
   updateSearchOrder,
 } from "@/lib/api"
-import type { SearchOrder } from "@/lib/types"
+import type { SearchOrder, SearchOrderCreate } from "@/lib/types"
 import { formatDealAlarmThreshold, formatPrice, formatScrapeInterval, timeAgo } from "@/lib/format"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -112,6 +113,8 @@ export function SearchDetailPage() {
   const [order, setOrder] = useState<SearchOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isToggling, setIsToggling] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
@@ -180,6 +183,18 @@ export function SearchDetailPage() {
     } finally {
       setIsChecking(false)
     }
+  }
+
+  async function handleUpdate(data: SearchOrderCreate) {
+    setIsSaving(true)
+    try {
+      setOrder(await updateSearchOrder(id, data))
+      setIsEditOpen(false)
+      toast.success("Suchauftrag aktualisiert")
+    } finally {
+      setIsSaving(false)
+    }
+    // Fehler propagieren ins Formular, das sie inline anzeigt.
   }
 
   async function handleDelete() {
@@ -286,7 +301,7 @@ export function SearchDetailPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push(`/searches/${id}/edit`)}
+            onClick={() => setIsEditOpen(true)}
             className="cursor-pointer"
           >
             <Pencil className="size-3.5" />
@@ -392,6 +407,14 @@ export function SearchDetailPage() {
         </h2>
         <ResultStream searchOrderId={id} availableSources={availableSources} />
       </div>
+
+      <SearchOrderSheet
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        initial={order}
+        onSubmit={handleUpdate}
+        isLoading={isSaving}
+      />
     </ContentReveal>
   )
 }

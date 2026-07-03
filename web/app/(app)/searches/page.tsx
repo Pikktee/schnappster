@@ -1,29 +1,31 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { Plus, SearchX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SearchOrderCard } from "@/components/search-order-card"
+import { SearchOrderSheet } from "@/components/search-order-sheet"
 import { EmptyState } from "@/components/empty-state"
 import { ContentReveal } from "@/components/content-reveal"
 import {
   fetchSearchOrders,
+  createSearchOrder,
   deleteSearchOrder,
   updateSearchOrder,
   checkSearchOrderNow,
 } from "@/lib/api"
-import type { SearchOrder } from "@/lib/types"
+import type { SearchOrder, SearchOrderCreate } from "@/lib/types"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useRefetchOnFocus } from "@/hooks/use-refetch-on-focus"
 import { usePageHead } from "../page-head-context"
 
 export default function SearchesPage() {
-  const router = useRouter()
   const [orders, setOrders] = useState<SearchOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [checkingId, setCheckingId] = useState<number | null>(null)
   const { setHeaderActions } = usePageHead()
@@ -56,7 +58,7 @@ export default function SearchesPage() {
   useEffect(() => {
     if (!loading && !error) {
       setHeaderActions(
-        <Button onClick={() => router.push("/searches/new")} className="cursor-pointer">
+        <Button onClick={() => setIsCreateOpen(true)} className="cursor-pointer">
           <Plus className="size-4" />
           Neuer Suchauftrag
         </Button>
@@ -65,7 +67,20 @@ export default function SearchesPage() {
       setHeaderActions(null)
     }
     return () => setHeaderActions(null)
-  }, [loading, error, setHeaderActions, router])
+  }, [loading, error, setHeaderActions])
+
+  async function handleCreate(data: SearchOrderCreate) {
+    setIsCreating(true)
+    try {
+      const created = await createSearchOrder(data)
+      setOrders((prev) => [created, ...prev])
+      setIsCreateOpen(false)
+      toast.success("Suchauftrag erstellt — erste Ergebnisse erscheinen in wenigen Minuten.")
+    } finally {
+      setIsCreating(false)
+    }
+    // Fehler propagieren ins Formular, das sie inline anzeigt.
+  }
 
   async function handleDelete(id: number) {
     setDeletingId(id)
@@ -155,6 +170,13 @@ export default function SearchesPage() {
           ))}
         </ul>
       )}
+
+      <SearchOrderSheet
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        onSubmit={handleCreate}
+        isLoading={isCreating}
+      />
     </ContentReveal>
   )
 }
