@@ -22,7 +22,13 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -412,14 +418,15 @@ export function PriceAlertDetailPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Preis-Alarm bearbeiten</DialogTitle>
-          </DialogHeader>
+      <Sheet open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-xl">
+          <SheetHeader className="shrink-0 space-y-1 border-b px-6 py-4 text-left">
+            <SheetTitle>Preis-Alarm bearbeiten</SheetTitle>
+            <SheetDescription>Name, Prüf-Intervall und Zielpreis anpassen.</SheetDescription>
+          </SheetHeader>
           <PriceWatchEditForm watch={watch} onSubmit={handleEditSubmit} />
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </ContentReveal>
   )
 }
@@ -469,47 +476,49 @@ function PriceWatchEditForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="edit-name" className="font-normal">
-          Name
-        </Label>
-        <Input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label className="font-normal">Prüf-Intervall</Label>
-        <div className="grid grid-cols-5 gap-1.5">
-          {INTERVAL_PRESETS.map((preset) => (
-            <Button
-              key={preset.value}
-              type="button"
-              variant={interval === preset.value ? "default" : "outline"}
-              size="sm"
-              onClick={() => setInterval(preset.value)}
-              className="h-9 cursor-pointer px-2 text-xs"
-            >
-              {preset.label}
-            </Button>
-          ))}
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-6 py-6">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="edit-name" className="font-normal">
+            Name
+          </Label>
+          <Input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
+        <div className="flex flex-col gap-2">
+          <Label className="font-normal">Prüf-Intervall</Label>
+          <div className="grid grid-cols-5 gap-1.5">
+            {INTERVAL_PRESETS.map((preset) => (
+              <Button
+                key={preset.value}
+                type="button"
+                variant={interval === preset.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => setInterval(preset.value)}
+                className="h-9 cursor-pointer px-2 text-xs"
+              >
+                {preset.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="edit-threshold" className="font-normal">
+            Benachrichtigen unter (optional)
+          </Label>
+          <Input
+            id="edit-threshold"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="0.01"
+            value={threshold}
+            onChange={(e) => setThreshold(e.target.value)}
+            placeholder="Leer = bei jeder Senkung"
+          />
+        </div>
+        {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="edit-threshold" className="font-normal">
-          Benachrichtigen unter (optional)
-        </Label>
-        <Input
-          id="edit-threshold"
-          type="number"
-          inputMode="decimal"
-          min={0}
-          step="0.01"
-          value={threshold}
-          onChange={(e) => setThreshold(e.target.value)}
-          placeholder="Leer = bei jeder Senkung"
-        />
-      </div>
-      {error && <p className="text-xs text-destructive">{error}</p>}
-      <div className="flex justify-end pt-1">
+      <div className="flex shrink-0 justify-end border-t px-6 py-4">
         <Button type="submit" disabled={saving} className="cursor-pointer">
           {saving ? "Speichern…" : "Speichern"}
         </Button>
