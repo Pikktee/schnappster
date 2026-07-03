@@ -5,9 +5,11 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Clock,
   Flame,
   HelpCircle,
   ShoppingBag,
+  SlidersHorizontal,
   Store,
   X,
   type LucideIcon,
@@ -84,6 +86,29 @@ function HelpTip({ text }: { text: string }) {
   )
 }
 
+/** Sektionskopf: farbig hinterlegtes Icon + Titel + optionaler Unterzeile — gliedert ohne Kasten. */
+function SectionHead({
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  icon: LucideIcon
+  title: string
+  subtitle?: string
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="size-4" aria-hidden />
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-sm font-medium leading-tight text-foreground">{title}</h3>
+        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+      </div>
+    </div>
+  )
+}
+
 function parseKeywords(str: string): string[] {
   return str
     .split(",")
@@ -153,6 +178,12 @@ export function SearchOrderForm({
 
   const usedAdSource = useKleinanzeigen || useEbay
   const anySource = usedAdSource || useMydealz
+  const usedLabel =
+    useEbay && useKleinanzeigen
+      ? "Kleinanzeigen & eBay"
+      : useEbay
+        ? "eBay"
+        : "Kleinanzeigen"
 
   function toggleSource(key: SourceOption["key"]) {
     markDirty()
@@ -226,187 +257,180 @@ export function SearchOrderForm({
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {/* Suchbegriff */}
-      <div className="flex flex-col gap-1.5 md:col-span-2">
-        <Label htmlFor="order-query" className="flex items-center gap-1.5">
-          <span>Suchbegriff {isUrlLegacy ? "" : "*"}</span>
-          <HelpTip text="Wonach suchst du? Daraus bauen wir die Suchen aller gewählten Quellen automatisch." />
-        </Label>
-        <Input
-          id="order-query"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value)
-            markDirty()
-          }}
-          placeholder={isUrlLegacy ? "Alt-Suche über URL — Begriff optional" : "z.B. LEGO Millennium Falcon"}
-          autoFocus={!isEdit}
-        />
-        {isUrlLegacy && (
-          <p className="text-xs text-muted-foreground">
-            Diese Suche wurde über eine Kleinanzeigen-URL angelegt und läuft unverändert weiter.
-          </p>
-        )}
-      </div>
+  // Gemeinsame Klasse für eine durch eine Hairline abgesetzte Folge-Sektion (entboxt).
+  const section = "mt-6 border-t border-border/60 pt-6"
 
-      {/* Quellen-Kacheln */}
-      <div className="flex flex-col gap-1.5 md:col-span-2">
-        <Label>Wo suchen?</Label>
-        <div className="grid grid-cols-3 gap-2">
-          {SOURCES.map((source) => {
-            const selected = isSelected[source.key]
-            return (
-              <button
-                key={source.key}
-                type="button"
-                onClick={() => toggleSource(source.key)}
-                aria-pressed={selected}
-                className={cn(
-                  "relative flex cursor-pointer flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all",
-                  selected
-                    ? "border-primary/60 bg-primary/[0.06] shadow-sm"
-                    : "border-border bg-muted/30 opacity-75 hover:opacity-100",
-                )}
-              >
-                <span
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col">
+      {/* Kopf: Suchbegriff + Quellenauswahl — das „Was & Wo“ */}
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="order-query" className="flex items-center gap-1.5">
+            <span>Suchbegriff {isUrlLegacy ? "" : "*"}</span>
+            <HelpTip text="Wonach suchst du? Daraus bauen wir die Suchen aller gewählten Quellen automatisch." />
+          </Label>
+          <Input
+            id="order-query"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              markDirty()
+            }}
+            placeholder={
+              isUrlLegacy ? "Alt-Suche über URL — Begriff optional" : "z.B. LEGO Millennium Falcon"
+            }
+            autoFocus={!isEdit}
+            className="h-11 text-base"
+          />
+          {isUrlLegacy && (
+            <p className="text-xs text-muted-foreground">
+              Diese Suche wurde über eine Kleinanzeigen-URL angelegt und läuft unverändert weiter.
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label>Wo suchen?</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {SOURCES.map((source) => {
+              const selected = isSelected[source.key]
+              return (
+                <button
+                  key={source.key}
+                  type="button"
+                  onClick={() => toggleSource(source.key)}
+                  aria-pressed={selected}
                   className={cn(
-                    "absolute right-2 top-2 flex size-4 items-center justify-center rounded-full border",
+                    "relative flex cursor-pointer flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all",
                     selected
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-muted-foreground/30 bg-background",
+                      ? "border-primary/60 bg-primary/[0.06] shadow-sm"
+                      : "border-border bg-muted/30 opacity-75 hover:opacity-100",
                   )}
                 >
-                  {selected && <Check className="size-3" aria-hidden />}
-                </span>
-                <source.icon
-                  className={cn("size-4", selected ? "text-primary" : "text-muted-foreground")}
-                  aria-hidden
-                />
-                <span className="text-sm font-medium leading-none">{source.label}</span>
-                <span className="text-[11px] leading-tight text-muted-foreground">
-                  {source.hint}
-                </span>
-              </button>
-            )
-          })}
+                  <span
+                    className={cn(
+                      "absolute right-2 top-2 flex size-4 items-center justify-center rounded-full border",
+                      selected
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-muted-foreground/30 bg-background",
+                    )}
+                  >
+                    {selected && <Check className="size-3" aria-hidden />}
+                  </span>
+                  <source.icon
+                    className={cn("size-4", selected ? "text-primary" : "text-muted-foreground")}
+                    aria-hidden
+                  />
+                  <span className="text-sm font-medium leading-none">{source.label}</span>
+                  <span className="text-[11px] leading-tight text-muted-foreground">
+                    {source.hint}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Gebraucht-Quellen: gemeinsame Preisspanne + Standort (nur Kleinanzeigen) */}
+      {/* Gebraucht: gemeinsame Preisspanne + Standort (nur Kleinanzeigen) */}
       {usedAdSource && (
-        <div
-          className={cn(
-            "rounded-xl border border-border bg-muted/40 p-4",
-            // Nur bei zwei Preis-Blöcken nebeneinander; sonst volle Breite.
-            !(usedAdSource && useMydealz) && "md:col-span-2",
-          )}
-        >
-          <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Store className="size-3.5" aria-hidden />
-            Gebraucht{useEbay && useKleinanzeigen ? " · Kleinanzeigen & eBay" : useEbay ? " · eBay" : " · Kleinanzeigen"}
-            <HelpTip text="Preisspanne für Gebraucht-Angebote. Die KI bewertet jeden Fund als Schnäppchen-Score." />
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="order-min-price" className="font-normal">
-                Preis von
-              </Label>
-              <Input
-                id="order-min-price"
-                type="number"
-                min={0}
-                value={minPrice}
-                onChange={(e) => {
-                  setMinPrice(e.target.value)
-                  markDirty()
-                }}
-                placeholder="0 €"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="order-max-price" className="font-normal">
-                bis
-              </Label>
-              <Input
-                id="order-max-price"
-                type="number"
-                min={0}
-                value={maxPrice}
-                onChange={(e) => {
-                  setMaxPrice(e.target.value)
-                  markDirty()
-                }}
-                placeholder="beliebig"
-              />
-            </div>
-          </div>
-          {useKleinanzeigen && (
-            <div className="mt-3 grid grid-cols-2 gap-3">
+        <section className={section}>
+          <SectionHead icon={Store} title="Gebraucht" subtitle={usedLabel} />
+          <div className="mt-4 flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="order-plz" className="flex items-center gap-1.5 font-normal">
-                  <span>PLZ</span>
-                  <HelpTip text="Mittelpunkt der Kleinanzeigen-Umkreissuche. Leer = deutschlandweit. eBay ist immer bundesweit." />
+                <Label htmlFor="order-min-price" className="font-normal text-muted-foreground">
+                  Preis von
                 </Label>
                 <Input
-                  id="order-plz"
-                  value={postalCode}
+                  id="order-min-price"
+                  type="number"
+                  min={0}
+                  value={minPrice}
                   onChange={(e) => {
-                    setPostalCode(e.target.value)
+                    setMinPrice(e.target.value)
                     markDirty()
                   }}
-                  placeholder="z.B. 50667"
-                  inputMode="numeric"
+                  placeholder="0 €"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="order-radius" className="font-normal">
-                  Umkreis
+                <Label htmlFor="order-max-price" className="font-normal text-muted-foreground">
+                  bis
                 </Label>
-                <Select
-                  value={radiusKm || "any"}
-                  onValueChange={(v) => {
-                    setRadiusKm(v === "any" ? "" : v)
+                <Input
+                  id="order-max-price"
+                  type="number"
+                  min={0}
+                  value={maxPrice}
+                  onChange={(e) => {
+                    setMaxPrice(e.target.value)
                     markDirty()
                   }}
-                  disabled={!postalCode.trim()}
-                >
-                  <SelectTrigger id="order-radius" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="any">Egal</SelectItem>
-                    {RADIUS_PRESETS.map((r) => (
-                      <SelectItem key={r} value={String(r)}>
-                        {r} km
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="beliebig"
+                />
               </div>
             </div>
-          )}
-        </div>
+            {useKleinanzeigen && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label
+                    htmlFor="order-plz"
+                    className="flex items-center gap-1.5 font-normal text-muted-foreground"
+                  >
+                    <span>PLZ</span>
+                    <HelpTip text="Mittelpunkt der Kleinanzeigen-Umkreissuche. Leer = deutschlandweit. eBay ist immer bundesweit." />
+                  </Label>
+                  <Input
+                    id="order-plz"
+                    value={postalCode}
+                    onChange={(e) => {
+                      setPostalCode(e.target.value)
+                      markDirty()
+                    }}
+                    placeholder="z.B. 50667"
+                    inputMode="numeric"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="order-radius" className="font-normal text-muted-foreground">
+                    Umkreis
+                  </Label>
+                  <Select
+                    value={radiusKm || "any"}
+                    onValueChange={(v) => {
+                      setRadiusKm(v === "any" ? "" : v)
+                      markDirty()
+                    }}
+                    disabled={!postalCode.trim()}
+                  >
+                    <SelectTrigger id="order-radius" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="any">Egal</SelectItem>
+                      {RADIUS_PRESETS.map((r) => (
+                        <SelectItem key={r} value={String(r)}>
+                          {r} km
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
       )}
 
       {/* MyDealz: eigenes Budget (Neuware) + Alarm-Schwellen */}
       {useMydealz && (
-        <div
-          className={cn(
-            "rounded-xl border border-border bg-muted/40 p-4",
-            !(usedAdSource && useMydealz) && "md:col-span-2",
-          )}
-        >
-          <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Flame className="size-3.5" aria-hidden />
-            Neuware · MyDealz
-            <HelpTip text="MyDealz sind Neuware-Deals — hier darf das Budget höher liegen als bei Gebrauchtware. Die Community-Temperatur ersetzt den KI-Score." />
-          </h3>
-          <div className="flex flex-col gap-3">
+        <section className={section}>
+          <SectionHead icon={Flame} title="MyDealz" subtitle="Neuware-Deals" />
+          <div className="mt-4 flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="order-mydealz-max" className="font-normal">
-                Max. Preis (Neuware)
+              <Label htmlFor="order-mydealz-max" className="font-normal text-muted-foreground">
+                Höchstpreis
               </Label>
               <Input
                 id="order-mydealz-max"
@@ -419,9 +443,12 @@ export function SearchOrderForm({
                 }}
                 placeholder="beliebig"
               />
+              <p className="text-xs text-muted-foreground">
+                Neuware darf teurer sein als Gebrauchtes — eigene Obergrenze.
+              </p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label className="font-normal">Alarm ab Temperatur</Label>
+              <Label className="font-normal text-muted-foreground">Alarm ab Temperatur</Label>
               <div className="grid grid-cols-5 gap-1.5">
                 {TEMPERATURE_PRESETS.map((preset) => (
                   <Button
@@ -439,12 +466,12 @@ export function SearchOrderForm({
                   </Button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">
+                Wie „heiß“ ein Deal per Community-Votes sein muss, um gemeldet zu werden.
+              </p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label className="flex items-center gap-1.5 font-normal">
-                <span>Bei schnellem Aufheizen alarmieren</span>
-                <HelpTip text="Meldet Deals, die schnell an Temperatur gewinnen — noch bevor sie heiß sind." />
-              </Label>
+              <Label className="font-normal text-muted-foreground">Frühwarnung</Label>
               <div className="grid grid-cols-4 gap-1.5">
                 {VELOCITY_PRESETS.map((preset) => (
                   <Button
@@ -462,18 +489,18 @@ export function SearchOrderForm({
                   </Button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">
+                Meldet Deals, die schnell aufheizen — noch bevor sie die Schwelle erreichen.
+              </p>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Prüf-Intervall */}
-      <div className="flex flex-col gap-1.5 md:col-span-2">
-        <Label className="flex items-center gap-1.5">
-          <span>Prüf-Intervall</span>
-          <HelpTip text="Wie oft alle Quellen geprüft werden. MyDealz wird frühestens alle 15 Minuten geprüft." />
-        </Label>
-        <div className="grid grid-cols-6 gap-1.5">
+      <section className={section}>
+        <SectionHead icon={Clock} title="Prüf-Intervall" subtitle="Wie oft alle Quellen geprüft werden" />
+        <div className="mt-4 grid grid-cols-3 gap-1.5 sm:grid-cols-6">
           {INTERVAL_PRESETS.map((preset) => (
             <Button
               key={preset.value}
@@ -490,25 +517,33 @@ export function SearchOrderForm({
             </Button>
           ))}
         </div>
-      </div>
+      </section>
 
       {/* Erweiterte Optionen: Name immer, KI-/Filter-Felder nur für Gebraucht-Quellen */}
-      <div className="md:col-span-2">
-        <Button
+      <section className={section}>
+        <button
           type="button"
-          variant="ghost"
-          size="sm"
           onClick={() => setAdvancedOpen((v) => !v)}
           aria-expanded={advancedOpen}
-          className="-mx-2 w-full cursor-pointer justify-between text-muted-foreground hover:text-foreground"
+          className="flex w-full cursor-pointer items-center gap-2.5 text-left"
         >
-          <span className="text-sm">Erweiterte Optionen</span>
-          {advancedOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-        </Button>
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <SlidersHorizontal className="size-4" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-medium leading-tight text-foreground">Erweiterte Optionen</h3>
+            <p className="text-xs text-muted-foreground">Name, Ausschluss-Wörter, KI-Feinschliff</p>
+          </div>
+          {advancedOpen ? (
+            <ChevronUp className="size-4 text-muted-foreground" aria-hidden />
+          ) : (
+            <ChevronDown className="size-4 text-muted-foreground" aria-hidden />
+          )}
+        </button>
         {advancedOpen && (
-          <div className="mt-2 grid gap-4 rounded-xl border border-border bg-muted/40 p-4 md:grid-cols-2">
-            <div className="flex flex-col gap-1.5 md:col-span-2">
-              <Label htmlFor="order-name" className="font-normal">
+          <div className="mt-4 flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="order-name" className="font-normal text-muted-foreground">
                 Eigener Name
               </Label>
               <Input
@@ -523,90 +558,99 @@ export function SearchOrderForm({
             </div>
             {usedAdSource && (
               <>
-              <div className="flex flex-col gap-1.5">
-                <Label className="flex items-center gap-1.5 font-normal">
-                  <span>Ausschluss-Keywords</span>
-                  <HelpTip text="Gebraucht-Angebote mit diesen Begriffen werden nicht geladen." />
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={keywordInput}
-                    onChange={(e) => setKeywordInput(e.target.value)}
-                    onKeyDown={handleKeywordKeyDown}
-                    placeholder="Keyword eingeben und Enter drücken"
-                    className="flex-1"
-                  />
-                  <Button type="button" variant="outline" onClick={addKeyword} className="cursor-pointer">
-                    Hinzufügen
-                  </Button>
-                </div>
-                {keywords.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {keywords.map((kw) => (
-                      <span
-                        key={kw}
-                        className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium text-foreground"
-                      >
-                        {kw}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setKeywords((prev) => prev.filter((k) => k !== kw))
-                            markDirty()
-                          }}
-                          className="cursor-pointer text-muted-foreground hover:text-destructive"
-                          aria-label={`${kw} entfernen`}
-                        >
-                          <X className="size-3" />
-                        </button>
-                      </span>
-                    ))}
+                <div className="flex flex-col gap-1.5">
+                  <Label className="flex items-center gap-1.5 font-normal text-muted-foreground">
+                    <span>Ausschluss-Keywords</span>
+                    <HelpTip text="Gebraucht-Angebote mit diesen Begriffen werden nicht geladen." />
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={keywordInput}
+                      onChange={(e) => setKeywordInput(e.target.value)}
+                      onKeyDown={handleKeywordKeyDown}
+                      placeholder="Wort eingeben, Enter drücken"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addKeyword}
+                      className="cursor-pointer"
+                    >
+                      Hinzufügen
+                    </Button>
                   </div>
-                )}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="order-prompt" className="flex items-center gap-1.5 font-normal">
-                  <span>Zusätzliche KI-Anweisungen</span>
-                  <HelpTip text="Zusätzliche Hinweise für die KI-Bewertung der Gebraucht-Angebote." />
-                </Label>
-                <Textarea
-                  id="order-prompt"
-                  value={promptAddition}
-                  onChange={(e) => {
-                    setPromptAddition(e.target.value)
-                    markDirty()
-                  }}
-                  placeholder="z.B. Bevorzuge unbenutzte Artikel mit Originalverpackung"
-                  rows={2}
-                />
-              </div>
-              <div className="flex items-center gap-3 md:col-span-2">
-                <Switch
-                  id="order-exclude-images"
-                  checked={excludeImages}
-                  onCheckedChange={(v) => {
-                    setExcludeImages(v)
-                    markDirty()
-                  }}
-                />
-                <Label htmlFor="order-exclude-images" className="cursor-pointer font-normal">
-                  Anzeigen-Bilder nicht an die KI senden
-                </Label>
-              </div>
+                  {keywords.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {keywords.map((kw) => (
+                        <span
+                          key={kw}
+                          className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium text-foreground"
+                        >
+                          {kw}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setKeywords((prev) => prev.filter((k) => k !== kw))
+                              markDirty()
+                            }}
+                            className="cursor-pointer text-muted-foreground hover:text-destructive"
+                            aria-label={`${kw} entfernen`}
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label
+                    htmlFor="order-prompt"
+                    className="flex items-center gap-1.5 font-normal text-muted-foreground"
+                  >
+                    <span>Zusätzliche KI-Anweisungen</span>
+                    <HelpTip text="Zusätzliche Hinweise für die KI-Bewertung der Gebraucht-Angebote." />
+                  </Label>
+                  <Textarea
+                    id="order-prompt"
+                    value={promptAddition}
+                    onChange={(e) => {
+                      setPromptAddition(e.target.value)
+                      markDirty()
+                    }}
+                    placeholder="z.B. Bevorzuge unbenutzte Artikel mit Originalverpackung"
+                    rows={2}
+                  />
+                </div>
+                <label
+                  htmlFor="order-exclude-images"
+                  className="flex cursor-pointer items-center justify-between gap-3"
+                >
+                  <span className="text-sm text-foreground">Anzeigen-Bilder nicht an die KI senden</span>
+                  <Switch
+                    id="order-exclude-images"
+                    checked={excludeImages}
+                    onCheckedChange={(v) => {
+                      setExcludeImages(v)
+                      markDirty()
+                    }}
+                  />
+                </label>
               </>
             )}
           </div>
         )}
-      </div>
+      </section>
 
       {error && (
-        <p role="alert" className="text-sm text-destructive md:col-span-2">
+        <p role="alert" className="mt-4 text-sm text-destructive">
           {error}
         </p>
       )}
 
       {/* Aktionsleiste klebt am unteren Modalrand — Speichern bleibt beim Scrollen sichtbar. */}
-      <div className="sticky bottom-0 -mx-6 -mb-6 flex justify-end gap-2 rounded-b-lg border-t bg-background px-6 py-4 md:col-span-2">
+      <div className="sticky bottom-0 -mx-6 -mb-6 mt-6 flex justify-end gap-2 rounded-b-lg border-t bg-background px-6 py-4">
         <Button type="button" variant="outline" onClick={onCancel} className="cursor-pointer">
           Abbrechen
         </Button>

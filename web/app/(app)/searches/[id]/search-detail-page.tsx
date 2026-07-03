@@ -419,7 +419,7 @@ export function SearchDetailPage() {
       {/* Bearbeiten */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent
-          className="max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-y-contain sm:max-w-3xl"
+          className="max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-y-contain sm:max-w-2xl"
           onInteractOutside={(e) => e.preventDefault()}
         >
           <DialogHeader>
