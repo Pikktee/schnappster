@@ -30,14 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { SearchStatusBadge } from "@/components/search-status-badge"
-import { SearchOrderForm } from "@/components/search-order-form"
 import { ResultStream } from "@/components/result-stream"
 import { ContentReveal } from "@/components/content-reveal"
 import {
@@ -46,7 +39,7 @@ import {
   fetchSearchOrder,
   updateSearchOrder,
 } from "@/lib/api"
-import type { SearchOrder, SearchOrderCreate } from "@/lib/types"
+import type { SearchOrder } from "@/lib/types"
 import { formatDealAlarmThreshold, formatPrice, formatScrapeInterval, timeAgo } from "@/lib/format"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -119,12 +112,9 @@ export function SearchDetailPage() {
   const [order, setOrder] = useState<SearchOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isEditOpen, setIsEditOpen] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isToggling, setIsToggling] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
-  const [streamEpoch, setStreamEpoch] = useState(0)
 
   useEffect(() => {
     const match = window.location.pathname.match(/\/(\d+)\/?$/)
@@ -189,19 +179,6 @@ export function SearchDetailPage() {
       toast.error(e instanceof Error ? e.message : "Prüfung fehlgeschlagen.")
     } finally {
       setIsChecking(false)
-    }
-  }
-
-  async function handleUpdate(data: SearchOrderCreate) {
-    setIsSaving(true)
-    try {
-      const updated = await updateSearchOrder(id, data)
-      setOrder(updated)
-      setIsEditOpen(false)
-      setStreamEpoch((n) => n + 1) // Quellen können sich geändert haben → Stream neu laden
-      toast.success("Suchauftrag aktualisiert")
-    } finally {
-      setIsSaving(false)
     }
   }
 
@@ -309,7 +286,7 @@ export function SearchDetailPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsEditOpen(true)}
+            onClick={() => router.push(`/searches/${id}/edit`)}
             className="cursor-pointer"
           >
             <Pencil className="size-3.5" />
@@ -413,26 +390,8 @@ export function SearchDetailPage() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Ergebnisse
         </h2>
-        <ResultStream key={streamEpoch} searchOrderId={id} availableSources={availableSources} />
+        <ResultStream searchOrderId={id} availableSources={availableSources} />
       </div>
-
-      {/* Bearbeiten */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent
-          className="max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-y-contain sm:max-w-2xl"
-          onInteractOutside={(e) => e.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle>Suchauftrag bearbeiten</DialogTitle>
-          </DialogHeader>
-          <SearchOrderForm
-            initial={order}
-            onSubmit={handleUpdate}
-            onCancel={() => setIsEditOpen(false)}
-            isLoading={isSaving}
-          />
-        </DialogContent>
-      </Dialog>
     </ContentReveal>
   )
 }

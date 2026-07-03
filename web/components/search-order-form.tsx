@@ -649,8 +649,10 @@ export function SearchOrderForm({
         </p>
       )}
 
-      {/* Aktionsleiste klebt am unteren Modalrand — Speichern bleibt beim Scrollen sichtbar. */}
-      <div className="sticky bottom-0 -mx-6 -mb-6 mt-6 flex justify-end gap-2 rounded-b-lg border-t bg-background px-6 py-4">
+      {/* Aktionsleiste bleibt beim Scrollen sichtbar. Der Seiten-Scrollbereich (main.main-scroll)
+          hat unten p-6 / lg:p-8 Padding; der solide box-shadow füllt genau dieses Padding mit
+          Hintergrundfarbe, sodass kein Inhalt unter der Leiste durchscheint. */}
+      <div className="sticky bottom-0 z-10 mt-8 flex justify-end gap-2 border-t bg-background py-4 shadow-[0_1.5rem_0_0_var(--background)] lg:shadow-[0_2rem_0_0_var(--background)]">
         <Button type="button" variant="outline" onClick={onCancel} className="cursor-pointer">
           Abbrechen
         </Button>

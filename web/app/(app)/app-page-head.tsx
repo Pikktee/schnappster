@@ -17,9 +17,10 @@ export function AppPageHead() {
   const { title, subtitle, headerActions, titleSuffix } = usePageHead()
 
   const pathSegments = pathname.split("/").filter(Boolean)
-  const isDetail =
-    pathSegments.length >= 2 &&
-    /^\d+$/.test(pathSegments[pathSegments.length - 1] ?? "")
+  const lastSegment = pathSegments[pathSegments.length - 1] ?? ""
+  const isDetail = pathSegments.length >= 2 && /^\d+$/.test(lastSegment)
+  // Anlegen-/Bearbeiten-Seiten führen den (gesetzten) Titel als letzte Breadcrumb-Stufe.
+  const isForm = lastSegment === "new" || lastSegment === "edit"
 
   return (
     <div className="flex flex-col gap-6">
@@ -81,7 +82,7 @@ export function AppPageHead() {
               </BreadcrumbItem>
             </>
           )}
-          {isDetail && (
+          {(isDetail || isForm) && (
             <>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
