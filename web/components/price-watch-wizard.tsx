@@ -112,26 +112,28 @@ export function PriceWatchWizard({ onCreated, onCancel }: PriceWatchWizardProps)
   // --- Schritt 1: URL ---
   if (step === "url") {
     return (
-      <form onSubmit={handlePreview} className="flex flex-col gap-4">
-        <p className="text-sm text-muted-foreground">
-          Gib die Adresse einer Produkt- oder Angebotsseite ein. Schnappster durchsucht die Seite
-          nach Preisen, die du überwachen kannst. Bei geschützten Seiten (z. B. Amazon) kann die
-          Analyse ~20–30 Sekunden dauern.
-        </p>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="watch-url">Webadresse *</Label>
-          <Input
-            id="watch-url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://shop.example.com/produkt"
-            type="url"
-            autoFocus
-            aria-invalid={!!error}
-          />
-          {error && <p className="text-xs text-destructive">{error}</p>}
+      <form onSubmit={handlePreview} className="flex min-h-0 flex-1 flex-col">
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-6 py-6">
+          <p className="text-sm text-muted-foreground">
+            Gib die Adresse einer Produkt- oder Angebotsseite ein. Schnappster durchsucht die Seite
+            nach Preisen, die du überwachen kannst. Bei geschützten Seiten (z. B. Amazon) kann die
+            Analyse ~20–30 Sekunden dauern.
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="watch-url">Webadresse *</Label>
+            <Input
+              id="watch-url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://shop.example.com/produkt"
+              type="url"
+              autoFocus
+              aria-invalid={!!error}
+            />
+            {error && <p className="text-xs text-destructive">{error}</p>}
+          </div>
         </div>
-        <div className="flex justify-end gap-2 pt-1">
+        <div className="flex shrink-0 justify-end gap-2 border-t px-6 py-4">
           <Button type="button" variant="outline" onClick={onCancel} className="cursor-pointer">
             Abbrechen
           </Button>
@@ -153,7 +155,8 @@ export function PriceWatchWizard({ onCreated, onCancel }: PriceWatchWizardProps)
 
   // --- Schritt 2: Preis wählen + Einstellungen ---
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-6 py-6">
       {candidates.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-8 text-center">
           <TriangleAlert className="size-8 text-amber-500" aria-hidden />
@@ -294,8 +297,8 @@ export function PriceWatchWizard({ onCreated, onCancel }: PriceWatchWizardProps)
       )}
 
       {error && <p className="text-xs text-destructive">{error}</p>}
-
-      <div className="flex items-center justify-between gap-2 pt-1">
+      </div>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-t px-6 py-4">
         <Button
           type="button"
           variant="ghost"

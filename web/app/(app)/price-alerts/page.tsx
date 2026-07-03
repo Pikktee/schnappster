@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react"
 import { Plus, TrendingDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { PriceWatchCard } from "@/components/price-watch-card"
 import { PriceWatchWizard } from "@/components/price-watch-wizard"
 import { EmptyState } from "@/components/empty-state"
@@ -164,17 +170,17 @@ export default function PriceAlertsPage() {
         </ul>
       )}
 
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent
-          className="max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-y-contain sm:max-w-xl"
-          onInteractOutside={(e) => e.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle>Neuen Preis-Alarm erstellen</DialogTitle>
-          </DialogHeader>
+      <Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-xl">
+          <SheetHeader className="shrink-0 space-y-1 border-b px-6 py-4 text-left">
+            <SheetTitle>Neuer Preis-Alarm</SheetTitle>
+            <SheetDescription>
+              Überwache eine beliebige Produktseite auf Preisänderungen.
+            </SheetDescription>
+          </SheetHeader>
           <PriceWatchWizard onCreated={handleCreated} onCancel={() => setIsCreateOpen(false)} />
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </ContentReveal>
   )
 }
