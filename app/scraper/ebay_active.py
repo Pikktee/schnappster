@@ -110,11 +110,22 @@ def _extract_item(card) -> tuple[str | None, str | None]:
     return item_id, f"{_BASE_URL}/itm/{item_id}"
 
 
+# eBay bettet die Vorschau-Größe in den Dateinamen ein (s-l140/s-l500 = Mini-Thumbnails).
+# eBay bedient jede Standardgröße unter derselben URL, daher auf 800px hochsetzen → scharfe Karten.
+_IMG_SIZE_RE = re.compile(r"s-l\d+")
+_IMG_TARGET_SIZE = "s-l800"
+
+
+def _upscale_image(url: str) -> str:
+    return _IMG_SIZE_RE.sub(_IMG_TARGET_SIZE, url)
+
+
 def _extract_image(card) -> str | None:
     img = card.select_one("img")
     if not img:
         return None
-    return img.get("src") or img.get("data-src")
+    src = img.get("src") or img.get("data-src")
+    return _upscale_image(src) if src else None
 
 
 def _extract_shipping(card) -> str | None:

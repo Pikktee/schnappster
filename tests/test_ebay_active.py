@@ -50,7 +50,7 @@ def test_parse_active_listings_extracts_fields_and_skips_placeholder():
     assert first.price == 189.99
     assert first.condition == "Neu"
     assert first.seller_type == "Gewerblich"
-    assert first.image_url == "https://i.ebayimg.com/x-s-l500.webp"
+    assert first.image_url == "https://i.ebayimg.com/x-s-l800.webp"  # Mini-Vorschau hochskaliert
     assert first.shipping_cost == "Gratis Lieferung"
 
     second = previews[1]
@@ -58,8 +58,21 @@ def test_parse_active_listings_extracts_fields_and_skips_placeholder():
     assert second.title == "Sony XM5 gebraucht"  # "Neues Angebot" entfernt
     assert second.condition == "Gebraucht"
     assert second.seller_type == "Privat"
-    assert second.image_url == "https://i.ebayimg.com/y-s-l140.webp"  # aus data-src
+    assert second.image_url == "https://i.ebayimg.com/y-s-l800.webp"  # aus data-src, hochskaliert
     assert second.shipping_cost == "+EUR 6,90 · 1-2 Tage Lieferung"
+
+
+def test_upscale_image_replaces_size_suffix():
+    """Jede eBay-Vorschaugröße wird auf die Zielgröße (s-l800) hochgesetzt; Nicht-Treffer bleiben."""
+    assert ebay_active._upscale_image("https://i.ebayimg.com/a-s-l140.webp") == (
+        "https://i.ebayimg.com/a-s-l800.webp"
+    )
+    assert ebay_active._upscale_image("https://i.ebayimg.com/a-s-l1600.jpg") == (
+        "https://i.ebayimg.com/a-s-l800.jpg"
+    )
+    assert ebay_active._upscale_image("https://example.com/pic.png") == (
+        "https://example.com/pic.png"
+    )
 
 
 # --- URL-Bau ---
@@ -162,5 +175,5 @@ def test_ebay_build_details_maps_previews_without_fetch():
     assert first.price == 189.99
     assert first.condition == "Neu"
     assert first.seller_type == "Gewerblich"
-    assert first.image_urls == ["https://i.ebayimg.com/x-s-l500.webp"]
+    assert first.image_urls == ["https://i.ebayimg.com/x-s-l800.webp"]
     assert first.description is None  # eBay-Karten liefern keine Beschreibung

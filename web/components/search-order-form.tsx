@@ -251,9 +251,9 @@ export function SearchOrderForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
       {/* Suchbegriff */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5 md:col-span-2">
         <Label htmlFor="order-query" className="flex items-center gap-1.5">
           <span>Suchbegriff {isUrlLegacy ? "" : "*"}</span>
           <HelpTip text="Wonach suchst du? Daraus bauen wir die Suchen aller gewählten Quellen automatisch." />
@@ -276,7 +276,7 @@ export function SearchOrderForm({
       </div>
 
       {/* Quellen-Kacheln */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5 md:col-span-2">
         <Label>Wo suchen?</Label>
         <div className="grid grid-cols-3 gap-2">
           {SOURCES.map((source) => {
@@ -320,7 +320,13 @@ export function SearchOrderForm({
 
       {/* Gebraucht-Quellen: gemeinsame Preisspanne + Standort (nur Kleinanzeigen) */}
       {usedAdSource && (
-        <div className="rounded-xl border border-border bg-muted/40 p-4">
+        <div
+          className={cn(
+            "rounded-xl border border-border bg-muted/40 p-4",
+            // Nur bei zwei Preis-Blöcken nebeneinander; sonst volle Breite.
+            !(usedAdSource && useMydealz) && "md:col-span-2",
+          )}
+        >
           <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Store className="size-3.5" aria-hidden />
             Gebraucht{useEbay && useKleinanzeigen ? " · Kleinanzeigen & eBay" : useEbay ? " · eBay" : " · Kleinanzeigen"}
@@ -410,7 +416,12 @@ export function SearchOrderForm({
 
       {/* MyDealz: eigenes Budget (Neuware) + Alarm-Schwellen */}
       {useMydealz && (
-        <div className="rounded-xl border border-border bg-muted/40 p-4">
+        <div
+          className={cn(
+            "rounded-xl border border-border bg-muted/40 p-4",
+            !(usedAdSource && useMydealz) && "md:col-span-2",
+          )}
+        >
           <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Flame className="size-3.5" aria-hidden />
             Neuware · MyDealz
@@ -481,7 +492,7 @@ export function SearchOrderForm({
       )}
 
       {/* Prüf-Intervall */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5 md:col-span-2">
         <Label className="flex items-center gap-1.5">
           <span>Prüf-Intervall</span>
           <HelpTip text="Wie oft alle Quellen geprüft werden. MyDealz wird frühestens alle 15 Minuten geprüft." />
@@ -506,7 +517,7 @@ export function SearchOrderForm({
       </div>
 
       {/* Erweiterte Optionen: Name immer, KI-/Filter-Felder nur für Gebraucht-Quellen */}
-      <div>
+      <div className="md:col-span-2">
         <Button
           type="button"
           variant="ghost"
@@ -614,19 +625,20 @@ export function SearchOrderForm({
 
       {/* Klartext-Vorschau des Auftrags */}
       {summary && (
-        <p className="flex items-start gap-2 rounded-lg border border-primary/15 bg-primary/[0.05] px-3 py-2.5 text-xs leading-relaxed text-foreground/85">
+        <p className="flex items-start gap-2 rounded-lg border border-primary/15 bg-primary/[0.05] px-3 py-2.5 text-xs leading-relaxed text-foreground/85 md:col-span-2">
           <Search className="mt-0.5 size-3.5 shrink-0 text-primary/70" aria-hidden />
           <span>{summary}</span>
         </p>
       )}
 
       {error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive md:col-span-2">
           {error}
         </p>
       )}
 
-      <div className="flex justify-end gap-2 pt-1">
+      {/* Aktionsleiste klebt am unteren Modalrand — Speichern bleibt beim Scrollen sichtbar. */}
+      <div className="sticky bottom-0 -mx-6 -mb-6 flex justify-end gap-2 rounded-b-lg border-t bg-background px-6 py-4 md:col-span-2">
         <Button type="button" variant="outline" onClick={onCancel} className="cursor-pointer">
           Abbrechen
         </Button>

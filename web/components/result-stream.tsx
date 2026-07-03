@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -102,9 +102,20 @@ interface ResultStreamProps {
    * Deals und Preis-Ereignisse haben eigene Kriterien und bleiben sichtbar.
    */
   minScore?: number
+  /**
+   * Beschränkt die Quellen-Filter auf die tatsächlich genutzten Plattformen eines Suchauftrags
+   * (z. B. `["kleinanzeigen", "ebay"]`). Bei ≤1 Quelle entfällt der Filter komplett.
+   * Ohne Angabe (Startseite) werden alle Quellen angeboten.
+   */
+  availableSources?: string[]
 }
 
-export function ResultStream({ searchOrderId, storageKey, minScore }: ResultStreamProps) {
+export function ResultStream({
+  searchOrderId,
+  storageKey,
+  minScore,
+  availableSources,
+}: ResultStreamProps) {
   const router = useRouter()
   const [items, setItems] = useState<FeedItem[]>([])
   const [total, setTotal] = useState(0)
@@ -117,10 +128,16 @@ export function ResultStream({ searchOrderId, storageKey, minScore }: ResultStre
   const [viewMode, setViewMode] = useState<ViewMode>("cards")
   const [restored, setRestored] = useState(!storageKey)
 
-  const chips = useMemo(
-    () => SOURCE_CHIPS.filter((chip) => chip.key !== "price" || searchOrderId === undefined),
-    [searchOrderId],
-  )
+  const chips = useMemo(() => {
+    let list = SOURCE_CHIPS.filter((chip) => chip.key !== "price" || searchOrderId === undefined)
+    if (availableSources) {
+      list = list.filter((chip) => chip.key === "all" || availableSources.includes(chip.key))
+    }
+    return list
+  }, [searchOrderId, availableSources])
+
+  // Bei einem Suchauftrag mit nur einer Quelle ist der Filter sinnlos → ganz ausblenden.
+  const showSourceFilter = availableSources ? availableSources.length > 1 : true
 
   const load = useCallback(
     async (opts: { offset: number; append: boolean; silent?: boolean }) => {
@@ -175,6 +192,26 @@ export function ResultStream({ searchOrderId, storageKey, minScore }: ResultStre
   useRefetchOnFocus(() =>
     load({ offset: 0, append: false, silent: true }),
   )
+
+  // Endless Scrolling: sobald der Sentinel am Listenende sichtbar wird, nächste Seite anhängen.
+  // rootMargin lädt schon 600px vor Erreichen vor; der loadingMore-Guard verhindert Doppel-Laden.
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const hasMore = items.length < total
+
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el || !hasMore || loading) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !loadingMore) {
+          load({ offset: items.length, append: true })
+        }
+      },
+      { rootMargin: "600px" },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasMore, loading, loadingMore, items.length, load])
 
   const hasActiveFilters = source !== "all" || sortBy !== "date"
 
@@ -236,23 +273,25 @@ export function ResultStream({ searchOrderId, storageKey, minScore }: ResultStre
     <div className="flex flex-col gap-4">
       {/* Filterleiste */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Quelle filtern">
-          {chips.map((chip) => (
-            <Button
-              key={chip.key}
-              type="button"
-              variant={source === chip.key ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSource(chip.key)}
-              className="h-8 cursor-pointer rounded-full px-3 text-xs"
-              aria-pressed={source === chip.key}
-            >
-              {chip.key === "mydealz" && <Flame className="size-3" aria-hidden />}
-              {chip.key === "price" && <TrendingDown className="size-3" aria-hidden />}
-              {chip.label}
-            </Button>
-          ))}
-        </div>
+        {showSourceFilter && (
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Quelle filtern">
+            {chips.map((chip) => (
+              <Button
+                key={chip.key}
+                type="button"
+                variant={source === chip.key ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSource(chip.key)}
+                className="h-8 cursor-pointer rounded-full px-3 text-xs"
+                aria-pressed={source === chip.key}
+              >
+                {chip.key === "mydealz" && <Flame className="size-3" aria-hidden />}
+                {chip.key === "price" && <TrendingDown className="size-3" aria-hidden />}
+                {chip.label}
+              </Button>
+            ))}
+          </div>
+        )}
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
@@ -422,19 +461,22 @@ export function ResultStream({ searchOrderId, storageKey, minScore }: ResultStre
         </div>
       )}
 
-      {items.length < total && (
-        <div className="flex justify-center pt-1">
-          <Button
-            variant="outline"
-            onClick={() => load({ offset: items.length, append: true })}
-            disabled={loadingMore}
-            className="cursor-pointer"
-          >
-            {loadingMore ? (
+      {hasMore && (
+        <div
+          ref={sentinelRef}
+          className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground"
+          aria-live="polite"
+        >
+          {loadingMore ? (
+            <>
               <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : null}
-            Mehr laden ({items.length} von {total})
-          </Button>
+              Weitere Ergebnisse werden geladen …
+            </>
+          ) : (
+            <span className="tabular-nums">
+              {items.length} von {total}
+            </span>
+          )}
         </div>
       )}
     </div>

@@ -259,6 +259,12 @@ export function SearchDetailPage() {
     : ""
   // Der Suchbegriff steht meist schon als Titel im Seitenkopf — nur zeigen, wenn er abweicht.
   const showQueryLine = !order.query || order.query.trim() !== order.name.trim()
+  // Nur die tatsächlich genutzten Quellen als Filter anbieten (Stream blendet ihn bei einer aus).
+  const availableSources = [
+    order.kleinanzeigen ? "kleinanzeigen" : null,
+    order.ebay ? "ebay" : null,
+    order.mydealz ? "mydealz" : null,
+  ].filter((source): source is string => source !== null)
 
   return (
     <ContentReveal className="flex flex-col gap-6">
@@ -407,13 +413,13 @@ export function SearchDetailPage() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Ergebnisse
         </h2>
-        <ResultStream key={streamEpoch} searchOrderId={id} />
+        <ResultStream key={streamEpoch} searchOrderId={id} availableSources={availableSources} />
       </div>
 
       {/* Bearbeiten */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent
-          className="max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-y-contain sm:max-w-xl"
+          className="max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-y-contain sm:max-w-3xl"
           onInteractOutside={(e) => e.preventDefault()}
         >
           <DialogHeader>
