@@ -61,6 +61,56 @@ export interface SearchOrderCreate {
 
 export type SearchOrderUpdate = Partial<SearchOrderCreate> & { is_active?: boolean }
 
+/** Transport-Kapazität des Nutzers (speist die Aufwand-Achse der Fundgrube-Bewertung). */
+export type GiftVehicle = "bike" | "small_car" | "estate" | "van"
+
+/**
+ * Fundgrube: Dauerbeobachtung der Kleinanzeigen-„Zu verschenken"-Kategorie im Umkreis,
+ * bewertet nach einem Interessensprofil statt nach Preis (siehe Ad.bargain_score als Abhol-Lohn).
+ */
+export interface GiftWatch {
+  id: number
+  name: string
+  postal_code: string
+  radius_km: number
+  /** Freitext-Interessensprofil (die „eigenen Regeln" fürs LLM). */
+  interest_profile: string | null
+  /** Schwerpunkte (Boost), komma-separiert. */
+  focus_keywords: string | null
+  /** Harter Text-Ausschluss, komma-separiert. */
+  exclude_keywords: string | null
+  /** Harter Kategorie-Ausschluss (category_l2), komma-separiert. */
+  exclude_categories: string | null
+  vehicle: GiftVehicle
+  can_carry_heavy: boolean
+  min_score_notify: number
+  is_active: boolean
+  scrape_interval_minutes: number
+  created_at: string
+  /** Gekoppeltes AdSearch-Kind (Quelle der Funde). */
+  adsearch_id: number | null
+  ad_count: number
+  last_scraped_at: string | null
+}
+
+/** Eingabe zum Anlegen einer Fundgrube-Beobachtung. */
+export interface GiftWatchCreate {
+  name?: string
+  postal_code: string
+  radius_km?: number
+  interest_profile?: string | null
+  focus_keywords?: string | null
+  exclude_keywords?: string | null
+  exclude_categories?: string | null
+  vehicle?: GiftVehicle
+  can_carry_heavy?: boolean
+  min_score_notify?: number
+  is_active?: boolean
+  scrape_interval_minutes?: number
+}
+
+export type GiftWatchUpdate = Partial<GiftWatchCreate>
+
 /** Ein Element des Ergebnis-Streams (Start-Feed). */
 export interface FeedPriceEvent {
   watch_id: number
@@ -93,6 +143,8 @@ export interface Ad {
   price: number | null
   postal_code: string | null
   city: string | null
+  /** Luftlinie zur Nutzer-PLZ in km (nur bei Fundgrube-Funden gesetzt). */
+  distance_km: number | null
   url: string
   /** Einzelbild-URL von der API (wird von Backend berechnet). */
   image_url: string | null

@@ -24,6 +24,8 @@ class SearchParams:
     radius_km: int | None = None
     min_price: float | None = None
     max_price: float | None = None
+    # Fundgrube: gesamte „Zu verschenken"-Kategorie im Umkreis statt Keyword-Suche.
+    gift_only: bool = False
 
 
 class PlatformScraper(ABC):

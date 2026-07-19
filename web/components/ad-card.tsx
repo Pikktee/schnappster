@@ -13,9 +13,11 @@ import type { Ad } from "@/lib/types"
 
 interface AdCardProps {
   ad: Ad
+  /** Fundgrube-Variante: „Zu verschenken" + geschätzter Wert + Entfernung statt Preis. */
+  gift?: boolean
 }
 
-export function AdCard({ ad }: AdCardProps) {
+export function AdCard({ ad, gift = false }: AdCardProps) {
   const images = getAdImageUrls(ad)
   const [imgError, setImgError] = useState(false)
   const source = getAdSource(ad.url)
@@ -88,13 +90,32 @@ export function AdCard({ ad }: AdCardProps) {
         </div>
 
         <div className="flex items-center justify-between pt-1">
-          <span className="text-xl font-bold text-foreground">{formatPrice(ad.price)}</span>
+          {gift ? (
+            <div className="flex flex-col leading-tight">
+              <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                Zu verschenken
+              </span>
+              {ad.estimated_market_price != null && ad.estimated_market_price > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  ≈ {formatPrice(ad.estimated_market_price)} Wert
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="text-xl font-bold text-foreground">{formatPrice(ad.price)}</span>
+          )}
           {ad.seller_rating !== null && ad.seller_rating !== undefined && (
             <SellerRatingTag rating={ad.seller_rating} size="sm" />
           )}
         </div>
 
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {gift && ad.distance_km != null && (
+            <>
+              <span className="shrink-0 font-medium">{ad.distance_km.toFixed(0)} km</span>
+              <span className="text-muted-foreground/40 shrink-0">•</span>
+            </>
+          )}
           {hasLocation && (
             <>
               <a

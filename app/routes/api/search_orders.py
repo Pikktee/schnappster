@@ -363,7 +363,10 @@ def _adopt_orphans(session: Session, owner_id: str) -> None:
     """
     orphan_searches = session.exec(
         select(AdSearch).where(
-            AdSearch.owner_id == owner_id, col(AdSearch.search_order_id).is_(None)
+            AdSearch.owner_id == owner_id,
+            col(AdSearch.search_order_id).is_(None),
+            # Fundgrube-Kinder gehören zu einer GiftWatch, nicht in die Suchauftragsliste.
+            col(AdSearch.gift_watch_id).is_(None),
         )
     ).all()
     orphan_watches = session.exec(

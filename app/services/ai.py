@@ -19,6 +19,7 @@ from sqlmodel import Session, select
 from app.core import config as app_config
 from app.models.ad import Ad
 from app.models.adsearch import AdSearch
+from app.models.gift_watch import GiftWatch
 from app.models.logs_aianalysis import AIAnalysisLog
 from app.models.logs_error import ErrorLog
 from app.prompts import render_negotiation_prompt, render_system_prompt, render_user_prompt
@@ -41,6 +42,16 @@ from app.services.deal_analysis import (
     is_gift_category_search_url,
     should_use_strong_model,
     should_use_strong_model_for_gift_search,
+)
+from app.services.gift_analysis import (
+    GiftAnalysisResult,
+    GiftAssessment,
+    GiftRelevance,
+    build_gift_assessment_prompt,
+    build_gift_gate_prompt,
+    build_gift_result,
+    coerce_gift_relevance,
+    fallback_gift_assessment,
 )
 from app.services.price_reference import SoldReference, get_market_reference_cached
 from app.services.settings import SettingsService
@@ -236,8 +247,16 @@ class AIService:
 
         self._notify_if_enabled(ad, final.score)
 
-    def _run_deal_pipeline(self, ad: Ad, context: dict) -> DealAnalysisResult:
-        """Runs cheap extraction, comparison judging and final scoring."""
+    def _run_deal_pipeline(
+        self, ad: Ad, context: dict
+    ) -> DealAnalysisResult | GiftAnalysisResult:
+        """Runs cheap extraction, comparison judging and final scoring.
+
+        Fundgrube-Anzeigen (Verschenken) laufen über einen eigenen Wert/Aufwand-Pfad statt
+        über die preisbasierte Marktwert-Pipeline.
+        """
+        if is_gift_category_context(context):
+            return self._run_gift_pipeline(ad, context)
         self._release_session_connection()
         product = self._extract_product(ad, context)
         candidates = self._build_comparison_candidates(ad)
@@ -271,6 +290,72 @@ class AIService:
             market=market,
             model_used=model,
             used_strong_model=use_strong,
+        )
+
+    def _run_gift_pipeline(self, ad: Ad, context: dict) -> GiftAnalysisResult:
+        """Fundgrube-Bewertung: billiges Relevanz-Gate → nur Kandidaten teuer bewerten.
+
+        Der Trichter spart das gründliche Modell für offensichtlich uninteressante Funde:
+        das ``nano``-Gate wirft klaren Junk/Werbung raus (``skip``), nur ``maybe``/``candidate``
+        laufen ins volle Wert/Aufwand-Assessment.
+        """
+        self._release_session_connection()
+        relevance = self._gate_gift(ad, context)
+        if relevance == "skip":
+            return self._skip_gift_result(context)
+
+        assessment = self._assess_gift(ad, context, self.model)
+        return build_gift_result(
+            assessment,
+            relevance=relevance,
+            distance_km=context.get("distance_km"),  # type: ignore[arg-type]
+            radius_km=context.get("gift_radius_km"),  # type: ignore[arg-type]
+            vehicle=str(context.get("gift_vehicle") or "small_car"),
+            can_carry_heavy=bool(context.get("gift_can_carry_heavy")),
+            model_used=self.model,
+        )
+
+    def _gate_gift(self, ad: Ad, context: dict) -> GiftRelevance:
+        """Billiges Vorfilter-Gate (nano); im Zweifel ``maybe`` (hoher Recall)."""
+        try:
+            prompt = build_gift_gate_prompt(context)
+            content = self._complete_json(prompt, self.cheap_model, max_tokens=150)
+            payload = self._parse_json_content(content)
+            if isinstance(payload, dict):
+                return coerce_gift_relevance(payload.get("relevance"))
+        except Exception as exc:  # noqa: BLE001 — im Zweifel durchlassen, nicht die Queue stoppen.
+            logger.warning("Gift gate fallback for ad %s: %s", ad.id, exc)
+        return "maybe"
+
+    def _assess_gift(self, ad: Ad, context: dict, model: str) -> GiftAssessment:
+        """Gründliche Wert/Aufwand-Schätzung; darf bei Bedarf Produktbilder anfordern."""
+        try:
+            prompt = build_gift_assessment_prompt(context)
+            content = self._complete_final_json(prompt, model, ad, max_tokens=700)
+            return GiftAssessment.model_validate(self._parse_json_content(content))
+        except Exception as exc:  # noqa: BLE001 — Fallback hält die Queue am Laufen.
+            logger.error("Gift assessment fallback for ad %s: %s", ad.id, exc)
+            with contextlib.suppress(Exception):
+                self._log_analysis_error(ad, "Gift assessment fallback", str(exc))
+            return fallback_gift_assessment(ad.title or "")
+
+    def _skip_gift_result(self, context: dict) -> GiftAnalysisResult:
+        """Ergebnis für vom Gate aussortierte Funde — niedriger Score, kein teurer Call."""
+        assessment = GiftAssessment(
+            estimated_value_eur=None,
+            value_confidence=0.15,
+            interest_match="off_profile",
+            summary="Von der Vorfilterung als uninteressant eingestuft.",
+            reasoning="Das günstige Relevanz-Gate hat diesen Fund als Junk/Werbung eingestuft.",
+        )
+        return build_gift_result(
+            assessment,
+            relevance="skip",
+            distance_km=context.get("distance_km"),  # type: ignore[arg-type]
+            radius_km=context.get("gift_radius_km"),  # type: ignore[arg-type]
+            vehicle=str(context.get("gift_vehicle") or "small_car"),
+            can_carry_heavy=bool(context.get("gift_can_carry_heavy")),
+            model_used=self.cheap_model,
         )
 
     def _fetch_sold_reference(self, ad: Ad, product: ProductExtraction) -> SoldReference | None:
@@ -363,7 +448,9 @@ class AIService:
             }
         )
 
-    def _apply_result_to_ad(self, ad: Ad, result: DealAnalysisResult) -> None:
+    def _apply_result_to_ad(
+        self, ad: Ad, result: DealAnalysisResult | GiftAnalysisResult
+    ) -> None:
         """Persist final score and explainable evidence on the ad row."""
         final = result.final
         ad.bargain_score = final.score
@@ -396,7 +483,10 @@ class AIService:
 
     def _build_user_context(self, ad: Ad, adsearch: AdSearch | None) -> dict:
         """Erstellt das Kontext-Dict für die Nutzer-Nachricht (nur Werte, keine String-Labels)."""
-        is_gift_search = is_gift_category_search_url(adsearch.url if adsearch else None)
+        gift_watch = self._load_gift_watch(adsearch)
+        is_gift_search = gift_watch is not None or is_gift_category_search_url(
+            adsearch.url if adsearch else None
+        )
         if ad.price is not None:
             price_display = f"{ad.price:.0f}€"
         elif is_gift_search:
@@ -430,7 +520,20 @@ class AIService:
             "search_url": adsearch.url if adsearch else None,
             "analysis_mode": "gift_category" if is_gift_search else "priced_market",
             "is_gift_category_search": is_gift_search,
+            # Fundgrube-Kontext (nur bei verknüpfter GiftWatch belegt).
+            "distance_km": ad.distance_km,
+            "gift_interest_profile": gift_watch.interest_profile if gift_watch else None,
+            "gift_focus_keywords": gift_watch.focus_keywords if gift_watch else None,
+            "gift_vehicle": gift_watch.vehicle if gift_watch else "small_car",
+            "gift_can_carry_heavy": bool(gift_watch.can_carry_heavy) if gift_watch else False,
+            "gift_radius_km": gift_watch.radius_km if gift_watch else None,
         }
+
+    def _load_gift_watch(self, adsearch: AdSearch | None) -> GiftWatch | None:
+        """Lädt die verknüpfte Fundgrube-Beobachtung (mit ihrem Regelwerk), falls vorhanden."""
+        if adsearch is None or adsearch.gift_watch_id is None:
+            return None
+        return self.session.get(GiftWatch, adsearch.gift_watch_id)
 
     def generate_negotiation_message(self, ad: Ad) -> dict:
         """Erzeugt eine Verhandlungsnachricht + faires Gegenangebot aus der Anzeigen-Analyse.

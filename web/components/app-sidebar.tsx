@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import {
   ChevronsUpDown,
+  Gift,
   Home,
   List,
   LogOut,
@@ -46,6 +47,7 @@ import { useAuth } from "@/components/auth-provider"
 const navItems = [
   { label: "Start", href: "/dashboard", icon: Home },
   { label: "Suchaufträge", href: "/searches/", icon: Search },
+  { label: "Fundgrube", href: "/fundgrube/", icon: Gift },
   { label: "Preis-Alarme", href: "/price-alerts/", icon: TrendingDown },
 ]
 

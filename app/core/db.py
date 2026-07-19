@@ -37,6 +37,11 @@ _ADDITIVE_COLUMNS: list[tuple[str, str, str]] = [
     ("ad_searches", "search_order_id", "INTEGER"),
     ("deal_watches", "search_order_id", "INTEGER"),
     ("deal_watches", "max_price", "FLOAT"),
+    # Fundgrube (Verschenken-Beobachtung): Eltern-Verweis + Kategorie-Ausschluss je Suche,
+    # Luftlinie je Anzeige für die Aufwand-Achse.
+    ("ad_searches", "gift_watch_id", "INTEGER"),
+    ("ad_searches", "blacklist_categories", "VARCHAR"),
+    ("ads", "distance_km", "FLOAT"),
 ]
 
 _SQLITE_PREFIX = "sqlite:///"

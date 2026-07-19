@@ -27,6 +27,10 @@ const defaultTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Preis-Alarme",
     subtitle: "Überwache beliebige Webseiten auf Preisänderungen",
   },
+  "/fundgrube": {
+    title: "Fundgrube",
+    subtitle: "Beobachte die „Zu verschenken\"-Kategorie im Umkreis nach deinen eigenen Regeln",
+  },
   "/settings": {
     title: "Einstellungen",
     subtitle: "Globale App-Einstellungen",

@@ -7,6 +7,7 @@ from app.routes.api.adsearch import router as adsearch_router
 from app.routes.api.auth import router as auth_router
 from app.routes.api.deal_watches import router as deal_watches_router
 from app.routes.api.feed import router as feed_router
+from app.routes.api.gift_watches import router as gift_watches_router
 from app.routes.api.logs_aianalysis import router as aianalysislogs_router
 from app.routes.api.logs_error import router as errorlogs_router
 from app.routes.api.logs_scraperun import router as scraperuns_router
@@ -28,6 +29,7 @@ api_router.include_router(scraperuns_router)
 api_router.include_router(price_watches_router)
 api_router.include_router(deal_watches_router)
 api_router.include_router(search_orders_router)
+api_router.include_router(gift_watches_router)
 api_router.include_router(feed_router)
 api_router.include_router(notifications_router)
 api_router.include_router(settings_router)

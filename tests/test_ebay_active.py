@@ -63,7 +63,7 @@ def test_parse_active_listings_extracts_fields_and_skips_placeholder():
 
 
 def test_upscale_image_replaces_size_suffix():
-    """Jede eBay-Vorschaugröße wird auf die Zielgröße (s-l800) hochgesetzt; Nicht-Treffer bleiben."""
+    """Jede eBay-Vorschaugröße wird auf s-l800 hochgesetzt; Nicht-Treffer bleiben unverändert."""
     assert ebay_active._upscale_image("https://i.ebayimg.com/a-s-l140.webp") == (
         "https://i.ebayimg.com/a-s-l800.webp"
     )

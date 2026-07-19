@@ -11,6 +11,9 @@ import type {
   DealWatchCreate,
   ErrorLog,
   FeedPage,
+  GiftWatch,
+  GiftWatchCreate,
+  GiftWatchUpdate,
   NegotiationMessage,
   Notification,
   PaginatedAds,
@@ -219,6 +222,18 @@ export const deleteSearchOrder = (id: number) =>
   apiFetch<void>(`/search-orders/${id}`, { method: "DELETE" })
 export const checkSearchOrderNow = (id: number) =>
   apiFetch<SearchOrder>(`/search-orders/${id}/check-now`, { method: "POST" })
+
+// GiftWatches (Fundgrube — Verschenken-Beobachtung mit eigenem Regelwerk)
+export const fetchGiftWatches = () => apiFetch<GiftWatch[]>("/gift-watches/")
+export const fetchGiftWatch = (id: number) => apiFetch<GiftWatch>(`/gift-watches/${id}`)
+export const createGiftWatch = (data: GiftWatchCreate) =>
+  apiFetch<GiftWatch>("/gift-watches/", { method: "POST", body: JSON.stringify(data) })
+export const updateGiftWatch = (id: number, data: GiftWatchUpdate) =>
+  apiFetch<GiftWatch>(`/gift-watches/${id}`, { method: "PATCH", body: JSON.stringify(data) })
+export const deleteGiftWatch = (id: number) =>
+  apiFetch<void>(`/gift-watches/${id}`, { method: "DELETE" })
+export const checkGiftWatchNow = (id: number) =>
+  apiFetch<GiftWatch>(`/gift-watches/${id}/check-now`, { method: "POST" })
 
 // Feed (Ergebnis-Stream der Startseite)
 export const fetchFeed = (params: {

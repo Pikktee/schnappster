@@ -52,6 +52,8 @@ class Ad(SQLModel, table=True):
     price: float | None = None
     postal_code: str | None = None
     city: str | None = None
+    # Luftlinie zur Nutzer-PLZ (nur bei Fundgrube-Funden gesetzt); speist die Aufwand-Achse.
+    distance_km: float | None = None
     url: str
     image_urls: str | None = None
     condition: str | None = None
@@ -94,6 +96,7 @@ class AdRead(SQLModel):
     price: float | None
     postal_code: str | None
     city: str | None
+    distance_km: float | None = None
     url: str
     image_urls: str | None = Field(default=None, exclude=True)
     condition: str | None

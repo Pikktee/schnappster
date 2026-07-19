@@ -50,6 +50,8 @@ class AdSearch(SQLModel, table=True):
     # Eltern-Suchauftrag (SearchOrder); None nur bei frisch angelegten Alt-/Extension-Suchen,
     # die beim nächsten Listen-Abruf adoptiert werden.
     search_order_id: int | None = Field(default=None, foreign_key="search_orders.id", index=True)
+    # Fundgrube-Eltern (GiftWatch); gesetzt bei Verschenken-Beobachtungen, sonst None.
+    gift_watch_id: int | None = Field(default=None, foreign_key="gift_watches.id", index=True)
     name: str
     # Quelle/Plattform des Suchauftrags (Registry-Name); Default hält Altbestand bei Kleinanzeigen.
     platform: str = Field(default="kleinanzeigen")
@@ -63,6 +65,9 @@ class AdSearch(SQLModel, table=True):
     min_price: float | None = None
     max_price: float | None = None
     blacklist_keywords: str | None = None
+    # Ausgeschlossene Kleinanzeigen-Kategorien (category_l2), komma-separiert; von der
+    # Fundgrube gespiegelt, aber generisch für jede Suche nutzbar.
+    blacklist_categories: str | None = None
     is_exclude_images: bool = False
     is_active: bool = True
     scrape_interval_minutes: int = 30

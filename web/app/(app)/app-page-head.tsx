@@ -65,6 +65,18 @@ export function AppPageHead() {
               </BreadcrumbItem>
             </>
           )}
+          {pathSegments.length >= 1 && pathSegments[0] === "fundgrube" && (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {pathSegments.length === 1 ? (
+                  <BreadcrumbPage>Fundgrube</BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink href="/fundgrube">Fundgrube</BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </>
+          )}
           {pathSegments.length >= 1 && pathSegments[0] === "settings" && (
             <>
               <BreadcrumbSeparator />

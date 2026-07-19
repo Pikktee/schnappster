@@ -15,6 +15,9 @@ _BASE_URL = "https://www.kleinanzeigen.de"
 # Kleinanzeigen-Slugs transliterieren Umlaute (ä→ae …); Rohumlaute funktionieren zwar auch,
 # aber die transliterierte Form ergibt saubere, encoding-freie URLs.
 _UMLAUT_MAP = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"})
+# Kategorie „Zu verschenken & Tauschen" (c272), empirisch bestätigt: liefert mit
+# ``?locationStr=<plz>&radiusKm=<r>`` die umkreis-gefilterten Verschenken-Anzeigen.
+_GIFT_CATEGORY_PATH = "/s-zu-verschenken-tauschen/c272"
 
 
 def _slugify(query: str) -> str:
@@ -40,7 +43,12 @@ class KleinanzeigenScraper(PlatformScraper):
 
         Formate empirisch bestätigt: ``/s-{slug}/k0``, Preis als Pfadsegment
         ``/s-preis:min:max/{slug}/k0``, Standort als Query ``?locationStr=&radiusKm=``.
+        Im Fundgrube-Modus (``gift_only``) wird stattdessen die Verschenken-Kategorie
+        im Umkreis beobachtet — ohne Suchbegriff und ohne Preisspanne.
         """
+        if params.gift_only:
+            return self._build_gift_url(params)
+
         slug = _slugify(params.query)
         if not slug:
             raise ValueError("Suchbegriff ergibt keinen gültigen URL-Slug.")
@@ -49,6 +57,17 @@ class KleinanzeigenScraper(PlatformScraper):
         path = f"/s-{price}/{slug}/k0" if price else f"/s-{slug}/k0"
         url = f"{_BASE_URL}{path}"
 
+        query: dict[str, str | int] = {}
+        if params.postal_code:
+            query["locationStr"] = params.postal_code
+            if params.radius_km:
+                query["radiusKm"] = params.radius_km
+        return f"{url}?{urlencode(query)}" if query else url
+
+    @staticmethod
+    def _build_gift_url(params: SearchParams) -> str:
+        """Baut die Verschenken-Kategorie-URL im Umkreis der Nutzer-PLZ."""
+        url = f"{_BASE_URL}{_GIFT_CATEGORY_PATH}"
         query: dict[str, str | int] = {}
         if params.postal_code:
             query["locationStr"] = params.postal_code

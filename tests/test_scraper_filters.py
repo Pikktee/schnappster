@@ -112,6 +112,55 @@ def test_get_filter_reason_keeps_ads_from_gift_search_url_without_detail_categor
     assert reason is None
 
 
+def test_get_filter_reason_excludes_blacklisted_category():
+    """Fundgrube: Anzeigen einer ausgeschlossenen Kategorie (category_l2) werden gefiltert."""
+    detail = ScrapedAdDetail(
+        external_id="4",
+        title="Kinderjacke Gr. 92",
+        url="https://www.kleinanzeigen.de/s-anzeige/test/4-4-4",
+        price=None,
+        category_l1="Familie_Kind_Baby",
+        category_l2="Kinderkleidung",
+    )
+    adsearch = AdSearch(
+        owner_id="00000000-0000-0000-0000-000000000001",
+        name="Fundgrube",
+        url="https://www.kleinanzeigen.de/s-zu-verschenken-tauschen/c272",
+        blacklist_categories="Kinderkleidung, Damenschuhe",
+    )
+
+    reason = ScraperService._get_filter_reason(
+        detail=detail, adsearch=adsearch, exclude_commercial=False, min_rating=0
+    )
+
+    assert reason is not None
+    assert "Ausgeschlossene Kategorie" in reason
+
+
+def test_get_filter_reason_category_exclusion_is_best_effort_when_missing():
+    """Fehlt die Detail-Kategorie (aktueller Kleinanzeigen-Stand), greift der Ausschluss nicht."""
+    detail = ScrapedAdDetail(
+        external_id="5",
+        title="Irgendwas zu verschenken",
+        url="https://www.kleinanzeigen.de/s-anzeige/test/5-5-5",
+        price=None,
+        category_l1=None,
+        category_l2=None,
+    )
+    adsearch = AdSearch(
+        owner_id="00000000-0000-0000-0000-000000000001",
+        name="Fundgrube",
+        url="https://www.kleinanzeigen.de/s-zu-verschenken-tauschen/c272",
+        blacklist_categories="Kinderkleidung",
+    )
+
+    reason = ScraperService._get_filter_reason(
+        detail=detail, adsearch=adsearch, exclude_commercial=False, min_rating=0
+    )
+
+    assert reason is None
+
+
 def test_get_filter_reason_excludes_ads_without_price_and_not_zu_verschenken():
     """Anzeigen ohne Preis und ohne Zu-verschenken-Kategorie werden gefiltert."""
     detail = ScrapedAdDetail(

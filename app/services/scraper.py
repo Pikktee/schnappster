@@ -15,6 +15,7 @@ from app.models.logs_scraperun import ScrapeRun
 from app.platforms import DEFAULT_PLATFORM, get_platform
 from app.scraper.parser import ScrapedAdDetail
 from app.services.deal_analysis import is_gift_category_search_url
+from app.services.geo import postal_distance_km
 from app.services.relevance import title_matches_query
 from app.services.settings import SettingsService
 
@@ -31,9 +32,11 @@ class AdSearchSnapshot:
     url: str
     platform: str
     search_query: str | None
+    postal_code: str | None
     min_price: float | None
     max_price: float | None
     blacklist_keywords: str | None
+    blacklist_categories: str | None
     last_scraped_at: datetime | None
     scrape_interval_minutes: int
 
@@ -105,7 +108,7 @@ class ScraperService:
 
             details = scraper.build_details(new_previews)
             filtered = self._filter_ads(details, search)
-            ads = self._save_ads(filtered, search.id, search.owner_id)
+            ads = self._save_ads(filtered, search)
 
             ads_found_result = len(previews)
             ads_filtered_result = len(details) - len(filtered)
@@ -253,6 +256,15 @@ class ScraperService:
                 if keyword and (keyword in title_lower or keyword in desc_lower):
                     return f"Blacklist-Keyword '{keyword}'"
 
+        # Ausgeschlossene Kategorien (Fundgrube). Kleinanzeigen liefert category_l2 aktuell
+        # oft nicht mehr → best effort; die semantische Junk-Filterung trägt die Nano-Stufe.
+        if adsearch.blacklist_categories and detail.category_l2:
+            excluded = {
+                c.strip().lower() for c in adsearch.blacklist_categories.split(",") if c.strip()
+            }
+            if detail.category_l2.lower() in excluded:
+                return f"Ausgeschlossene Kategorie '{detail.category_l2}'"
+
         # Gewerbliche Verkäufer (global)
         if exclude_commercial and detail.seller_type and detail.seller_type.lower() == "gewerblich":
             return "Gewerblicher Verkäufer"
@@ -284,14 +296,21 @@ class ScraperService:
         return [p for p in previews if p.external_id not in existing_ids]
 
     def _save_ads(
-        self, details: list[ScrapedAdDetail], adsearch_id: int, owner_id: str
+        self, details: list[ScrapedAdDetail], search: AdSearchSnapshot
     ) -> list[Ad]:
-        """Speichert gescrapte Details in ``ads`` und gibt die neuen ``Ad``-Instanzen zurück."""
+        """Speichert gescrapte Details in ``ads`` und gibt die neuen ``Ad``-Instanzen zurück.
+
+        Berechnet die Luftlinie zur Nutzer-PLZ (falls beide vorhanden) für die Fundgrube-
+        Aufwand-Achse; bei normalen Suchen ohne PLZ bleibt ``distance_km`` None.
+        """
         ads: list[Ad] = []
 
         for detail in details:
+            distance_km = None
+            if search.postal_code and detail.postal_code:
+                distance_km = postal_distance_km(search.postal_code, detail.postal_code)
             ad = Ad(
-                owner_id=owner_id,
+                owner_id=search.owner_id,
                 external_id=detail.external_id,
                 title=detail.title,
                 url=detail.url,
@@ -299,6 +318,7 @@ class ScraperService:
                 price=detail.price,
                 postal_code=detail.postal_code,
                 city=detail.city,
+                distance_km=distance_km,
                 condition=detail.condition,
                 shipping_cost=detail.shipping_cost,
                 image_urls=",".join(detail.image_urls),
@@ -309,7 +329,7 @@ class ScraperService:
                 seller_is_reliable=detail.seller_is_reliable,
                 seller_type=detail.seller_type,
                 seller_active_since=detail.seller_active_since,
-                adsearch_id=adsearch_id,
+                adsearch_id=search.id,
             )
             self.session.add(ad)
             ads.append(ad)
@@ -331,9 +351,11 @@ def _snapshot_adsearch(adsearch: AdSearch | AdSearchSnapshot) -> AdSearchSnapsho
         url=adsearch.url,
         platform=adsearch.platform or DEFAULT_PLATFORM,
         search_query=adsearch.search_query,
+        postal_code=adsearch.postal_code,
         min_price=adsearch.min_price,
         max_price=adsearch.max_price,
         blacklist_keywords=adsearch.blacklist_keywords,
+        blacklist_categories=adsearch.blacklist_categories,
         last_scraped_at=adsearch.last_scraped_at,
         scrape_interval_minutes=adsearch.scrape_interval_minutes,
     )
