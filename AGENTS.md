@@ -2,7 +2,7 @@
 
 ## What is Schnappster?
 
-A personal web app that periodically scrapes Kleinanzeigen.de search results, analyzes them for bargains using AI (OpenAI-compatible API, e.g. OpenRouter or Alibaba Model Studio), and displays results in a dashboard. A second area, **Preis-Alarme** (price watches), monitors **arbitrary websites** for price changes and notifies via an in-app notification center and optional Telegram.
+A personal web app that periodically scrapes Kleinanzeigen.de search results, analyzes them for bargains using AI (OpenAI-compatible API, e.g. OpenRouter or Alibaba Model Studio), and displays results in a dashboard. A second area, **Preis-Alarme** (price watches), monitors **arbitrary websites** for price changes and notifies via an in-app notification center and optional Telegram. A third area, **Fundgrube** (gift watches), monitors the Kleinanzeigen **„Zu verschenken"** category within a radius and ranks finds by a **value-vs-effort score** (Wert gegen Abholaufwand) instead of a price delta.
 
 ## Commands
 
@@ -21,7 +21,7 @@ uv run dbreset               # Drop and recreate DB (no Alembic – use this for
 uv run createadmin [email] [pw]  # Create/promote an admin user (uses ADMIN_EMAIL/ADMIN_PASSWORD if omitted)
 uv run docs [show]           # Generate API docs (pdoc), optionally open in browser
 uv run seed                  # Seed database with sample data (creates a demo user as owner)
-uv run release               # Create a release
+uv run release [patch|minor|major]  # Version bumpen + Tag pushen → LÖST DEN DEPLOY AUS (s. Deployment)
 uv run release-chrome-extension  # Package Chrome extension to extensions/dist/
 uv run mcp-server              # TTY: Quick-Tunnel, URL einmal; ``r`` MCP neu, ``p`` Proxy, ``q`` Ende
 uv run mcp-server --tunnel     # nur ohne TTY: TryCloudflare + MCP (ein Lauf)
@@ -43,6 +43,28 @@ npm run lint    # ESLint
 ```
 
 Frontend and API are separate processes: locally ``uv run start`` starts both; production uses Vercel (web) + Railway (API). Set ``NEXT_PUBLIC_API_URL`` to the public API URL (e.g. ``https://api.<domain>``).
+
+### Deployment (WICHTIG: nur per Release-Tag)
+
+**Ein Push auf `main` deployt NICHTS.** Der einzige Deploy-Auslöser ist ein **Git-Tag `v*`**: er startet
+`.github/workflows/deploy-on-release-tag.yml`, das drei Jobs parallel fährt — **Vercel** (Frontend),
+**Railway** (Backend/API) und **Railway** (MCP-Server). Ohne Tag bleibt die Live-Umgebung auf dem alten
+Stand, egal wie viele Commits auf `main` liegen.
+
+```bash
+uv run release            # patch (Default): 0.9.10 → 0.9.11
+uv run release minor      # 0.9.11 → 0.10.0
+```
+
+``cli/release.py`` macht in dieser Reihenfolge: pyproject-Version bumpen → ``uv lock`` → Commit
+``chore: bump version to vX.Y.Z`` → ``git push origin main`` → ``git tag -a vX.Y.Z`` → **``git push origin vX.Y.Z``**
+(erst dieser letzte Schritt deployt). Das Skript **bricht bei unsauberem Working Tree ab** und fragt vor dem
+Push nach Bestätigung — bei fremden, noch nicht committeten Änderungen im Baum entweder erst committen/stashen
+oder die Schritte gezielt von Hand ausführen (nur die eigenen Dateien stagen).
+
+Deploy-Status prüfen: ``gh run list`` / ``gh run watch <id>``. Ob der neue Stand wirklich live ist, verrät
+``curl https://api.<domain>/version/`` (deployte Version) — deshalb ist der Version-Bump kein Kosmetik-Schritt,
+sondern die einzige verlässliche Deploy-Signatur.
 
 ### Docker
 
@@ -96,6 +118,30 @@ cd mcp-server && uv run ruff check schnappster_mcp tests
 2. **Monitor:** for each due watch, fetch HTML → `PriceExtractor.extract_price(html, locator)` → compare with `last_price`. On change, store a `PricePoint` (history only stores changes, not every check). If a `css` selector still matches multiple elements, `_disambiguate_css_match` picks the one closest to the stored value. Extraction failures set `last_error`/`consecutive_failures` (surfaced in the UI), not an exception.
 3. **Alert:** with a threshold → alert when the price drops to/below it; without a threshold → alert on **any** price drop. Alerts create a `Notification` (+ optional Telegram via `notify_price_telegram`). Limitations (communicated in the wizard / surfaced as `last_error`): JS-rendered SPAs without structured/SEO data yield no price in the initial HTML; sites behind an active bot challenge (Cloudflare "Just a moment…") return a challenge page that an HTTP-only client cannot pass — `preview` detects these (`_looks_like_bot_challenge` / HTTP 403/429/503) and returns a clear 422 instead of a misleading "no prices found". **From Railway's datacenter IP, Amazon and Cloudflare block far more aggressively than a residential IP; the robust fix is to route price-watch fetches through a trusted IP by setting `SCRAPINGANT_API_KEY` (or `SCRAPE_PROXY_URL`; see `app/scraper/` above) — without it, protected sites stay unreachable in prod regardless of fingerprint.**
 
+### Fundgrube-Pipeline (Verschenken-Monitoring, `services/gift_analysis.py`)
+
+Beobachtet die Kleinanzeigen-Kategorie **„Zu verschenken"** im Umkreis. Anders als ein Suchauftrag (sucht ein
+konkretes Produkt) bewertet sie Funde nach einem **Interessensprofil** und einem **Wert-gegen-Aufwand-Score** —
+bei Verschenken ist der Preis 0, `bargain_score` bedeutet hier „lohnt sich die Abholung?".
+
+1. **Anlegen:** `GiftWatch` (`models/gift_watch.py`) trägt alle Regeln (interest_profile, focus/exclude_keywords,
+   exclude_categories, vehicle, can_carry_heavy, min_score_notify, PLZ/Radius). Beim Speichern erzeugt
+   `routes/api/gift_watches.py` **ein `AdSearch`-Kind** (Gift-URL + `gift_watch_id`-FK) — dasselbe Muster wie
+   `SearchOrder` → `AdSearch`. Dadurch laufen Scrape *und* Analyse unverändert über die bestehende Pipeline;
+   **kein eigener Scheduler-Job**. URL-Bau: `SearchParams(gift_only=True)` → `/s-zu-verschenken-tauschen/c272?locationStr=&radiusKm=`.
+2. **Filtern (deterministisch, gratis):** `ScraperService` berechnet die Luftlinie Nutzer-PLZ ↔ Anzeigen-PLZ über
+   `services/geo.py` (offline, gebündelte Zentroide in `services/data/de_postal_centroids.csv.gz`, ~10.8k PLZ) und
+   schreibt sie auf `Ad.distance_km`. Harte Ausschlüsse: `blacklist_keywords` + `blacklist_categories` (auf das
+   AdSearch-Kind gespiegelt). **Achtung:** Kleinanzeigen liefert `category_l1/l2` aktuell nicht mehr (auch echte
+   Verschenk-Anzeigen haben `None`) → der Kategorie-Ausschluss ist nur best-effort.
+3. **Bewerten (Trichter):** `AIService._run_deal_pipeline` verzweigt bei `is_gift_category_context` nach
+   `_run_gift_pipeline`. Erst ein billiges **nano-Gate** (`skip|maybe|candidate`, bewusst hoher Recall — es trägt
+   die Hauptlast der Junk-/Werbe-Filterung, weil die Trefferliste Spam enthält); nur `maybe`/`candidate` laufen ins
+   teure Assessment. Dort schätzt das **LLM** semantisch (`estimated_value_eur`, `condition`, `transport_class`,
+   `interest_match`), und eine **deterministische Formel** verrechnet: Transport-Matrix × Distanz × Fahrzeug →
+   Aufwand, dann `Wert − Aufwand + Schwerpunkt-Bonus`. Tuning-Konstanten stehen benannt oben in `gift_analysis.py`
+   (`GIFT_VALUE_SCALE_EUR`, `GIFT_EFFORT_WEIGHT`, `GIFT_FOCUS_BOOST`, `GIFT_DISTANCE_MALUS`, `_TRANSPORT_EFFORT`).
+
 ### Scheduler (APScheduler, `core/background_jobs.py`, class `BackgroundJobs`)
 
 - Scrape job runs every 1 minute and once at startup — loads active `AdSearch` records, scrapes those that are due via `ScraperService.scrape_due_searches()`; when new ads were scraped, queues one AI analysis run (separate single-worker queue so scrape and analyze never overlap).
@@ -109,7 +155,8 @@ Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (Radix UI). Build/dev workflow a
 - `web/lib/api.ts` — all API calls, typed against `web/lib/types.ts`
 - `web/app/(app)/` — route group for the main app layout (sidebar)
 - Dynamic detail routes (`/ads/[id]`, `/searches/[id]`, `/price-alerts/[id]`) are normal Next.js App Router pages; data is fetched in the browser from the API
-- **Preis-Alarme:** `app/(app)/price-alerts/` (list + `[id]` detail with a `recharts` price-history chart); `price-watch-wizard.tsx` (URL → candidate selection → interval/threshold), `price-watch-card.tsx`. `notification-bell.tsx` in the header (`app/(app)/layout.tsx`) polls unread count. New page areas must be registered in `page-head-context.tsx` (title) and `app-page-head.tsx` (breadcrumb).
+- **Preis-Alarme:** `app/(app)/price-alerts/` (list + `[id]` detail with a `recharts` price-history chart); `price-watch-wizard.tsx` (URL → candidate selection → interval/threshold), `price-watch-card.tsx`. `notification-bell.tsx` in the header (`app/(app)/layout.tsx`) polls unread count. - **Fundgrube:** `app/(app)/fundgrube/` (Liste + `[id]`-Detail mit den Funden); `gift-watch-form.tsx` im rechten Sheet (`gift-watch-sheet.tsx`), `gift-watch-card.tsx`. Die Funde nutzen `ad-card.tsx` mit dem Prop **`gift`** → zeigt „Zu verschenken" + geschätzten Wert + Entfernung statt Preis.
+New page areas must be registered in `page-head-context.tsx` (title), `app-page-head.tsx` (breadcrumb) **and `app-sidebar.tsx` (`navItems`)** — sonst fehlt der Menüpunkt.
 - `web/components/ui/` — shadcn/ui primitives (don't modify directly)
 
 ### Key conventions
