@@ -89,3 +89,66 @@ def test_build_search_url_rejects_empty_slug():
     scraper = get_platform("kleinanzeigen").scraper
     with pytest.raises(ValueError, match="Slug"):
         scraper.build_search_url(SearchParams(query="!!!"))
+
+
+# --- Orts-ID im Pfad (Kleinanzeigen seit 2026) ---
+
+
+@pytest.fixture
+def fake_location_ids(monkeypatch):
+    """Orts-ID-Auflösung ohne Netz: 60311 → 18709, sonst unbekannt."""
+    from app.platforms.kleinanzeigen import scraper as ka_scraper
+
+    monkeypatch.setattr(
+        ka_scraper, "resolve_location_id", lambda plz: 18709 if plz == "60311" else None
+    )
+    return ka_scraper
+
+
+def test_localize_search_url_keyword_with_price(fake_location_ids):
+    """Keyword-Suche mit Preis: PLZ vorn, Orts-ID und Umkreis am Ende."""
+    url = f"{_KA}/s-preis:300:1500/rennrad-carbon/k0?locationStr=60311&radiusKm=30"
+    assert (
+        fake_location_ids.localize_search_url(url)
+        == f"{_KA}/s-60311/preis:300:1500/rennrad-carbon/k0l18709r30"
+    )
+
+
+def test_localize_search_url_keyword_without_radius(fake_location_ids):
+    """Ohne Umkreis nur die Orts-ID."""
+    url = f"{_KA}/s-siebtraeger/k0?locationStr=60311"
+    assert fake_location_ids.localize_search_url(url) == f"{_KA}/s-60311/siebtraeger/k0l18709"
+
+
+def test_localize_search_url_gift_category(fake_location_ids):
+    """Verschenken-Kategorie: Kategorie-Slug vorn, dann PLZ, dann c272 mit Orts-ID."""
+    url = f"{_KA}/s-zu-verschenken-tauschen/c272?locationStr=60311&radiusKm=10"
+    assert (
+        fake_location_ids.localize_search_url(url)
+        == f"{_KA}/s-zu-verschenken-tauschen/60311/c272l18709r10"
+    )
+
+
+def test_localize_search_url_leaves_other_urls_alone(fake_location_ids):
+    """Ohne Ort, mit unbekannter PLZ oder bei fertigen Pfad-URLs bleibt alles, wie es ist."""
+    plain = f"{_KA}/s-iphone/k0"
+    unknown = f"{_KA}/s-iphone/k0?locationStr=99999&radiusKm=5"
+    native = f"{_KA}/s-audio-hifi/60325/podmic/k0c172l4305r250"
+    for url in (plain, unknown, native):
+        assert fake_location_ids.localize_search_url(url) == url
+
+
+def test_resolve_location_id_parses_suggestions(monkeypatch):
+    """Erster Vorschlag mit passender PLZ gewinnt; 'Deutschland' (_0) wird übersprungen."""
+    from app.platforms.kleinanzeigen import scraper as ka_scraper
+
+    monkeypatch.setattr(ka_scraper, "_location_ids", {})
+    monkeypatch.setattr(
+        ka_scraper,
+        "fetch_page_with_status",
+        lambda url: (
+            200,
+            '{"_0":"Deutschland","_18709":"60311 Altstadt","_4296":"60311 Innenstadt"}',
+        ),
+    )
+    assert ka_scraper.resolve_location_id("60311") == 18709

@@ -76,6 +76,9 @@ class ScrapedAdDetail:
 # ---------------
 # --- Hilfsfunktionen ---
 # ---------------
+_THOUSANDS_RE = re.compile(r"\d{1,3}(?:\.\d{3})+")
+
+
 def _parse_price(text: str) -> float | None:
     """Parst Preis aus Text wie '75 €', '110 € VB'; None wenn nicht parsebar."""
     cleaned = text.replace("€", "").replace("VB", "").strip()
@@ -83,6 +86,9 @@ def _parse_price(text: str) -> float | None:
         return None
     if "," in cleaned:
         cleaned = cleaned.replace(".", "").replace(",", ".")
+    elif _THOUSANDS_RE.fullmatch(cleaned):
+        # „1.200 €" ist ein Tausenderpunkt, kein Dezimalpunkt.
+        cleaned = cleaned.replace(".", "")
     try:
         return float(cleaned)
     except ValueError:
@@ -112,30 +118,86 @@ _TITLE_SUFFIX_RE = re.compile(
 )
 
 
+# Überschriften, unter denen Kleinanzeigen Treffer außerhalb der eigentlichen Suche zeigt
+# („Alternativen" aus anderen Orten). Alles danach gehört nicht zum Suchergebnis.
+_ALTERNATIVE_HEADINGS = (
+    "Alternative Anzeigen in der Umgebung",  # Markup bis 2026
+    "Weitere Ergebnisse in anderen Orten",  # React/Tailwind-Markup seit 2026
+)
+
+
 def parse_search_results(html: str) -> list[ScrapedAdPreview]:
-    """Parst Anzeigen-Vorschauen aus dem HTML einer Suchergebnisseite."""
+    """Parst Anzeigen-Vorschauen aus dem HTML einer Suchergebnisseite.
 
-    # Kleinanzeigen blendet unterhalb der eigentlichen Suchtreffer häufig einen separaten
-    # Block "Alternative Anzeigen in der Umgebung" ein. Diese Alternativen sollen NICHT
-    # als reguläre Suchergebnisse behandelt werden. Um sie zuverlässig auszuschließen,
-    # schneiden wir den HTML-Input vor dieser Überschrift ab, sodass nur der Teil mit
-    # den echten Suchtreffern geparst wird.
-    cutoff_marker = "Alternative Anzeigen in der Umgebung"
-    html_to_parse = html.split(cutoff_marker, 1)[0] if cutoff_marker in html else html
-
-    soup = BeautifulSoup(html_to_parse, "lxml")
+    Versteht beide Markups: die Karten seit dem Umbau 2026
+    (``<article data-adid=… data-href=…>``) und die älteren ``li.ad-listitem``.
+    Treffer unterhalb einer Alternativ-Überschrift werden ignoriert; oben
+    hervorgehobene Anzeigen, die weiter unten erneut erscheinen, nur einmal gezählt.
+    """
+    soup = BeautifulSoup(html, "lxml")
     ads: list[ScrapedAdPreview] = []
-    items = soup.select("li.ad-listitem")
+    seen: set[str] = set()
 
-    for item in items:
-        ad = _parse_search_item(item)
-        if ad:
+    for el in soup.find_all(["h1", "h2", "h3", "article", "li"]):
+        if el.name in ("h1", "h2", "h3"):
+            if any(marker in el.get_text(" ", strip=True) for marker in _ALTERNATIVE_HEADINGS):
+                break
+            continue
+        if el.name == "article" and el.has_attr("data-adid"):
+            ad = _parse_article_item(el)
+        elif el.name == "li" and "ad-listitem" in (el.get("class") or []):
+            ad = _parse_search_item(el)
+        else:
+            continue
+        if ad and ad.external_id not in seen:
+            seen.add(ad.external_id)
             ads.append(ad)
     return ads
 
 
+def _parse_article_item(item: Tag) -> ScrapedAdPreview | None:
+    """Parst eine Trefferkarte im Markup seit 2026 (``article[data-adid]``)."""
+    external_id = str(item.get("data-adid") or "")
+    href = str(item.get("data-href") or "")
+    if not external_id.isdigit() or "/s-anzeige/" not in href:
+        return None
+    url = f"{BASE_URL}{href}" if href.startswith("/") else href
+
+    title_tag = item.find(["h3", "h2"])
+    title = title_tag.get_text(" ", strip=True) if title_tag else ""
+
+    # Aktueller Preis ist fett; ein durchgestrichener Altpreis steht daneben.
+    price = None
+    for price_tag in item.select("p.font-strong"):
+        if "line-through" in (price_tag.get("class") or []):
+            continue
+        price = _parse_price(price_tag.get_text(" ", strip=True))
+        break
+
+    # Ort steht neben dem Standort-Symbol, z. B. „60313 Innenstadt (0.6 km)".
+    location = None
+    pin = item.select_one("svg[data-title='locationOutline']")
+    if pin and pin.parent:
+        location = " ".join(pin.parent.get_text(" ", strip=True).split()) or None
+
+    image_url = None
+    img = item.select_one("img[src*='img.kleinanzeigen.de']")
+    if img:
+        raw = img.get("src")
+        image_url = raw if isinstance(raw, str) else None
+
+    return ScrapedAdPreview(
+        external_id=external_id,
+        title=title,
+        url=url,
+        price=price,
+        location=location,
+        image_url=image_url,
+    )
+
+
 def _parse_search_item(item: Tag) -> ScrapedAdPreview | None:
-    """Parst einen Suchergebnis-Listen-Eintrag zu ScrapedAdPreview oder None wenn ungültig."""
+    """Parst einen Suchergebnis-Listen-Eintrag (Markup bis 2026) oder None wenn ungültig."""
     link = item.select_one("a[href*='/s-anzeige/']")
     if not link:
         return None

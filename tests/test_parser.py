@@ -280,3 +280,71 @@ def test_parse_search_results_parses_all_items_without_alternative_block():
 
     assert len(previews) == 2
     assert {p.external_id for p in previews} == {"111111111", "222222222"}
+
+
+def test_parse_price_thousands_separator_without_decimals():
+    """'1.200 €' ist ein Tausenderpunkt, kein Dezimalpunkt."""
+    assert _parse_price("1.200 €") == 1200.0
+    assert _parse_price("12.500 € VB") == 12500.0
+
+
+# --- Suchergebnisse im Markup seit 2026 (article[data-adid]) ---
+
+
+def test_parse_search_results_2026_markup():
+    """Trefferkarten seit dem Umbau 2026: ID, URL, Titel, Preis, Ort und Bild."""
+    html = (FIXTURES_DIR / "search-2026.html").read_text()
+    previews = parse_search_results(html)
+
+    assert len(previews) == 25
+    assert len({p.external_id for p in previews}) == 25
+    first = previews[0]
+    assert first.external_id == "3547149827"
+    assert first.url.startswith("https://www.kleinanzeigen.de/s-anzeige/")
+    assert first.url.endswith("/3547149827-217-4276") or "3547149827" in first.url
+    assert first.title.startswith("Campagnolo BORA ULTRA")
+    assert first.price == 729.0
+    assert first.location == "64287 Darmstadt (26 km)"
+    assert first.image_url and first.image_url.startswith("https://img.kleinanzeigen.de/")
+    assert all(p.price for p in previews)
+
+
+def test_parse_search_results_2026_ignores_other_places():
+    """Ohne echte Treffer zeigt Kleinanzeigen nur 'Weitere Ergebnisse in anderen Orten'."""
+    html = (FIXTURES_DIR / "search-2026-only-alternatives.html").read_text()
+    assert parse_search_results(html) == []
+
+
+def test_parse_search_results_2026_cuts_at_other_places_heading():
+    """Karten unter 'Weitere Ergebnisse in anderen Orten' zählen nicht mit."""
+    html = """
+    <html><body>
+      <ul><li><article data-adid="111111111" data-href="/s-anzeige/echt/111111111-1-1">
+        <h3>Echte Anzeige</h3><p class="font-strong">50 €</p></article></li></ul>
+      <h2>Weitere Ergebnisse in anderen Orten</h2>
+      <ul><li><article data-adid="222222222" data-href="/s-anzeige/fern/222222222-1-1">
+        <h3>Ferne Anzeige</h3></article></li></ul>
+    </body></html>
+    """
+    previews = parse_search_results(html)
+    assert [p.external_id for p in previews] == ["111111111"]
+
+
+def test_parse_search_results_2026_dedupes_and_skips_strikethrough_price():
+    """Doppelte Karten (Top-Anzeigen) nur einmal; durchgestrichener Altpreis zählt nicht."""
+    card = """<article data-adid="333333333" data-href="/s-anzeige/rad/333333333-1-1">
+        <h3>Rad</h3>
+        <p class="my-xsmall font-strong">1.200 € VB</p>
+        <p class="m-xsmall line-through font-strong">1.500 €</p></article>"""
+    previews = parse_search_results(f"<html><body>{card}{card}</body></html>")
+    assert len(previews) == 1
+    assert previews[0].price == 1200.0
+
+
+def test_parse_search_results_2026_gift_category():
+    """Verschenken-Kategorie: Karten ohne Preis werden mit price=None übernommen."""
+    html = (FIXTURES_DIR / "gift-2026.html").read_text()
+    previews = parse_search_results(html)
+    assert len(previews) >= 25
+    assert all(p.price is None for p in previews)
+    assert all(p.location for p in previews)

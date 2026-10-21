@@ -12,7 +12,7 @@ from sqlmodel import Session, col, select
 
 from app.core import db_engine, setup_logging
 from app.models import AdSearch
-from app.services.scraper import ScraperService
+from app.services.scraper import ScraperService, _snapshot_adsearch
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +39,11 @@ def main() -> None:
             logger.info("No active AdSearches found")
             return
 
+        # Schnappschüsse vorab: scrape_adsearch gibt die Session-Verbindung nach jedem Lauf
+        # frei, danach wären die übrigen AdSearch-Objekte abgekoppelt (DetachedInstanceError).
+        snapshots = [_snapshot_adsearch(s) for s in searches]
         scraper = ScraperService(session)
-        for adsearch in searches:
+        for adsearch in snapshots:
             logger.info(f"Scraping '{adsearch.name}'...")
             scrape_run = scraper.scrape_adsearch(adsearch)
             logger.info(
