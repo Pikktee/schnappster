@@ -459,3 +459,98 @@ def test_ai_service_raises_without_api_key(mock_app_config, session):
     mock_app_config.openai_api_key = ""
     with pytest.raises(ValueError, match="API key not configured"):
         AIService(session)
+
+
+# --- KI-Anbieter nicht nutzbar: kein Fallback-Score ---
+
+
+def _status_error(cls_name: str, status: int, message: str):
+    """Baut eine OpenAI-Statusausnahme wie vom SDK geworfen."""
+    import httpx
+    import openai
+
+    request = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+    response = httpx.Response(status, request=request)
+    return getattr(openai, cls_name)(message, response=response, body=None)
+
+
+@pytest.mark.parametrize(
+    ("exc", "expected"),
+    [
+        (_status_error("PermissionDeniedError", 403, "Key limit exceeded (total limit)"), True),
+        (_status_error("AuthenticationError", 401, "Invalid API key"), True),
+        (_status_error("RateLimitError", 429, "Rate limit"), True),
+        (_status_error("InternalServerError", 502, "Bad gateway"), True),
+        (_status_error("PermissionDeniedError", 403, "Input was flagged by moderation"), False),
+        (_status_error("BadRequestError", 400, "Invalid request"), False),
+        (RuntimeError("model not found"), False),
+        (ValueError("Leere Antwort von der KI"), False),
+    ],
+)
+def test_provider_unavailable_classification(exc, expected):
+    """Limit, Schlüssel, Rate-Limit und Ausfälle zählen; Moderation und Formatfehler nicht."""
+    from app.services.ai import _provider_unavailable
+
+    assert _provider_unavailable(exc) is expected
+
+
+def test_fallbacks_do_not_hide_exhausted_key(sample_ads):
+    """Ist das Kontingent erschöpft, gibt es keinen Ersatz-Score, sondern einen Abbruch."""
+    from app.services.ai import AIProviderUnavailableError
+
+    ai_service = AIService.__new__(AIService)
+    ai_service.model = "main-model"
+    ai_service.cheap_model = "cheap-model"
+
+    def exhausted(prompt, model, images, max_tokens):
+        raise _status_error("PermissionDeniedError", 403, "Key limit exceeded (total limit)")
+
+    ai_service._chat_json = exhausted  # type: ignore[method-assign]
+    with pytest.raises(AIProviderUnavailableError):
+        ai_service._extract_product(sample_ads[0], {"title": sample_ads[0].title})
+
+
+def test_fallbacks_still_cover_unusable_answers(sample_ads):
+    """Eine unbrauchbare Antwort führt weiterhin zum deterministischen Fallback."""
+    ai_service = AIService.__new__(AIService)
+    ai_service.model = "main-model"
+    ai_service.cheap_model = "main-model"
+    ai_service._chat_json = lambda *args, **kwargs: "kein json"  # type: ignore[method-assign]
+
+    product = ai_service._extract_product(sample_ads[0], {"title": sample_ads[0].title})
+    assert product is not None
+
+
+def test_analyze_ads_stops_and_leaves_ads_unanalyzed_when_provider_unavailable():
+    """Erste Anzeige scheitert am Anbieter: Lauf bricht ab, nichts wird als analysiert markiert."""
+    from app.services.ai import AIProviderUnavailableError
+
+    class DummySession:
+        def rollback(self) -> None: ...
+        def invalidate(self) -> None: ...
+        def close(self) -> None: ...
+
+    ai_service = AIService.__new__(AIService)
+    ai_service.session = DummySession()
+    calls: list[int | None] = []
+    logged: list[str] = []
+
+    def fake_analyze_ad(ad: Ad, prompt_text: str) -> None:
+        calls.append(ad.id)
+        raise AIProviderUnavailableError("Key limit exceeded")
+
+    ai_service._build_prompt_text_for_log = lambda ad: "prompt"  # type: ignore[method-assign]
+    ai_service._analyze_ad = fake_analyze_ad  # type: ignore[method-assign]
+    ai_service._log_analysis_error = (  # type: ignore[method-assign]
+        lambda ad, error_type, *args, **kwargs: logged.append(error_type)
+    )
+
+    ads = [
+        Ad(owner_id="owner", id=i, external_id=str(i), title=f"Ad {i}", url=f"https://e.x/{i}")
+        for i in (1, 2, 3)
+    ]
+
+    assert ai_service._analyze_ads(ads) == 0
+    assert calls == [1]
+    assert logged == ["AI provider unavailable"]
+    assert not any(ad.is_analyzed for ad in ads)

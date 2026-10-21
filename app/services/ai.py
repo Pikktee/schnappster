@@ -7,10 +7,16 @@ import base64
 import contextlib
 import json
 import logging
+import re
 from collections.abc import Sequence
 from io import BytesIO
 
-from openai import BadRequestError, OpenAI  # pyright: ignore[reportMissingImports]
+from openai import (  # pyright: ignore[reportMissingImports]
+    APIConnectionError,
+    APIStatusError,
+    BadRequestError,
+    OpenAI,
+)
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
@@ -88,6 +94,44 @@ REQUEST_IMAGES_TOOL = {
 }
 
 
+class AIProviderUnavailableError(Exception):
+    """Der KI-Anbieter ist gerade nicht nutzbar (Limit, Schlüssel, Rate-Limit, Ausfall)."""
+
+
+# Statuscodes, bei denen keine Anzeige sinnvoll bewertet werden kann: Schlüssel ungültig
+# (401), Guthaben erschöpft (402), Rate-Limit (429) und Serverfehler. Dann hilft kein
+# Fallback-Score – er würde die Anzeige als „analysiert" mit Score 0 markieren, und sie
+# würde nie wieder bewertet. 403 nur bei Limit/Guthaben/Schlüssel („Key limit exceeded"):
+# OpenRouter meldet mit 403 auch Inhalte, die die Moderation markiert hat – die betreffen
+# nur diese eine Anzeige und dürfen den Lauf nicht blockieren.
+_PROVIDER_UNAVAILABLE_STATUS = {401, 402, 429}
+_PROVIDER_LIMIT_RE = re.compile(r"limit|credit|quota|api key|key", re.IGNORECASE)
+
+
+def _provider_unavailable(exc: BaseException) -> bool:
+    """True, wenn ``exc`` (oder seine Ursache) auf einen nicht nutzbaren Anbieter hinweist."""
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, AIProviderUnavailableError | APIConnectionError):
+            return True
+        if isinstance(current, APIStatusError) and (
+            current.status_code in _PROVIDER_UNAVAILABLE_STATUS
+            or current.status_code >= 500
+            or (current.status_code == 403 and bool(_PROVIDER_LIMIT_RE.search(str(current))))
+        ):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
+def _reraise_if_provider_unavailable(exc: BaseException) -> None:
+    """Fallbacks nur für unbrauchbare Antworten, nicht für einen ausgefallenen Anbieter."""
+    if _provider_unavailable(exc):
+        raise AIProviderUnavailableError(str(exc)) from exc
+
+
 class AIService:
     """KI-Analyse per OpenAI-API: Score, Zusammenfassung, Begründung; optional Telegram."""
 
@@ -143,6 +187,15 @@ class AIService:
             try:
                 self._analyze_ad(ad, prompt_text_for_error)
                 analyzed += 1
+
+            except AIProviderUnavailableError as e:
+                # Anzeige bleibt unbewertet (is_analyzed=False) und kommt im nächsten Lauf
+                # wieder dran. Die übrigen jetzt zu versuchen, scheitert genauso.
+                self._handle_analysis_error(
+                    ad, "AI provider unavailable", str(e), prompt_text_for_error
+                )
+                logger.error("KI-Anbieter nicht nutzbar – Analyse-Lauf abgebrochen.")
+                break
 
             except BadRequestError as e:
                 error_msg = (
@@ -324,6 +377,7 @@ class AIService:
             if isinstance(payload, dict):
                 return coerce_gift_relevance(payload.get("relevance"))
         except Exception as exc:  # noqa: BLE001 — im Zweifel durchlassen, nicht die Queue stoppen.
+            _reraise_if_provider_unavailable(exc)
             logger.warning("Gift gate fallback for ad %s: %s", ad.id, exc)
         return "maybe"
 
@@ -334,6 +388,7 @@ class AIService:
             content = self._complete_final_json(prompt, model, ad, max_tokens=700)
             return GiftAssessment.model_validate(self._parse_json_content(content))
         except Exception as exc:  # noqa: BLE001 — Fallback hält die Queue am Laufen.
+            _reraise_if_provider_unavailable(exc)
             logger.error("Gift assessment fallback for ad %s: %s", ad.id, exc)
             with contextlib.suppress(Exception):
                 self._log_analysis_error(ad, "Gift assessment fallback", str(exc))
@@ -380,6 +435,7 @@ class AIService:
             content = self._complete_json(prompt, self.cheap_model, max_tokens=500)
             return ProductExtraction.model_validate(self._parse_json_content(content))
         except Exception as exc:  # noqa: BLE001 — fallback keeps the queue moving.
+            _reraise_if_provider_unavailable(exc)
             logger.warning("Product extraction fallback for ad %s: %s", ad.id, exc)
             return fallback_product_extraction(ad.title)
 
@@ -400,6 +456,7 @@ class AIService:
                 raise TypeError("Comparison judgement response must be a JSON array")
             return [ComparisonJudgement.model_validate(item) for item in payload]
         except Exception as exc:  # noqa: BLE001 — weak same-search evidence is still useful.
+            _reraise_if_provider_unavailable(exc)
             logger.warning("Comparison judgement fallback: %s", exc)
             return fallback_comparison_judgements(candidates)
 
@@ -424,6 +481,7 @@ class AIService:
             final = FinalDealResult.model_validate(self._parse_json_content(content))
             return self._fill_final_defaults(final, market)
         except Exception as exc:  # noqa: BLE001 — keep queue moving on API failure
+            _reraise_if_provider_unavailable(exc)
             logger.error("Final scoring failed for ad %s: %s", ad.id, exc)
             with contextlib.suppress(Exception):
                 self._log_analysis_error(ad, "Final scoring fallback", str(exc))
